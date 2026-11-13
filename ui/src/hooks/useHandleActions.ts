@@ -30,6 +30,7 @@ import { runRestOps } from './runRestOps'
 import { runRestSet, type SetDispatchOptions, type WriteOp, type WriteOpResult } from './runRestSet'
 import { snowplowReadsCallProvenance } from './snowplowCapabilities'
 import type { SseSubscriber } from './sseClient'
+import { carriesBody, contentTypeOf, declaresContentType } from './writeContentType'
 
 /**
  * How long a blast-radius confirm may sit unanswered before it DENIES.
@@ -476,7 +477,13 @@ const runRest = async (
     return
   }
 
+  const shouldSendPayload = carriesBody(verb)
+
   const requestHeaders = {
+    // A body without a declared type goes out as text/plain, which the apiserver refuses (415):
+    // default it the way the set fabric does. One the chart declares (json-patch, strategic-merge…)
+    // wins unchanged — matched case-insensitively, so it is never sent twice.
+    ...(shouldSendPayload && !declaresContentType(headersObject) ? { 'Content-Type': contentTypeOf(verb) } : {}),
     // A widget's own headers never assert provenance: that header is the portal's, sent once.
     ...withoutProvenanceHeader(headersObject),
     Accept: 'application/json',
@@ -484,8 +491,6 @@ const runRest = async (
     // A scalar write is op 0 of a confirmed set of one.
     ...provenance?.headerFor(0),
   }
-
-  const shouldSendPayload = ['POST', 'PUT', 'PATCH'].includes(verb)
 
   // W0-3 provenance (record path): settled only AFTER the write resolves — success, HTTP failure,
   // or network throw. On the header path settling is a no-op: snowplow recorded the write.

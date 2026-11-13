@@ -111,6 +111,26 @@ describe('runRestSet — the ONE set-level gate (decline = nothing dispatched)',
   })
 })
 
+describe('runRestSet — each op declares the Content-Type of its body (the shared writeContentType rule)', () => {
+  const sentContentTypes = async (): Promise<(string | undefined)[]> => {
+    const fetchMock = vi.fn((_url: string, _init: RequestInit) => Promise.resolve(fakeResponse(true, 200)))
+    vi.stubGlobal('fetch', fetchMock)
+    await runRestSet(OPS, makeCtx())
+    return fetchMock.mock.calls.map(([, init]) => (init.headers as Record<string, string>)['Content-Type'])
+  }
+
+  it('a POST op goes out as JSON and a PATCH op as a merge-patch', async () => {
+    const [post, patch] = await sentContentTypes()
+    expect(post).toBe('application/json')
+    expect(patch).toBe('application/merge-patch+json')
+  })
+
+  it('a DELETE op carries no body, so it declares no Content-Type', async () => {
+    const [, , del] = await sentContentTypes()
+    expect(del).toBeUndefined()
+  })
+})
+
 describe('runRestSet — ordered dispatch through the same write path', () => {
   it('dispatches sequentially in index order with the base URL + Bearer auth; full success → results + count toast', async () => {
     const fetchMock = vi.fn(() => Promise.resolve(fakeResponse(true, 200, '{"message":"created"}')))
