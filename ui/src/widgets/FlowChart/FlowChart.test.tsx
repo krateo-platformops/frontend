@@ -274,6 +274,53 @@ describe('FlowChart variant: architecture — a chart\'s topology in the state t
     expect(Object.keys(options.edge.style)).toEqual(expect.arrayContaining(['labelFill', 'stroke']))
   })
 
+  describe('every name in full: the cards are laid out at the tallest card\'s height', () => {
+    // jsdom lays nothing out, so the probe's cards are given the heights a browser measures: a card
+    // whose name wraps to a second line is taller than 84px. `tall` is the Repo's.
+    let tall = 84
+    beforeEach(() => {
+      tall = 84
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function measured(this: HTMLElement) {
+        const probed = this.parentElement?.getAttribute('aria-hidden') === 'true' && this.parentElement.className.includes('probe')
+        const repo = this.textContent?.includes('-source') === true
+        let height = 0
+        if (probed) { height = repo ? tall : 84 }
+        return { bottom: height, height, left: 0, right: 0, top: 0, width: 0, x: 0, y: 0 } as DOMRect
+      })
+    })
+    afterEach(() => { vi.restoreAllMocks() })
+
+    it('names that fit one line: 240×84, exactly as before', () => {
+      render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(V1B)} />)
+      expect((graphDouble.last() as { node: { style: { size: unknown } } }).node.style.size).toEqual([240, 84])
+    })
+
+    it('a name on two lines: every card, and the box the layout reserves for each, is that card\'s height', () => {
+      tall = 107.4
+      render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(V1B)} />)
+      expect((graphDouble.last() as { node: { style: { size: unknown } } }).node.style.size).toEqual([240, 108])
+      expect(screen.getAllByRole('group').map((card) => card.style.height)).toEqual(['108px', '108px', '108px', '108px'])
+      // The probe is drawn nowhere a person reaches: hidden from the accessibility tree.
+      expect(screen.getAllByRole('group')).toHaveLength(4)
+    })
+
+    it('measured again when the fonts have loaded: a name set in the fallback face wraps differently', async () => {
+      const fonts = Object.assign(new EventTarget(), { ready: Promise.resolve() })
+      // jsdom has no FontFaceSet: the two members FlowChart uses.
+      Object.defineProperty(document, 'fonts', { configurable: true, value: fonts })
+      try {
+        render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture(V1B)} />)
+        await act(async () => { await fonts.ready })
+        expect((graphDouble.last() as { node: { style: { size: unknown } } }).node.style.size).toEqual([240, 84])
+        tall = 101
+        act(() => { fonts.dispatchEvent(new Event('loadingdone')) })
+        expect((graphDouble.last() as { node: { style: { size: unknown } } }).node.style.size).toEqual([240, 101])
+      } finally {
+        delete (document as { fonts?: unknown }).fonts
+      }
+    })
+  })
+
   it('no nodes is the shared empty state', () => {
     render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={architecture([])} />)
     expect(screen.getByText('Nothing to graph')).toBeTruthy()

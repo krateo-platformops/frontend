@@ -235,6 +235,31 @@ const architecture = () => (
   </div>
 )
 /**
+ * `?fixture=architecture-names&box=1179`: the composition Topology as portal#427 sends it — one node
+ * per resource, each with its full name, never grouped: builder-publish's Repository, its Repo, eight
+ * LocalResources and the PullRequest that depends on all of them, eleven nodes. architectureNames.spec.ts
+ * checks every name is shown in full and no two cards overlap.
+ */
+const NAMES_PREFIX = 'publish-bp-v2-20261002-1'
+const NAMES_FILES = Array.from({ length: 8 }, (_, index) => `${NAMES_PREFIX}-${String(index).padStart(3, '0')}`)
+const NAMES_DATA: FlowChartNodeData[] = [
+  { detail: 'default_branch · main', kind: 'Repository', name: `${NAMES_PREFIX}-repo`, parentRefs: [], state: 'done', uid: 'repo' },
+  { detail: 'targetCommitId · 0 of 1', kind: 'Repo', name: `${NAMES_PREFIX}-source`, parentRefs: [{ uid: 'repo' }], state: 'waiting', uid: 'source' },
+  ...NAMES_FILES.map((name): FlowChartNodeData => ({
+    detail: 'waits for Repository, Repo', kind: 'LocalResource', name, parentRefs: [{ uid: 'repo' }, { uid: 'source' }], state: 'withheld', uid: name,
+  })),
+  { detail: 'waits for all 8 LocalResource', kind: 'PullRequest', name: `${NAMES_PREFIX}-pr`, parentRefs: NAMES_FILES.map((uid) => ({ uid })), state: 'withheld', uid: 'pr' },
+]
+const architectureNames = () => (
+  <div data-testid='architecture-host' style={{ width: architectureBox }}>
+    <FlowChart
+      resourcesRefs={{ items: [] }}
+      uid='fixture-architecture-names'
+      widgetData={{ data: NAMES_DATA, density: architectureDensity, variant: 'architecture' } as FlowChartWidgetData}
+    />
+  </div>
+)
+/**
  * `?fixture=graph-zoom&zoom=0.8`: the same chain straight through DependencyGraph at a zoom under 1,
  * the path FlowChart takes when its type floor lets it scale (today's card never does). It proves
  * the zoom is G6's camera — the cards and the edges shrink together — not a size on paper.
@@ -258,7 +283,8 @@ const graphZoomFixture = () => (
  * `?fixture=architecture-cards`: the architecture card at both densities with the longest values a
  * chart realistically hands it — a forEach kind (`LocalResource ×8`), a 63-character name, a long
  * detail line, and each exception label — so architectureCardText.spec.ts can check, at the 12px
- * type floor, that no line wraps or runs out of its card. Each card is in a `data-case` wrapper.
+ * type floor, that no line runs out of its card and only the name wraps. Each card is in a
+ * `data-case` wrapper, and is drawn as tall as its lines need (no `height`: no graph reserves one).
  */
 const LONG_NAME = 'publish-pod-sizing-v1b-localresource-configmap-overrides-000009'
 type CardCase = { case: string; data: FlowChartNodeData }
@@ -428,6 +454,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   architecture,
   'architecture-cards': architectureCards,
   'architecture-graph': architectureGraphFixture,
+  'architecture-names': architectureNames,
   'focus-ring': focusRing,
   'graph-zoom': graphZoomFixture,
   login,

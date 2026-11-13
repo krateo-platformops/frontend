@@ -25,6 +25,7 @@ import {
   ARCHITECTURE_TYPE_FLOOR,
   architectureFit,
   architectureMinScale,
+  architectureNodeSize,
   architectureShape,
   toArchitectureGraphData,
   type ArchitectureFit,
@@ -265,6 +266,40 @@ describe('what DependencyGraph is handed', () => {
   })
 })
 
+describe('a card taller than 84px: every name in full', () => {
+  // The regular card wraps its name, and FlowChart measures the tallest card. That height is every
+  // regular card's box, so the layout makes room for it and no card runs into the one under it.
+  it('is the box every regular card takes; 84px or less is ARCHITECTURE_NODE_SIZE itself, compact is fixed', () => {
+    expect(architectureNodeSize('regular')).toBe(ARCHITECTURE_NODE_SIZE)
+    expect(architectureNodeSize('regular', 84)).toBe(ARCHITECTURE_NODE_SIZE)
+    expect(architectureNodeSize('regular', 100)).toEqual([240, 100])
+    // One object per height: a new nodeSize is a re-layout in DependencyGraph.
+    expect(architectureNodeSize('regular', 100)).toBe(architectureNodeSize('regular', 100))
+    expect(architectureNodeSize('compact', 100)).toBe(ARCHITECTURE_DENSITY.compact.nodeSize)
+  })
+
+  it('LR: changes no width, so no step — only the drawing\'s height, and with it the box\'s', () => {
+    const at84 = architectureFit(CHAIN, { box: [1179, 360], direction: 'LR' })
+    const at100 = architectureFit(CHAIN, { box: [1179, 360], cardHeight: 100, direction: 'LR' })
+    expect(row(at100)).toEqual(row(at84))
+    // One row of cards under one arc level: the height grows by exactly the card's 16px.
+    expect(at100.size[1] - at84.size[1]).toBe(16)
+  })
+
+  it('LR: eight branch rows (portal#427\'s eight LocalResources) grow by 16px each', () => {
+    const shape = { arcLevels: 1, broadest: 8, ranks: 4, rows: 8 }
+    const at84 = architectureFit(shape, { box: [1179, 360], direction: 'LR' })
+    const at100 = architectureFit(shape, { box: [1179, 360], cardHeight: 100, direction: 'LR' })
+    expect(at100.size[1] - at84.size[1]).toBe(8 * 16)
+  })
+
+  it('TB: the taller card is what is fitted down the box', () => {
+    // 600 − 32 = 568px: 3 × 100 + 2 × g ≤ 568 → g ≤ 134, stepped to 128 (at 84px it was 152).
+    const fit = architectureFit({ arcLevels: 0, broadest: 1, ranks: 3, rows: 1 }, { box: [415, 600], cardHeight: 100, direction: 'TB' })
+    expect([fit.step, fit.density, fit.rankGap, fit.size]).toEqual(['gap', 'regular', 128, [240, 556]])
+  })
+})
+
 describe('ARCHITECTURE_DENSITY is the stylesheet\'s box', () => {
   // The card's CSS box and the box dagre reserves are two spellings of one size: every width the fit
   // decision computes is ARCHITECTURE_DENSITY's, so a stylesheet that drew another would put cards
@@ -274,11 +309,14 @@ describe('ARCHITECTURE_DENSITY is the stylesheet\'s box', () => {
   const box = (selector: string): [number, number] => {
     const body = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].find(([, each]) => each.trim() === selector)?.[2] ?? ''
     const px = (property: string) => Number(new RegExp(`(?:^|[;\\s])${property}:\\s*(\\d+)px`).exec(body)?.[1])
-    return [px('width'), px('height')]
+    return [px('width'), px('height') || px('min-height')]
   }
 
-  it('regular: .card is ARCHITECTURE_NODE_SIZE, 240×84, border-box', () => {
+  it('regular: .card is ARCHITECTURE_NODE_SIZE, 240 wide and at least 84 tall, border-box', () => {
+    // A minimum: the card grows to show its name in full, and FlowChart reserves the tallest card's
+    // height (architectureNodeSize, below).
     expect(box('.card')).toEqual(ARCHITECTURE_DENSITY.regular.nodeSize)
+    expect(css).toMatch(/\.card \{[^}]*min-height: 84px/)
     expect(ARCHITECTURE_NODE_SIZE).toEqual([240, 84])
     expect(css).toMatch(/\.card \{[^}]*box-sizing: border-box/)
   })
