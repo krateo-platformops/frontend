@@ -156,6 +156,18 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
     () => (pageRoot && resolvedRoot ? pickFragment(pageRoot.fragment, fragmentKeysOf(resolvedRoot)) : undefined),
     [pageRoot, resolvedRoot],
   )
+  // A 401 snowplow answered IN THE BODY (a Status with code 401 on a 200). The transport decides what
+  // it means, exactly as for an HTTP 401 (hooks/useWidgetQuery.ts). Signed in: the in-place session
+  // resume, with the cause classified from this body (what catchError's 401 branch did here). On a
+  // public page: public serving is off — never a session resume, which with no resume surface
+  // mounted falls through to a real logout. An effect, not a call during render: on a public page it
+  // changes the page's own state.
+  const bodyUnauthorized = !!widget && typeof widget.status === 'string' && widget.kind === 'Status' && widget.code === 401
+  const bodyUnauthorizedMessage = bodyUnauthorized ? widget.message : undefined
+  useEffect(() => {
+    if (bodyUnauthorized) { transport.onUnauthorized({ message: bodyUnauthorizedMessage }) }
+  }, [bodyUnauthorized, bodyUnauthorizedMessage, transport])
+
   // Layout effects, so a page that swaps itself for a state of its own on a failed root (the
   // public page on a 403) does so before this renderer's own error card is ever painted.
   useLayoutEffect(() => {
@@ -228,18 +240,9 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
 
   if (typeof status === 'string') {
     if (kind === 'Status') {
-      if (code === 401) {
-        catchError(
-          {
-            data: { message },
-            message: `Authentication error (code: ${code})`,
-            status: code,
-          },
-          'notification'
-        )
-      }
-
-      if (code === 500 && status === 'Failure' && message?.includes('credentials')) {
+      // A credentials failure sends a signed-in person back to sign in. A public page has no
+      // sign-in to go back to; it shows the widget's error below instead.
+      if (transport.identity === 'signed-in' && code === 500 && status === 'Failure' && message?.includes('credentials')) {
         catchError(
           {
             data: { message },

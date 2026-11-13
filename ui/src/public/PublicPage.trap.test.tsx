@@ -107,6 +107,8 @@ interface Recorded { body?: string; channel: 'fetch' | 'xhr' | 'eventsource'; he
 let recorded: Recorded[] = []
 /** Per-widget status overrides, keyed by object name. */
 let statusFor: Record<string, number> = {}
+/** Per-widget error answered IN THE BODY of a 200 (a k8s Status), keyed by object name. */
+let bodyStatusFor: Record<string, number> = {}
 
 const lowerCased = (headers: unknown): Record<string, string> => {
   const out: Record<string, string> = {}
@@ -135,6 +137,8 @@ const fakeFetch = vi.fn((input: RequestInfo | URL, init: RequestInit = {}) => {
     const name = new URL(url).searchParams.get('name') ?? ''
     const status = statusFor[name]
     if (status) { return Promise.resolve(json({ code: status, kind: 'Status', message: `answered ${status}`, status: 'Failure' }, status)) }
+    const inBody = bodyStatusFor[name]
+    if (inBody) { return Promise.resolve(json({ code: inBody, kind: 'Status', message: `answered ${inBody} in the body`, status: 'Failure' })) }
     const body = fixtures[name]
     return Promise.resolve(body ? json(body) : json({ message: 'not found' }, 404))
   }
@@ -174,6 +178,7 @@ const snowplowRequests = () => recorded.filter(({ url }) => url.startsWith(SNOWP
 beforeEach(() => {
   recorded = []
   statusFor = {}
+  bodyStatusFor = {}
   notices.length = 0
   // jsdom has no IntersectionObserver; the List's scroll pager needs one to mount.
   // jsdom has no matchMedia or ResizeObserver; the Table asks both.
@@ -316,6 +321,18 @@ describe('what an anonymous read answered decides what the page shows', () => {
     await open('/public/demo')
 
     expect(await screen.findByText("Public pages aren't enabled on this installation")).toBeTruthy()
+  })
+
+  it('a 401 snowplow answers IN THE BODY of a 200 is the same answer: no session resume, no logout, no redirect', async () => {
+    bodyStatusFor['demo-button'] = 401
+    await open('/public/demo')
+
+    expect(await screen.findByText("Public pages aren't enabled on this installation")).toBeTruthy()
+    // The session resume, with no resume surface mounted, falls through to a logout that clears
+    // the stored session and leaves for /login. None of that happened.
+    expect(window.location.pathname).toBe('/public/demo')
+    expect(localStorage.getItem('K_user')).toContain(TOKEN)
+    expect(screen.queryByText(/session/i)).toBeNull()
   })
 
   it('403 on the root: "This page isn\'t public"', async () => {
