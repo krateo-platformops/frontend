@@ -47,14 +47,14 @@ describe('the rail carries every page param', () => {
   })
 
   it('a param named like a prototype key is an ordinary key', () => {
-    const extras = collectAt('/x?constructor=a&__proto__=b').extras
+    const { extras } = collectAt('/x?constructor=a&__proto__=b')
     expect(Object.keys(extras ?? {}).sort()).toEqual(['__proto__', 'constructor'])
     expect(Object.getPrototypeOf(extras)).toBe(Object.prototype)
   })
 
   it('is bounded: 24 params, 300 characters each', () => {
     const many = Array.from({ length: 30 }, (_, index) => `p${index}=${'v'.repeat(400)}`).join('&')
-    const extras = collectAt(`/x?${many}`).extras ?? {}
+    const { extras = {} } = collectAt(`/x?${many}`)
     expect(Object.keys(extras)).toHaveLength(24)
     expect(extras.p0).toHaveLength(300)
   })

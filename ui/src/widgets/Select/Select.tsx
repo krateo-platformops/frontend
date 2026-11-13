@@ -191,10 +191,10 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
           optionRender={countedOptionRender}
           options={antdOptions}
           placeholder={placeholder}
-          prefix={prefix}
           // Let the dropdown grow to fit the longest option (e.g. a long composition Kind) rather
           // than truncate to the compact trigger width.
           popupMatchSelectWidth={false}
+          prefix={prefix}
           size={size}
           value={value}
         />
