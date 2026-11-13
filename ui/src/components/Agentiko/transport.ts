@@ -19,6 +19,7 @@
  * itself mutates the cluster.
  */
 
+import { withA2aMethod } from '../../otel/spanContract'
 import { getAccessToken } from '../../utils/getAccessToken'
 import { randomId } from '../../utils/utils'
 
@@ -54,12 +55,42 @@ export const a2aAuthHeader = (): Record<string, string> => {
 }
 
 /**
- * JSON-RPC `message/stream` body. The redacted page-context fence rides ahead of
+ * One JSON-RPC request: its serialized body and the method it names, built together so the two
+ * cannot disagree. The method is what the request's `krateo.agentiko.a2a` span records
+ * (`withA2aMethod`), and it must be the method the body actually carries.
+ */
+interface RpcRequest {
+  body: string
+  method: string
+}
+
+const rpcRequest = (method: string, params: Record<string, unknown>): RpcRequest => ({
+  body: JSON.stringify({ id: 1, jsonrpc: '2.0', method, params }),
+  method,
+})
+
+/**
+ * POST one JSON-RPC request to the A2A endpoint. The `fetch` runs with the request's method on the
+ * active context, so the browser span the fetch instrumentation creates for it — exported as
+ * `krateo.agentiko.a2a` (otel/spanContract.ts) — records which call it measures. The body is never
+ * read for that: it is the user's message.
+ */
+const postRpc = (baseUrl: string, request: RpcRequest, accept: string, signal: AbortSignal): Promise<Response> =>
+  withA2aMethod(request.method, () => fetch(buildA2aUrl(baseUrl), {
+    body: request.body,
+    // Header rebuilt per call so a resubscribe carries a refreshed token.
+    headers: { Accept: accept, 'Content-Type': 'application/json', ...a2aAuthHeader() },
+    method: 'POST',
+    signal,
+  }))
+
+/**
+ * JSON-RPC `message/stream` request. The redacted page-context fence rides ahead of
  * the user text inside the message. `contextId` continues an existing A2A thread
  * (omitted on the first turn → the server assigns one, surfaced back as a `session`
  * frame). A fresh `messageId` per turn.
  */
-const buildRequestBody = (request: AgentikoSendRequest): string => {
+const buildRequest = (request: AgentikoSendRequest): RpcRequest => {
   const message: Record<string, unknown> = {
     kind: 'message',
     messageId: randomId(),
@@ -69,7 +100,7 @@ const buildRequestBody = (request: AgentikoSendRequest): string => {
   if (request.contextId) {
     message.contextId = request.contextId
   }
-  return JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'message/stream', params: { message } })
+  return rpcRequest('message/stream', { message })
 }
 
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
@@ -152,12 +183,7 @@ const textFromParts = (parts: unknown[]): string => {
  */
 const fetchTaskText = async (baseUrl: string, taskId: string, signal: AbortSignal): Promise<string | undefined> => {
   try {
-    const response = await fetch(buildA2aUrl(baseUrl), {
-      body: JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tasks/get', params: { id: taskId } }),
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...a2aAuthHeader() },
-      method: 'POST',
-      signal,
-    })
+    const response = await postRpc(baseUrl, rpcRequest('tasks/get', { id: taskId }), 'application/json', signal)
     if (!response.ok) {
       return undefined
     }
@@ -353,7 +379,7 @@ const processSseEvent = (event: string, handlers: AgentikoStreamHandlers, state:
  */
 const streamJsonRpc = (
   baseUrl: string,
-  body: string,
+  initial: RpcRequest,
   handlers: AgentikoStreamHandlers,
   state: KagentStreamState,
 ): (() => void) => {
@@ -370,7 +396,7 @@ const streamJsonRpc = (
   const MAX_RESUBSCRIBES = 30
 
   const run = async (): Promise<void> => {
-    let payload = body
+    let request = initial
     let attempt = 0
     let errorThisAttempt = false
     let sawText = false
@@ -397,18 +423,8 @@ const streamJsonRpc = (
       errorThisAttempt = false
       let response: Response
       try {
-        // Header rebuilt per attempt so a resubscribe carries a refreshed token.
         // eslint-disable-next-line no-await-in-loop -- reconnect attempts are inherently sequential
-        response = await fetch(buildA2aUrl(baseUrl), {
-          body: payload,
-          headers: {
-            Accept: 'text/event-stream',
-            'Content-Type': 'application/json',
-            ...a2aAuthHeader(),
-          },
-          method: 'POST',
-          signal: controller.signal,
-        })
+        response = await postRpc(baseUrl, request, 'text/event-stream', controller.signal)
       } catch (error) {
         if (controller.signal.aborted) {
           return
@@ -458,7 +474,7 @@ const streamJsonRpc = (
       // Premature close before completion: resume the still-running task if we know its id. A
       // resubscribe that errored is not retried — that method is unavailable here.
       if (!errorThisAttempt && state.taskId && attempt < MAX_RESUBSCRIBES) {
-        payload = JSON.stringify({ id: 1, jsonrpc: '2.0', method: 'tasks/resubscribe', params: { id: state.taskId } })
+        request = rpcRequest('tasks/resubscribe', { id: state.taskId })
         continue
       }
       // Streaming is exhausted. The task may have finished while we were disconnected, so ask for it.
@@ -493,18 +509,13 @@ export const createKagentTransport = (baseUrl: string): AgentikoTransport => ({
   // `{decision_type: approve|reject}` DataPart (see approval.ts). The agent's
   // continuation streams back through the same normalized frames.
   respondToApproval: (decision: ApprovalDecision, pause: ApprovalPause, handlers: AgentikoStreamHandlers): (() => void) => {
-    const body = JSON.stringify({
-      id: 1,
-      jsonrpc: '2.0',
-      method: 'message/stream',
-      params: { message: buildDecisionMessage(decision, pause, randomId()) },
-    })
+    const request = rpcRequest('message/stream', { message: buildDecisionMessage(decision, pause, randomId()) })
     // `contextSent: true` — the thread's contextId is already known to the provider;
     // re-emitting a `session` frame here would be redundant.
-    return streamJsonRpc(baseUrl, body, handlers, { contextSent: true, done: false, taskId: pause.taskId })
+    return streamJsonRpc(baseUrl, request, handlers, { contextSent: true, done: false, taskId: pause.taskId })
   },
   send: (request: AgentikoSendRequest, handlers: AgentikoStreamHandlers): (() => void) =>
-    streamJsonRpc(baseUrl, buildRequestBody(request), handlers, { contextSent: false, done: false }),
+    streamJsonRpc(baseUrl, buildRequest(request), handlers, { contextSent: false, done: false }),
 })
 
 // ────────────────────────────────────────────────────────────────────────────

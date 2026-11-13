@@ -18,7 +18,7 @@
  * this fails.
  */
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch'
-import { ATTR_HTTP_REQUEST_METHOD, ATTR_URL_FULL } from '@opentelemetry/semantic-conventions'
+import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_RESPONSE_STATUS_CODE, ATTR_URL_FULL } from '@opentelemetry/semantic-conventions'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ContractSpanProcessor, SPAN_NAMES, URL_ATTRS } from './spanContract'
@@ -97,8 +97,8 @@ describe('what instrumentation-fetch actually names its spans', () => {
 
   /**
    * The METHOD key was pinned here from the start; the URL key was not, and it is the same hazard
-   * with a wider blast radius. `urlOf` walks `URL_ATTRS` and feeds `isExportable`: if a bump moves
-   * the URL to a key outside that list, `urlOf` returns null, `isExportable` returns false, and
+   * with a wider blast radius. `urlOf` walks `URL_ATTRS` and feeds `spanUnder`: if a bump moves
+   * the URL to a key outside that list, `urlOf` returns null, `spanUnder` returns false, and
    * EVERY krateo.widget.fetch span is dropped before export — a green suite, a 2xx on the wire and
    * nothing arriving, which is #588's failure mode exactly.
    *
@@ -106,7 +106,7 @@ describe('what instrumentation-fetch actually names its spans', () => {
    * matters: whichever key the installed instrumentation chose, is it one this file READS?
    *
    * HONEST ABOUT WHAT THIS ADDS. The export path was ALREADY guarded here, indirectly: "renames it
-   * to krateo.widget.fetch and EXPORTS it" below runs the real attributes through `isExportable`,
+   * to krateo.widget.fetch and EXPORTS it" below runs the real attributes through `spanUnder`,
    * so emptying the read-set fails it too (verified by doing exactly that). What it fails with is
    * `expected "vi.fn()" to be called once, but got 0 times` — true, and silent about the cause.
    * This test fails with the URL contract named, and pins which key, so the next bump costs a
@@ -135,7 +135,10 @@ describe('ContractSpanProcessor renames a REAL instrumentation span', () => {
     processor.onStart(span as never, {} as never)
     expect(span.name).toBe(SPAN_NAMES.widgetFetch)
 
-    processor.onEnd({ attributes: captured.attributes, name: span.name } as never)
+    // Ended as a request that got its answer: the status code and the (empty) events and status every
+    // ended span carries. An unanswered request is spanContract.fetch.test.ts's subject.
+    const answered = { ...captured.attributes, [ATTR_HTTP_RESPONSE_STATUS_CODE]: 200 }
+    processor.onEnd({ attributes: answered, events: [], name: span.name, status: { code: 0 } } as never)
     expect(onEnd).toHaveBeenCalledOnce()
   })
 

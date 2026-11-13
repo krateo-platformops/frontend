@@ -60,12 +60,19 @@ export const POST_WRITE_REVALIDATE_DELAYS_MS = [800, 2200]
 
 /**
  * fetch with an abort-based timeout so an action request can't hang forever
- * (no native fetch timeout). Aborts after `ms`; the AbortError propagates to the
- * caller's catch. The timer is always cleared, including when fetch rejects.
+ * (no native fetch timeout). Aborts after `ms` with a `TimeoutError` reason, which
+ * fetch rejects with and which propagates to the caller's catch. The timer is always
+ * cleared, including when fetch rejects.
+ *
+ * WHY A `TimeoutError` AND NOT THE DEFAULT `AbortError`: browser telemetry drops an
+ * ABORTED request (the page withdrew it) but exports a timed-out one as a failure
+ * (otel/spanContract.ts `wasAborted`). A bare `abort()` would make a 30s write timeout
+ * indistinguishable from a cancellation, and it would vanish from the error rate.
+ * `AbortSignal.timeout()` rejects with the same name.
  */
 export const fetchWithTimeout = async (input: string, init: RequestInit, ms = 30000): Promise<Response> => {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), ms)
+  const timer = setTimeout(() => { controller.abort(new DOMException('The request timed out', 'TimeoutError')) }, ms)
   try {
     return await fetch(input, { ...init, signal: controller.signal })
   } finally {

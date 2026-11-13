@@ -37,8 +37,12 @@ const startable = (name: string, attributes: Record<string, unknown> = {}) => {
   }
 }
 
-/** A minimal ReadableSpan, as `onEnd` receives it: `name` is READ-ONLY here, which is the point. */
-const ended = (name: string, attributes: Record<string, unknown> = {}) => ({ attributes, name })
+/**
+ * A minimal ReadableSpan, as `onEnd` receives it: `name` is READ-ONLY here, which is the point.
+ * `events` and `status` are there because every real ended span has them, and the processor reads
+ * both to tell an aborted request from a failed one.
+ */
+const ended = (name: string, attributes: Record<string, unknown> = {}) => ({ attributes, events: [], name, status: { code: 0 } })
 
 const PREFIX = 'https://portal.krateo.dev/content'
 /** A fetch span as instrumentation-fetch 0.223+ actually makes one: bare method + the semconv attr. */
@@ -66,9 +70,11 @@ describe('the five names are the whole accepted set', () => {
     ])
   })
 
-  it('plus one counted span, outside the SLI set', () => {
-    expect(Object.values(COUNTED_SPAN_NAMES)).toEqual(['krateo.agentiko.claim.unbacked'])
-    expect(Object.values(SPAN_NAMES)).not.toContain(COUNTED_SPAN_NAMES.agentikoClaimUnbacked)
+  it('plus two spans exported outside the SLI set', () => {
+    expect(Object.values(COUNTED_SPAN_NAMES).sort()).toEqual(['krateo.agentiko.a2a', 'krateo.agentiko.claim.unbacked'])
+    for (const name of Object.values(COUNTED_SPAN_NAMES)) {
+      expect(Object.values(SPAN_NAMES)).not.toContain(name)
+    }
   })
 })
 
@@ -161,7 +167,8 @@ describe('on END, only contract spans survive', () => {
 })
 
 describe('a renamed fetch span is exported only for requests UNDER the snowplow base', () => {
-  const fetchSpan = (url: string) => ended(SPAN_NAMES.widgetFetch, { 'http.url': url })
+  /** A snowplow call that got its answer. What happens to one that did not is spanContract.fetch.test.ts's subject. */
+  const fetchSpan = (url: string) => ended(SPAN_NAMES.widgetFetch, { 'http.response.status_code': 200, 'http.url': url })
 
   it('exports a snowplow call', () => {
     const { inner, processor } = harness()
@@ -194,7 +201,7 @@ describe('a renamed fetch span is exported only for requests UNDER the snowplow 
 
   it('reads the NEWER url.full attribute too, so a dependency bump cannot drop everything', () => {
     const { inner, processor } = harness()
-    processor.onEnd(ended(SPAN_NAMES.widgetFetch, { 'url.full': `${PREFIX}/call` }) as never)
+    processor.onEnd(ended(SPAN_NAMES.widgetFetch, { 'http.response.status_code': 200, 'url.full': `${PREFIX}/call` }) as never)
     expect(inner.onEnd).toHaveBeenCalledOnce()
   })
 
