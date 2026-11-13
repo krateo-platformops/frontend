@@ -2,7 +2,8 @@
  * Full-bleed on a phone. At 480px and under (the sign-in page's breakpoint, mockup v3 "Phone ·
  * 400") the public page drops its gutter, as /login does, and a centred, capped Card drops its cap,
  * border, radius and shadow, so a sign-in style frame runs edge to edge with its band at the top
- * of the screen. The gutter is removed in ONE place, the page: the Card only stops being a boxed
+ * of the screen; a branded one also stretches to the screen's height on its own surface, as the
+ * sign-in card does, while the page keeps its ground. The gutter is removed in ONE place, the page: the Card only stops being a boxed
  * column. Above 480px nothing changes (PublicPage.paddingUnchanged).
  *
  * jsdom applies no stylesheet and evaluates no media query, so this reads the modules' rules.
@@ -35,5 +36,10 @@ describe('a public page on a phone', () => {
     }
     // …and it does not remove the page gutter itself: no negative margin, no viewport width.
     expect(rule).not.toMatch(/margin|100vw/)
+  })
+
+  it('a branded one fills the screen\'s height on its own surface; the page keeps its ground', () => {
+    expect(ruleInMedia(read('../widgets/Card/Card.module.css'), 480, '.panel.branded.centered.capped')).toMatch(/min-height:\s*100dvh;/)
+    expect(ruleInMedia(read('PublicPage.module.css'), 480, '.page')).not.toMatch(/background/)
   })
 })
