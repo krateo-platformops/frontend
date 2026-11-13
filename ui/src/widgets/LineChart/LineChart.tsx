@@ -1,7 +1,7 @@
 import { Line } from '@ant-design/plots'
 
 import { WidgetEmpty } from '../../components/WidgetStates'
-import { useMeasuredWidth } from '../../hooks/useMeasuredWidth'
+import { useAutoFitChart } from '../../hooks/useAutoFitChart'
 import { getChartCatPalette } from '../../theme/chart-utils'
 import { getColorCode } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
@@ -101,10 +101,13 @@ const localizeXField = (
 const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
   // Gate the chart on a measured (>0) container width so autoFit's FIRST paint runs against a real
   // size (no 0/transient-width layout race, e.g. a donut centre off-canvas). After that, autoFit owns
-  // sizing: G2's own ResizeObserver re-renders on container resize AND browser zoom (DPR change) at the
-  // current pixel ratio — passing a fixed width instead left the canvas locked to its initial size, so
-  // a page-zoom shrank the container while the canvas stayed wide and the plot got cropped.
-  const { ref, width } = useMeasuredWidth<HTMLDivElement>()
+  // sizing, at the current pixel ratio — passing a fixed width instead left the canvas locked to its
+  // initial size, so a page-zoom shrank the container while the canvas stayed wide and the plot got
+  // cropped. But G2's autoFit listens to `window` 'resize' only (a browser zoom fires it); it has no
+  // ResizeObserver on the container. A chart that re-rendered in a display:none tab pane drew at G2's
+  // 640px default and kept it when the tab came back (issue #603), so `useAutoFitChart` re-fits the
+  // chart on every non-zero measurement of the container — see that hook.
+  const { onReady, ref, width } = useAutoFitChart<HTMLDivElement>()
   const height = widgetData.height ?? 300
 
   if (!widgetData.data?.length) {
@@ -138,6 +141,7 @@ const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
           data={localData}
           key={uid}
           legend={widgetData.legend === false ? false : centeredLegend()}
+          onReady={onReady}
           point={widgetData.point}
           scale={scale}
           shapeField={widgetData.shapeField}

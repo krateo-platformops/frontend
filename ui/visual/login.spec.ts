@@ -51,6 +51,8 @@ const open = async (page: Page, mode: 'dark' | 'light') => {
 for (const mode of ['light', 'dark'] as const) {
   test(`the sign-in page · desktop · ${mode}`, async ({ page }) => {
     await open(page, mode)
+    // The cursor starts in Username (#652), so the picture shows that field focused.
+    await expect(page.getByLabel('Username')).toBeFocused()
     await expect(page).toHaveScreenshot(`Login-desktop-${mode}.png`)
   })
 
