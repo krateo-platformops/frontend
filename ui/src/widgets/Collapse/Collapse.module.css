@@ -1,0 +1,36 @@
+/* Collapse: antd's panels, with the header laid out to stay inside a narrow box. */
+
+/* The title may wrap rather than push the count badge and the `extra` past the box edge. */
+.header {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs) var(--spacing-sm);
+  min-width: 0;
+}
+
+.title {
+  font-weight: var(--font-weight-bold);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+  margin-inline-end: 0;
+}
+
+.extra {
+  font-size: var(--krateo-text-caption);
+}
+
+/* antd lays `extra` beside the title on one line; at phone width a long meta line would push the
+   header past the box. Let the header wrap, the meta line going under the title. */
+.collapse :global(.ant-collapse-header) {
+  flex-wrap: wrap;
+  row-gap: var(--spacing-xxs);
+}
+
+.collapse :global(.ant-collapse-title) {
+  min-width: 0;
+}

@@ -1,6 +1,7 @@
+import { CloseOutlined } from '@ant-design/icons'
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Avatar, Card, List as AntdList, Button, Progress, Tag, Tooltip, Typography } from 'antd'
+import { Avatar, Card, List as AntdList, Button, Progress, Statistic, Tag, Tooltip, Typography } from 'antd'
 import type { ListGridType } from 'antd/es/list'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { useId, useMemo, useState } from 'react'
@@ -51,7 +52,7 @@ const rowNavProps = (to: string | undefined, go: (path: string) => void) => {
   }
 }
 
-import { resolveRow, type ItemTemplate } from './itemTemplate'
+import { resolveAccent, resolveRow, type ItemTemplate } from './itemTemplate'
 import styles from './ListView.module.css'
 
 interface ListViewProps {
@@ -165,6 +166,15 @@ export const ListView = ({
   // Chip mode (Marketplace facet chips) lays its items out as a wrapping pill row, not a
   // vertical split list.
   const isChips = itemTemplate?.rowVariant === 'chip'
+  // A stats strip without an antd `grid` lays its tiles out as a wrapping CSS grid that fills the
+  // row and reflows to fewer columns as the box narrows, rather than antd's one-per-row list.
+  const isStatStrip = itemTemplate?.rowVariant === 'statistic' && !grid
+  let listClassName: string | undefined
+  if (isChips) {
+    listClassName = styles.chipList
+  } else if (isStatStrip) {
+    listClassName = styles.statList
+  }
 
   // COMPOSED CHILDREN → the page's health rollup.
   //
@@ -202,7 +212,7 @@ export const ListView = ({
   return (
     <AntdList
       bordered={bordered}
-      className={isChips ? styles.chipList : undefined}
+      className={listClassName}
       dataSource={items}
       footer={footer && footerNavigateTo
         // P12: a footer that says "see all →" is a way somewhere, so it is a real link — it takes
@@ -256,13 +266,23 @@ export const ListView = ({
         // optional `count`; solid/amber when the item's `active` flag is set. One chip per
         // element of the catalog RA's data-driven `categories` / `sources` array.
         if (itemTemplate.rowVariant === 'chip') {
-          const { active: activeRaw, count } = item as { active?: unknown; count?: number | string }
+          const { active: activeRaw, count, removable: removableRaw } = item as { active?: unknown; count?: number | string; removable?: unknown }
           const active = Boolean(activeRaw)
           const showCount = typeof count === 'number' || (typeof count === 'string' && count !== '')
+          // `removable`: an ACTIVE FILTER in a filter bar, one chip per applied value. Its
+          // `navigateTo` is the page's URL without that value (the RESTAction computes it from the
+          // same extras the page was resolved from), and the chip says so: a trailing ✕ and the
+          // name "Remove filter: <label>", so it is announced as what it does, not as the value.
+          // Read only when true, so a chip that does not set it renders as it always did.
+          const removable = removableRaw === true
           return (
             <AntdList.Item className={styles.chipItem} key={`${rowKey}-${index}`}>
               <Button
+                aria-label={removable ? `Remove filter: ${row.primaryText}` : undefined}
                 className={styles.chip}
+                // antd's own close glyph, the one a closable antd Tag draws.
+                icon={removable ? <CloseOutlined className={styles.chipRemove} /> : undefined}
+                iconPlacement={removable ? 'end' : undefined}
                 onClick={row.navigateTo ? () => navigateOrExternal(navigate, row.navigateTo) : undefined}
                 size='small'
                 type={active ? 'primary' : 'default'}
@@ -271,6 +291,41 @@ export const ListView = ({
                 {row.primaryText}
                 {showCount && <span className={styles.chipCount}>{count}</span>}
               </Button>
+            </AntdList.Item>
+          )
+        }
+
+        // Stats-strip tile: an antd Card holding an antd Statistic (title = primaryText, value =
+        // secondaryText) and a secondary caption (subPrimaryText). The strip is ONE widget fed by
+        // one dataSource, so a page's numbers are one /call and one cache cell, not four CRs per
+        // card. COLOUR IS EXCEPTION-ONLY: the value and the frame are tinted only when the
+        // template's `color` resolves (the RESTAction's template sets it when a bad count is > 0),
+        // and a healthy tile is the neutral ink. The caption carries the meaning too, so colour is
+        // never the only signal (WCAG 1.4.1).
+        if (itemTemplate.rowVariant === 'statistic') {
+          const accent = resolveAccent(itemTemplate.color, item)
+          const accentCode = accent ? getColorCode(accent) : undefined
+          // A value that resolves empty is data-missing, not zero: a muted em-dash, as the
+          // Statistic widget draws it, never a blank a reader takes for a real 0.
+          const missing = row.secondaryText === ''
+          let valueStyle: CSSProperties | undefined
+          if (missing) {
+            valueStyle = { opacity: 0.45 }
+          } else if (accentCode) {
+            valueStyle = { color: accentCode }
+          }
+          return (
+            <AntdList.Item className={styles.statItem} key={`${rowKey}-${index}`}>
+              <Card
+                className={`${styles.statCard} ${row.navigateTo ? styles.clickable : ''}`}
+                hoverable={Boolean(row.navigateTo)}
+                {...rowNavProps(row.navigateTo, (path) => navigateOrExternal(navigate, path))}
+                size='small'
+                style={accentCode ? { borderColor: `color-mix(in srgb, ${accentCode} 45%, var(--border-color))` } : undefined}
+              >
+                <Statistic styles={{ content: valueStyle }} title={row.primaryText} value={missing ? '—' : row.secondaryText} />
+                {row.subPrimaryText && <Typography.Text className={styles.statCaption} type='secondary'>{row.subPrimaryText}</Typography.Text>}
+              </Card>
             </AntdList.Item>
           )
         }

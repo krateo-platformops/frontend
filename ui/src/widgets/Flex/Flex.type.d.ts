@@ -40,6 +40,14 @@ export interface Flex {
        */
       wrap?: boolean
       /**
+       * ARIA role of the Flex element (antd Flex renders a div and passes it through). `search` makes a filter bar a search landmark, `region` a named section, `group` and `toolbar` a set of related controls, and `status` a polite live region, for a result count that should be announced when it changes. Absent, the Flex has no role.
+       */
+      role?: 'group' | 'region' | 'search' | 'status' | 'toolbar'
+      /**
+       * accessible name of the Flex element (`aria-label`), e.g. "Filter incidents". A `search` or `region` landmark needs one to be told apart from the page's others.
+       */
+      ariaLabel?: string
+      /**
        * the child widgets rendered inside the Flex
        */
       items: {

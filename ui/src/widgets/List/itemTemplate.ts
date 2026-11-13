@@ -123,9 +123,13 @@ export interface ItemTemplate {
    * name + version badge (subPrimaryText) + category tag (secondaryText) + description +
    * a footer of `rowActions` rendered as visible buttons — the Marketplace catalog grid),
    * or `chip` (a compact navigable filter pill — `primaryText` label + optional `count`,
-   * solid/amber when the item's `active` is true; the data-driven Marketplace facet chips).
+   * solid/amber when the item's `active` is true, a remove control when its `removable` is true;
+   * the data-driven facet chips and a filter bar's active filters), or `statistic` (one tile of a
+   * stats strip — an antd Card holding an antd Statistic: `primaryText` the title, `secondaryText`
+   * the value, `subPrimaryText` a secondary caption, `color` tinting the value ONLY when it
+   * resolves, so the healthy majority stays neutral).
    */
-  rowVariant?: 'default' | 'tree' | 'card' | 'chip'
+  rowVariant?: 'default' | 'tree' | 'card' | 'chip' | 'statistic'
 }
 
 export interface ResolvedBar {
@@ -198,6 +202,21 @@ export const resolveColor = (spec: ColorSpec | undefined, item: unknown): string
   const resolved = interpolate(spec.value, item)
   if (spec.map) { return spec.map[resolved] ?? spec.default ?? 'gray' }
   return resolved || spec.default || 'gray'
+}
+
+/**
+ * The row's colour when — and only when — the template resolves one: '' for no `color`, for a
+ * value that resolves empty with no `default`, and for a `map` miss with no `default`.
+ *
+ * `resolveColor` falls back to `gray`, which every row variant that always draws an accent wants.
+ * An exception-only accent (the `statistic` tile's value) needs to tell "no colour" from "gray":
+ * the template sets a colour only when a count is bad, and everything else stays the neutral ink.
+ */
+export const resolveAccent = (spec: ColorSpec | undefined, item: unknown): string => {
+  if (!spec) { return '' }
+  const resolved = interpolate(spec.value, item)
+  if (spec.map) { return spec.map[resolved] ?? spec.default ?? '' }
+  return resolved || spec.default || ''
 }
 
 export const resolveStatus = (spec: StatusSpec, item: unknown): ResolvedStatus => ({

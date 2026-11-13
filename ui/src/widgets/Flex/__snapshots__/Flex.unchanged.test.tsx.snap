@@ -1,0 +1,5 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Flex renders as it did before role / ariaLabel > a vertical column 1`] = `"<div class="ant-flex css-dev-only-do-not-override-12q6fii css-var-root ant-flex-gap-middle ant-flex-vertical"><span data-ref="a"></span><span data-ref="b"></span></div>"`;
+
+exports[`Flex renders as it did before role / ariaLabel > a wrapping row of two children 1`] = `"<div class="ant-flex css-dev-only-do-not-override-12q6fii css-var-root ant-flex-wrap-wrap ant-flex-gap-small"><span data-ref="a"></span><span data-ref="b"></span></div>"`;

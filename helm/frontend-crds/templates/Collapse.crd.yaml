@@ -1,0 +1,768 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: collapses.widgets.templates.krateo.io
+spec:
+  group: widgets.templates.krateo.io
+  names:
+    categories:
+      - widgets
+      - krateo
+    kind: Collapse
+    listKind: CollapseList
+    plural: collapses
+    singular: collapse
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: 'The widget''s contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides.'
+              properties:
+                apiRef:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                    - namespace
+                  type: object
+                resourcesRefs:
+                  properties:
+                    items:
+                      items:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          slice:
+                            properties:
+                              continue:
+                                type: boolean
+                              offset:
+                                type: integer
+                              page:
+                                type: integer
+                              perPage:
+                                type: integer
+                            required:
+                              - perPage
+                            type: object
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                      type: array
+                    slice:
+                      properties:
+                        continue:
+                          type: boolean
+                        offset:
+                          type: integer
+                        page:
+                          type: integer
+                        perPage:
+                          type: integer
+                      required:
+                        - perPage
+                      type: object
+                  required:
+                    - items
+                  type: object
+                resourcesRefsTemplate:
+                  items:
+                    properties:
+                      iterator:
+                        type: string
+                      template:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                    type: object
+                  type: array
+                widgetData:
+                  description: The properties Collapse renders. Where Collapse wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
+                  properties:
+                    accordion:
+                      description: 'antd Collapse `accordion`: at most one panel open at a time.'
+                      type: boolean
+                    actions:
+                      description: the actions of the widget (canonical map; see src/schemas/actions.schema.json). Referenced per-row by itemTemplate.rowActions in the panels' dataSource bodies.
+                      properties:
+                        navigate:
+                          description: client-side navigation actions
+                          items:
+                            properties:
+                              id:
+                                description: unique identifier for the action
+                                type: string
+                              loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
+                                properties:
+                                  display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              path:
+                                description: the identifier of the route to navigate to
+                                type: string
+                              requireConfirmation:
+                                description: whether user confirmation is required before navigating
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              type:
+                                description: type of navigation action
+                                enum:
+                                  - navigate
+                                type: string
+                            required:
+                              - id
+                              - type
+                            type: object
+                          type: array
+                        openDrawer:
+                          description: actions to open side drawer components
+                          items:
+                            properties:
+                              id:
+                                description: unique identifier for the drawer action
+                                type: string
+                              loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
+                                properties:
+                                  display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              requireConfirmation:
+                                description: whether user confirmation is required before opening
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              size:
+                                description: drawer size to be displayed
+                                enum:
+                                  - default
+                                  - large
+                                type: string
+                              title:
+                                description: title shown in the drawer header
+                                type: string
+                              type:
+                                description: type of drawer action
+                                enum:
+                                  - openDrawer
+                                type: string
+                            required:
+                              - id
+                              - resourceRefId
+                              - type
+                            type: object
+                          type: array
+                        openModal:
+                          description: actions to open modal dialog components
+                          items:
+                            properties:
+                              customWidth:
+                                description: the custom width of the value, which should be used by setting the 'custom' value inside the 'size' property
+                                type: string
+                              id:
+                                description: unique identifier for the modal action
+                                type: string
+                              loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
+                                properties:
+                                  display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              requireConfirmation:
+                                description: whether user confirmation is required before opening
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              size:
+                                description: sets the Modal size, 'default' is 520px, 'large' is 80% of the screen width, 'fullscreen' is 100% of the screen width, 'custom' should be used with the 'customWidth' property
+                                enum:
+                                  - default
+                                  - large
+                                  - fullscreen
+                                  - custom
+                                type: string
+                              title:
+                                description: title shown in the modal header
+                                type: string
+                              type:
+                                description: type of modal action
+                                enum:
+                                  - openModal
+                                type: string
+                            required:
+                              - id
+                              - resourceRefId
+                              - type
+                            type: object
+                          type: array
+                        rest:
+                          description: rest api call actions triggered by the widget
+                          items:
+                            properties:
+                              errorMessage:
+                                description: a message that will be displayed inside a toast in case of error
+                                type: string
+                              fanOutPath:
+                                description: 'name of an ARRAY field in the submitted values: the action fans out into ONE ordered write per element (for each write, that field is replaced by the single element before payload/payloadToOverride interpolation). The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics); onEventNavigateTo is not supported on a fan-out action'
+                                type: string
+                              headers:
+                                description: 'array of headers as strings, format ''key: value'''
+                                items:
+                                  description: 'key and value as a single, example: ''x-custom-header: value'''
+                                  type: string
+                                type: array
+                              id:
+                                description: unique identifier for the action
+                                type: string
+                              loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
+                                properties:
+                                  display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              onEventNavigateTo:
+                                description: conditional navigation triggered by a specific event
+                                properties:
+                                  eventReason:
+                                    description: identifier of the awaited event reason
+                                    type: string
+                                  loadingMessage:
+                                    description: message to display while waiting for the event
+                                    type: string
+                                  reloadRoutes:
+                                    description: Re-fetch the route table before navigating. Set it when the action creates its own destination — publishing a new page, for example — so the route exists by the time the navigation happens.
+                                    type: boolean
+                                  timeout:
+                                    default: 50
+                                    description: the timeout in seconds to wait for the event
+                                    type: integer
+                                  url:
+                                    description: url to navigate to when the event is received
+                                    type: string
+                                required:
+                                  - eventReason
+                                  - url
+                                type: object
+                              onSuccessNavigateTo:
+                                description: url to navigate to after successful execution
+                                type: string
+                              ops:
+                                description: 'ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action''s own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op''s)'
+                                items:
+                                  properties:
+                                    payload:
+                                      description: static payload sent with this op's request
+                                      type: object
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    payloadToOverride:
+                                      description: list of this op's payload fields to override dynamically (values interpolate against the same submitted values as every other op)
+                                      items:
+                                        properties:
+                                          name:
+                                            description: name of the field to override
+                                            type: string
+                                          value:
+                                            description: value to use for overriding the field
+                                            type: string
+                                        required:
+                                          - name
+                                          - value
+                                        type: object
+                                      type: array
+                                    resourceRefId:
+                                      description: 'the identifier of the resource ref this op targets: its verb (must be mutating), path and payload base'
+                                      type: string
+                                  required:
+                                    - resourceRefId
+                                  type: object
+                                type: array
+                              payload:
+                                description: static payload sent with the request
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              payloadToOverride:
+                                description: list of payload fields to override dynamically
+                                items:
+                                  properties:
+                                    name:
+                                      description: name of the field to override
+                                      type: string
+                                    value:
+                                      description: value to use for overriding the field
+                                      type: string
+                                  required:
+                                    - name
+                                    - value
+                                  type: object
+                                type: array
+                              requireConfirmation:
+                                description: whether user confirmation is required before triggering the action
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              successMessage:
+                                description: a message that will be displayed inside a toast in case of success
+                                type: string
+                              type:
+                                description: type of action to execute
+                                enum:
+                                  - rest
+                                type: string
+                            required:
+                              - headers
+                              - id
+                              - resourceRefId
+                              - type
+                            type: object
+                          type: array
+                      type: object
+                    allowedResources:
+                      description: the resource plurals this container may hold as children. The enum is what this KIND can ever hold, by role. WHICH of them this instance accepts is its own declaration, checked against its real children by the X5 lint. Empty means unconstrained.
+                      items:
+                        type: string
+                        enum:
+                          - alerts
+                          - badges
+                          - barcharts
+                          - breadcrumbs
+                          - buttongroups
+                          - buttons
+                          - cards
+                          - checkboxes
+                          - collapses
+                          - cols
+                          - columns
+                          - datagrids
+                          - datepickers
+                          - descriptions
+                          - dividers
+                          - eventlists
+                          - filters
+                          - flexes
+                          - flowcharts
+                          - forms
+                          - images
+                          - inputnumbers
+                          - inputs
+                          - linecharts
+                          - listies
+                          - markdowns
+                          - menus
+                          - navmenuitems
+                          - navmenus
+                          - pageheaders
+                          - pages
+                          - panels
+                          - paragraphs
+                          - piecharts
+                          - progresses
+                          - qrcodes
+                          - radios
+                          - rangepickers
+                          - results
+                          - routes
+                          - routesloaders
+                          - rows
+                          - selects
+                          - sliders
+                          - statistics
+                          - steps
+                          - switches
+                          - tables
+                          - tablists
+                          - tabs
+                          - tags
+                          - uploads
+                          - yamlviewers
+                      type: array
+                    bordered:
+                      description: antd Collapse `bordered`.
+                      type: boolean
+                    defaultActiveKey:
+                      description: 'antd Collapse `defaultActiveKey`: the keys of the panels open on first render. Absent, every panel with a `status` starts open and the rest start folded (exception groups open, settled ones folded).'
+                      items:
+                        type: string
+                      type: array
+                    ghost:
+                      description: 'antd Collapse `ghost`: borderless, transparent panels.'
+                      type: boolean
+                    grid:
+                      description: antd List grid layout (ListGridType); presence enables grid mode
+                      properties:
+                        column:
+                          description: Number of columns at the default breakpoint. Mirrors antd List `grid.column`.
+                          type: integer
+                        gutter:
+                          description: Spacing between grid columns, in pixels. Mirrors antd List `grid.gutter`.
+                          type: integer
+                        lg:
+                          description: Number of columns at the large breakpoint. Mirrors antd List `grid.lg`.
+                          type: integer
+                        md:
+                          description: Number of columns at the medium breakpoint. Mirrors antd List `grid.md`.
+                          type: integer
+                        sm:
+                          description: Number of columns at the small breakpoint. Mirrors antd List `grid.sm`.
+                          type: integer
+                        xl:
+                          description: Number of columns at the extra-large breakpoint. Mirrors antd List `grid.xl`.
+                          type: integer
+                        xs:
+                          description: Number of columns at the extra-small breakpoint. Mirrors antd List `grid.xs`.
+                          type: integer
+                        xxl:
+                          description: Number of columns at the extra-extra-large breakpoint. Mirrors antd List `grid.xxl`.
+                          type: integer
+                      type: object
+                    itemTemplate:
+                      description: 'serializable substitute for antd renderItem: maps a data element''s fields to row slots ({dot.path}; {a|b} first-non-empty)'
+                      properties:
+                        bar:
+                          description: 'per-row horizontal Progress bar (the reconciliation-rail row): an antd Progress line whose percent + stroke colour are resolved per item'
+                          properties:
+                            color:
+                              description: Resolves the bar's stroke colour per item.
+                              properties:
+                                default:
+                                  description: Stroke colour used when the resolved value is absent from the map.
+                                  type: string
+                                map:
+                                  additionalProperties:
+                                    type: string
+                                  description: Maps a resolved value to a stroke colour token.
+                                  type: object
+                                value:
+                                  description: '{dot.path} to the value the stroke colour is chosen from.'
+                                  type: string
+                              type: object
+                            label:
+                              description: optional trailing {dot.path} label (e.g. the % text or 7/7)
+                              type: string
+                            percent:
+                              description: '{dot.path} to a 0-100 number (e.g. {healthPercent})'
+                              type: string
+                            tooltip:
+                              description: '{dot.path} tooltip text shown when the bar''s label is hovered or focused (e.g. {rail.reason}). Resolving to empty leaves the label without a tooltip.'
+                              type: string
+                            variant:
+                              description: 'Bar style: `line` for a standalone progress line, `rail` for the denser reconciliation-rail treatment.'
+                              enum:
+                                - line
+                                - rail
+                              type: string
+                          type: object
+                        cardCta:
+                          description: card-footer call-to-action cue (e.g. "Configure") shown footer-left when a card rowVariant is clickable (navigateTo); rendered as mono amber text + a sliding arrow (a navigation hint, not a button)
+                          type: string
+                        color:
+                          description: Resolves the row's accent colour per item, so colour carries meaning from the data rather than being fixed by the author.
+                          properties:
+                            default:
+                              description: Colour used when the resolved value is absent from the map.
+                              type: string
+                            map:
+                              additionalProperties:
+                                type: string
+                              description: Maps a resolved value to a colour token, for example `Ready` to green.
+                              type: object
+                            value:
+                              description: '{dot.path} to the value the colour is chosen from.'
+                              type: string
+                          type: object
+                        description:
+                          description: longer body line (2-line clamp); only rendered by the card rowVariant (e.g. a catalog tile description)
+                          type: string
+                        ellipsis:
+                          description: one line each for primaryText and subPrimaryText in the default row, the full text in a tooltip (antd Typography ellipsis)
+                          type: boolean
+                        formats:
+                          description: Per-field rendering applied after each {dot.path} resolves.
+                          properties:
+                            primaryText:
+                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
+                              enum:
+                                - text
+                                - datetime
+                                - relative
+                              type: string
+                            secondaryText:
+                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
+                              enum:
+                                - text
+                                - datetime
+                                - relative
+                              type: string
+                            subPrimaryText:
+                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
+                              enum:
+                                - text
+                                - datetime
+                                - relative
+                              type: string
+                            subSecondaryText:
+                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
+                              enum:
+                                - text
+                                - datetime
+                                - relative
+                              type: string
+                          type: object
+                        icon:
+                          description: '{dot.path} to an icon name, or a literal name, shown at the row leading edge.'
+                          type: string
+                        iconVariant:
+                          description: 'leading-indicator style: avatar (solid disc + glyph, default), tile (soft-tint rounded square + glyph), dot (small status dot + halo)'
+                          enum:
+                            - avatar
+                            - tile
+                            - dot
+                          type: string
+                        navigateTo:
+                          description: per-item navigation target ({dot.path} template, e.g. {link}); when it resolves non-empty the row becomes clickable and navigates there (SPA route)
+                          type: string
+                        primaryText:
+                          description: '{dot.path} to the row''s main label.'
+                          type: string
+                        rowActions:
+                          description: per-row action controls rendered on each row as a kebab (⋯) menu or as buttons (see rowActionsDisplay); each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).
+                          items:
+                            properties:
+                              actionId:
+                                description: id of an action defined in widgetData.actions to fire when this menu item is clicked
+                                type: string
+                              danger:
+                                description: render the menu item in a destructive (red) style
+                                type: boolean
+                              icon:
+                                description: optional Font Awesome icon name for the menu item
+                                type: string
+                              label:
+                                description: menu item label
+                                type: string
+                            required:
+                              - actionId
+                              - label
+                            type: object
+                          type: array
+                        rowActionsDisplay:
+                          description: 'how the default rowVariant presents rowActions: menu (a kebab (⋯) at the row''s end, default) | buttons (antd Buttons at the row''s end, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (navigateTo) is unchanged either way. The card rowVariant always renders buttons.'
+                          enum:
+                            - menu
+                            - buttons
+                          type: string
+                        rowVariant:
+                          description: 'row layout: default (antd List.Item.Meta — avatar + stacked title/description) | tree (tight single-line mono Relations row: connector + status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile — icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons — the Marketplace catalog grid) | chip (compact navigable filter pill — primaryText label + optional count, solid/amber when the item''s active flag is set — the data-driven Marketplace facet chips; a chip whose data element carries `removable: true` is an applied filter: a trailing remove mark, the accessible name "Remove filter: <primaryText>", and its navigateTo is the URL without that value) | statistic (one tile of a stats strip: an antd Card holding an antd Statistic, primaryText the title, secondaryText the value, subPrimaryText a secondary caption; `color` tints the value and frame ONLY when it resolves, so the healthy majority stays neutral; without `grid` the tiles fill the row and reflow as it narrows)'
+                          enum:
+                            - default
+                            - tree
+                            - card
+                            - chip
+                            - statistic
+                          type: string
+                        secondaryText:
+                          description: '{dot.path} to the value shown opposite the primary text.'
+                          type: string
+                        secondaryTextAsTag:
+                          description: render secondaryText as a soft-tint Tag pill (e.g. a category) instead of plain text
+                          type: boolean
+                        status:
+                          description: an at-a-glance status indicator (a Font Awesome glyph) rendered top-right of the `card` rowVariant. Each field is a {dot.path} resolved per item; the raw-value -> glyph/colour mapping is computed server-side (jq in the RESTAction), so the widget stays strongly typed. E.g. a blueprint's CompositionDefinition Ready condition resolved to {readyIcon}/{readyColor}/{readyReason}.
+                          properties:
+                            color:
+                              description: '{dot.path} to the resolved palette colour (e.g. {readyColor})'
+                              type: string
+                            icon:
+                              description: '{dot.path} to the resolved Font Awesome icon name (e.g. {readyIcon})'
+                              type: string
+                            tooltip:
+                              description: '{dot.path} tooltip text shown on hover (e.g. {readyReason})'
+                              type: string
+                          type: object
+                        subPrimaryText:
+                          description: '{dot.path} to the line beneath the primary text.'
+                          type: string
+                        subPrimaryTextMono:
+                          description: render subPrimaryText as a small mono bordered pill (e.g. an event involvedObject Kind/name ref) instead of plain sub-text
+                          type: boolean
+                        subSecondaryText:
+                          description: '{dot.path} to the line beneath the secondary text.'
+                          type: string
+                      type: object
+                    items:
+                      description: 'antd Collapse `items`: the panels, in order.'
+                      items:
+                        properties:
+                          cap:
+                            description: draw only the first `cap` items of dataSource. With cap set, the footer is drawn only when dataSource holds more than cap items; without it, the footer is drawn whenever it is set (a list capped server-side).
+                            minimum: 1
+                            type: integer
+                          collapsible:
+                            description: 'antd Collapse item `collapsible`: what toggles the panel (the whole header by default).'
+                            enum:
+                              - header
+                              - icon
+                              - disabled
+                            type: string
+                          count:
+                            description: how many items the panel holds, drawn as a count badge after the title and read as part of the header's accessible name. Absent, no badge.
+                            type: integer
+                          dataSource:
+                            description: 'a DATA body: the panel''s items, each rendered through widgetData.itemTemplate exactly as a Listy row (or card, chip, statistic) is.'
+                            items:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
+                            type: array
+                          extra:
+                            description: 'antd Collapse item `extra`: muted header meta drawn at the header''s end, e.g. "12 alerts, largest first".'
+                            type: string
+                          footer:
+                            description: text under the panel's dataSource body, e.g. "See all 37 →" (antd List footer).
+                            type: string
+                          footerNavigateTo:
+                            description: in-app route the footer opens (e.g. the table view filtered to this group); when set the footer renders as a link.
+                            type: string
+                          key:
+                            description: 'antd Collapse item `key`: unique among the panels; what defaultActiveKey names. Absent, the panel''s resourceRefId, else its position ("0", "1", ...).'
+                            type: string
+                          label:
+                            description: 'antd Collapse item `label`: the panel''s title. Absent, the header shows only the count and extra (a panel dropped into a Collapse in the Page Builder starts that way, before it is given a title).'
+                            type: string
+                          resourceRefId:
+                            description: 'a STATIC body: the child widget to render in the panel, matching an `id` in spec.resourcesRefs. It is fetched the first time the panel opens. Takes precedence over dataSource.'
+                            type: string
+                          status:
+                            description: 'exception-only tint for the count badge (antd Tag status colours): `error` for a panel that holds something broken, `warning` for one that needs attention. Absent, the badge is neutral, as a healthy panel''s should be. A panel with a status is also open by default when defaultActiveKey is absent.'
+                            enum:
+                              - error
+                              - warning
+                            type: string
+                        type: object
+                      type: array
+                    size:
+                      description: antd Collapse `size`.
+                      enum:
+                        - small
+                        - middle
+                        - large
+                      type: string
+                  required:
+                    - items
+                  type: object
+                widgetDataTemplate:
+                  items:
+                    properties:
+                      expression:
+                        type: string
+                      forPath:
+                        type: string
+                    type: object
+                  type: array
+                identityContext:
+                  items:
+                    enum:
+                      - username
+                      - groups
+                    type: string
+                  type: array
+                keyExtras:
+                  description: 'F6 (snowplow#130): the request-extras keys (route params / URL query folded into ?extras=) whose values this widget''s resolution depends on. Only declared keys partition the widget cache cell. Absent/empty = the widget does not vary by any request extra (chrome/layout default).'
+                  items:
+                    type: string
+                  type: array
+                freshness:
+                  description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).'
+                  type: boolean
+              required:
+                - widgetData
+              type: object
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ''
+    plural: ''
+  conditions: null
+  storedVersions: null

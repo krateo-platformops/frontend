@@ -11,12 +11,12 @@ timestamp: 2026-08-07T00:00:00Z
 
 ## Owned CRDs — the widget catalog
 
-frontend owns the **43 widget CRDs** in group `widgets.templates.krateo.io`, version
+frontend owns the **45 widget CRDs** in group `widgets.templates.krateo.io`, version
 `v1beta1` — one per widget kind (Alert, Badge, BarChart, Breadcrumb, Button,
-ButtonGroup, Card, Checkbox, Col, DatePicker, Descriptions, Divider, Filters, Flex,
-FlowChart, Form, Image, Input, InputNumber, Layout, LineChart, **Listy**, Markdown,
-Menu, Paragraph, PieChart, Progress, QRCode, Radio, RangePicker, Result, Row, Select,
-Slider, Statistic, Steps, Switch, Table, Tabs, Tag, Theme, Upload, YamlViewer). The
+ButtonGroup, Card, Checkbox, Col, Collapse, DatePicker, Descriptions, Divider, Filters,
+Flex, FlowChart, Form, Image, Input, InputNumber, Layout, LineChart, **Listy**, Markdown,
+Menu, PageHeader, Paragraph, PieChart, Progress, QRCode, Radio, RangePicker, Result, Row,
+Select, Slider, Statistic, Steps, Switch, Table, Tabs, Tag, Theme, Upload, YamlViewer). The
 plural is the lowercase kind (`buttons`, `flexes`, `listies`, …). The list widget's kind
 is `Listy` because Kubernetes reserves `List`.
 

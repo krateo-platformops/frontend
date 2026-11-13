@@ -75,6 +75,11 @@ const params = new URLSearchParams(window.location.search)
 const folder = params.get('example') ?? ''
 const doc = Number(params.get('doc') ?? 0)
 const mode = params.get('mode') === 'dark' ? 'dark' : 'light'
+/**
+ * `fill`: the example fills the viewport's width instead of the fixed 720px column, so a spec can
+ * set a phone-width viewport and check that a widget stays inside it (overviewBlocks.spec.ts).
+ */
+const fill = params.has('fill')
 
 // ThemeModeProvider reads its initial mode from here; set it before the first render.
 localStorage.setItem('krateo-theme-mode', mode)
@@ -565,7 +570,7 @@ root.render(
                   data-testid='case'
                   style={isPageFixture
                     ? { height: '100%', width: '100%' }
-                    : { background: 'var(--background-color)', boxSizing: 'border-box', padding: 'var(--spacing-md)', width: fixture ? '100%' : 720 }}
+                    : { background: 'var(--background-color)', boxSizing: 'border-box', padding: 'var(--spacing-md)', width: fixture || fill ? '100%' : 720 }}
                 >
                   {body}
                 </div>

@@ -21,7 +21,7 @@
  */
 
 /** Holds any widget. Real usage says so, and a layout has no business deciding its content. */
-export const GENERAL_LAYOUTS: readonly string[] = ['Card', 'Col', 'Flex', 'Row', 'Steps', 'Tabs']
+export const GENERAL_LAYOUTS: readonly string[] = ['Card', 'Col', 'Collapse', 'Flex', 'Row', 'Steps', 'Tabs']
 
 /** In the vocabulary, but never a child: a `Layout` is a page's shell and a `Theme` renders nothing. */
 export const NOT_A_CHILD: readonly string[] = ['layouts', 'themes']

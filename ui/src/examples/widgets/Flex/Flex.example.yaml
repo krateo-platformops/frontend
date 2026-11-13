@@ -46,3 +46,39 @@ metadata:
 spec:
   widgetData:
     text: "Second stacked paragraph."
+---
+# A page filter bar: a wrapping Flex that is a named search landmark
+# Target: `role: search` + `ariaLabel` make the bar a landmark assistive technology can jump to
+# (antd Flex renders a div and passes both through). `role: status` on a Flex holding a result
+# count makes it a polite live region, announced when the count changes.
+# Expected behavior: the facet Selects in one wrapping row, announced as "Filter incidents, search".
+kind: Flex
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-flex-filter-bar
+  namespace: krateo-system
+spec:
+  widgetData:
+    allowedResources:
+      - selects
+    role: search
+    ariaLabel: Filter incidents
+    wrap: true
+    gap: small
+    items:
+      - resourceRefId: example-select-facet
+      - resourceRefId: example-select-facet-single
+  resourcesRefs:
+    items:
+      - id: example-select-facet
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-select-facet
+        namespace: krateo-system
+        resource: selects
+        verb: GET
+      - id: example-select-facet-single
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-select-facet-single
+        namespace: krateo-system
+        resource: selects
+        verb: GET

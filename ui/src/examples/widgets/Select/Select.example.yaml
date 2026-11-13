@@ -15,3 +15,47 @@ spec:
       - { label: Development, value: dev }
       - { label: Staging, value: staging }
       - { label: Production, value: prod }
+---
+# A page filter bar's facet: URL-bound multi-select with counts, a prefix and its own footnote
+# Target: `queryParam` + `mode: multiple` keep the selection in `?kind=` (comma-joined); `count`
+# draws each option's facet count and puts it in the option's accessible name; `prefix` names the
+# facet inside the trigger; `panelFooter` replaces the project switcher's footnote ("" for none).
+# Expected behavior: trigger "Kind · All kinds"; the panel lists Alert 47 / Prompt 12 / Drift 3,
+# its master row shows the sum (62), then Clear / Apply and the footnote below.
+kind: Select
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-select-facet
+  namespace: krateo-system
+spec:
+  widgetData:
+    name: kind
+    label: Kind
+    queryParam: kind
+    mode: multiple
+    prefix: Kind
+    placeholder: All kinds
+    panelFooter: Counts apply the other filters on the page
+    options:
+      - { label: Alert, value: Alert, count: 47 }
+      - { label: Prompt, value: Prompt, count: 12 }
+      - { label: Drift, value: Drift, count: 3 }
+---
+# A single-choice facet with counts (URL-bound, applied on pick)
+# Target: without `mode`, the URL-bound Select is a scalar `?owner=` filter; counts still show.
+# Expected behavior: trigger "Owner · Any"; each option shows its count at the row's end.
+kind: Select
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-select-facet-single
+  namespace: krateo-system
+spec:
+  widgetData:
+    name: owner
+    queryParam: owner
+    prefix: Owner
+    placeholder: Any
+    options:
+      - { label: Krateo, value: krateo, count: 31 }
+      - { label: Yours, value: yours, count: 14 }
+      - { label: Deleted, value: deleted, count: 2 }

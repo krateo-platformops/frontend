@@ -1,7 +1,7 @@
 /**
  * Context collector (component 2). Reconstructs what Agentiko can SEE from the
  * LIVE react-query widget cache — the actual on-screen surface, not model memory —
- * plus route, whitelisted URL extras, and the whoami identity. The result is the
+ * plus route, the page's URL params (extras), and the whoami identity. The result is the
  * page-context envelope; `serializePageContext` runs it through the redactor (LAST)
  * and wraps it in a data-not-instructions `<page_context>` fence.
  *
@@ -22,8 +22,31 @@ import { boundedPreviewRender, type RenderedWidgetState } from './previewRender'
 import { redactAgentikoContext } from './redact'
 import type { AgentikoIdentity, PageContextEnvelope, WidgetInventoryEntry } from './types'
 
-/** Only these URL params describe the current scope; everything else is ignored. */
-const EXTRAS_WHITELIST = ['status', 'range', 'q'] as const
+/**
+ * URL params that never describe what the page shows, so they are not page context.
+ *
+ * Every OTHER param is carried. It used to be the opposite, a whitelist of `status`, `range` and
+ * `q`, and a page filtered by anything else (`?kind=Alert&repo=org/x`, `?view=table`, the project
+ * scope) reached Agentiko as the unfiltered page: asked about "these", it described rows the person
+ * had filtered away. Every query param already reaches every page widget's RESTAction as an extra
+ * (useWidgetQuery `buildExtrasParam`), so the URL is exactly what the on-screen data was resolved
+ * from, and that is what the rail now says.
+ *
+ * - `ask` is the rail's own seed prompt: it is sent as the user's message and stripped from the URL
+ *   (askDeepLink.ts), so as context it would only repeat the question.
+ * - `spotlight` highlights a card; it filters nothing.
+ * - `code`, `state`, `session_state` and `code_verifier` are an OAuth handshake. They describe no
+ *   view, and an authorization code is a one-time credential (the redactor scrubs token-named keys,
+ *   not these).
+ *
+ * The verbs that WRITE the URL keep their own narrow whitelist (verbRegistry.ts EXTRAS_WHITELIST):
+ * reading every param is not the same as letting the model set any.
+ */
+const NOT_PAGE_CONTEXT = new Set(['ask', 'code', 'code_verifier', 'session_state', 'spotlight', 'state'])
+
+/** Size bounds on the carried params, so a long or crafted URL cannot crowd out the widgets. */
+const MAX_EXTRAS = 24
+const MAX_EXTRA_LENGTH = 300
 
 /** Backstop cap on the serialized envelope. Now that collect() scopes to ACTIVE (on-screen)
  * widgets, this is the count of widgets on the CURRENT page — a real page comfortably fits
@@ -387,16 +410,21 @@ export const summarizeWidget = (
   return { actions, endpoint, fields, items, kind, large, loadState: load?.loadState, name, resource, summary, title, value }
 }
 
-const collectExtras = (search: string): Record<string, string> | undefined => {
-  const params = new URLSearchParams(search)
-  const out: Record<string, string> = {}
-  for (const key of EXTRAS_WHITELIST) {
-    const value = params.get(key)
-    if (value) {
-      out[key] = value
+/**
+ * The page's URL params as context: every param but those in NOT_PAGE_CONTEXT, empty values
+ * dropped, the first non-empty value of a repeated key.
+ */
+export const collectExtras = (search: string): Record<string, string> | undefined => {
+  // A Map, then fromEntries: a param named `__proto__` or `constructor` is an own key like any
+  // other, never a write to (or a hit on) the object's prototype.
+  const out = new Map<string, string>()
+  for (const [key, value] of new URLSearchParams(search)) {
+    if (out.size >= MAX_EXTRAS) { break }
+    if (value && !NOT_PAGE_CONTEXT.has(key) && !out.has(key)) {
+      out.set(key, value.slice(0, MAX_EXTRA_LENGTH))
     }
   }
-  return Object.keys(out).length ? out : undefined
+  return out.size ? Object.fromEntries(out) : undefined
 }
 
 const collectIdentity = (): AgentikoIdentity | undefined => {

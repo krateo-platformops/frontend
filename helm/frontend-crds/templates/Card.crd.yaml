@@ -162,6 +162,7 @@ spec:
                           - buttons
                           - cards
                           - checkboxes
+                          - collapses
                           - cols
                           - columns
                           - datagrids

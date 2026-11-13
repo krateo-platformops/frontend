@@ -1,0 +1,115 @@
+# Grouped cards from data — antd Collapse API
+# Target: one panel per group the page's RESTAction computed, each body a dataSource rendered with
+# the shared itemTemplate (card rows here), capped to its first 3 with a "See all" link.
+# Expected behavior: "Open" (status error, red count) and "Analyzing" (status warning) start open
+# because they carry a status; "Resolved" (no status, neutral count) starts folded. Each shows 3
+# cards and a "See all N →" link to the table view filtered to that group.
+kind: Collapse
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-collapse-groups
+  namespace: krateo-system
+spec:
+  widgetData:
+    grid: { gutter: 16, xs: 1, sm: 1, md: 2, lg: 3, xl: 3, xxl: 3 }
+    itemTemplate:
+      rowVariant: card
+      primaryText: "{alert}"
+      secondaryText: "{state}"
+      subPrimaryText: "{incidents} incidents"
+      description: "{cause}"
+      subSecondaryText: "since {since}"
+      cardCta: Triage
+      navigateTo: "{href}"
+      color:
+        value: "{state}"
+        map: { Open: red, Analyzing: orange, Resolved: green }
+        default: gray
+    items:
+      - key: open
+        label: Open
+        count: 5
+        status: error
+        extra: "5 alerts, largest first"
+        cap: 3
+        footer: "See all 5 →"
+        footerNavigateTo: "/incidents?status=Open&view=table"
+        dataSource:
+          - { alert: sre-probe-failing, state: Open, incidents: 20, cause: "Probe endpoint returns 503 after the gateway restart", since: "Nov 10", href: "/incidents/krateo-system/inc-1" }
+          - { alert: api-latency-p99, state: Open, incidents: 9, cause: "p99 above 2s on /call for the compositions list", since: "Nov 11", href: "/incidents/krateo-system/inc-2" }
+          - { alert: cert-expiring, state: Open, incidents: 4, cause: "The ingress certificate expires in 6 days", since: "Nov 12", href: "/incidents/krateo-system/inc-3" }
+          - { alert: disk-pressure, state: Open, incidents: 2, cause: "ClickHouse volume at 91%", since: "Nov 12", href: "/incidents/krateo-system/inc-4" }
+          - { alert: pod-restarts, state: Open, incidents: 1, cause: "snowplow restarted 4 times in an hour", since: "Nov 13", href: "/incidents/krateo-system/inc-5" }
+      - key: analyzing
+        label: Analyzing
+        count: 4
+        status: warning
+        cap: 3
+        footer: "See all 4 →"
+        footerNavigateTo: "/incidents?status=Analyzing&view=table"
+        dataSource:
+          - { alert: queue-backlog, state: Analyzing, incidents: 3, cause: "Being analyzed", since: "Nov 13", href: "/incidents/krateo-system/inc-6" }
+          - { alert: dns-errors, state: Analyzing, incidents: 2, cause: "Being analyzed", since: "Nov 13", href: "/incidents/krateo-system/inc-7" }
+          - { alert: oom-kills, state: Analyzing, incidents: 1, cause: "Being analyzed", since: "Nov 13", href: "/incidents/krateo-system/inc-8" }
+          - { alert: slow-reconcile, state: Analyzing, incidents: 1, cause: "Being analyzed", since: "Nov 13", href: "/incidents/krateo-system/inc-9" }
+      - key: resolved
+        label: Resolved
+        count: 4
+        extra: "last 7 days"
+        cap: 3
+        footer: "See all 4 →"
+        footerNavigateTo: "/incidents?status=Resolved&view=table"
+        dataSource:
+          - { alert: node-not-ready, state: Resolved, incidents: 2, cause: "Node drained and replaced", since: "Nov 8", href: "/incidents/krateo-system/inc-10" }
+          - { alert: etcd-latency, state: Resolved, incidents: 1, cause: "Defragmented", since: "Nov 7", href: "/incidents/krateo-system/inc-11" }
+          - { alert: image-pull, state: Resolved, incidents: 1, cause: "Registry credentials rotated", since: "Nov 7", href: "/incidents/krateo-system/inc-12" }
+          - { alert: hpa-maxed, state: Resolved, incidents: 1, cause: "Raised the replica ceiling", since: "Nov 6", href: "/incidents/krateo-system/inc-13" }
+---
+# A static panel body (a child widget) next to a data one, opened by defaultActiveKey
+# Target: `resourceRefId` renders an existing widget in the panel (fetched when the panel first
+# opens); `defaultActiveKey` overrides the "panels with a status start open" rule.
+# Expected behavior: "Needs you" open with its rows; "Recent changes" folded, its Paragraph
+# fetched only when it is opened.
+kind: Collapse
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-collapse-static
+  namespace: krateo-system
+spec:
+  widgetData:
+    allowedResources:
+      - paragraphs
+    defaultActiveKey: [needs-you]
+    itemTemplate:
+      primaryText: "{title}"
+      subPrimaryText: "{detail}"
+      navigateTo: "{href}"
+    items:
+      - key: needs-you
+        label: Needs you
+        count: 2
+        status: error
+        dataSource:
+          - { title: "47 open incidents", detail: "from 9 alerts, oldest opened Nov 10", href: "/incidents" }
+          - { title: "12 proposals waiting for a decision", detail: "3 new today", href: "/reviews" }
+      - key: recent
+        label: Recent changes
+        extra: "last 7 days"
+        resourceRefId: example-collapse-recent
+  resourcesRefs:
+    items:
+      - id: example-collapse-recent
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-collapse-recent
+        namespace: krateo-system
+        resource: paragraphs
+        verb: GET
+---
+kind: Paragraph
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-collapse-recent
+  namespace: krateo-system
+spec:
+  widgetData:
+    text: "The audit trail of the last 7 days."
