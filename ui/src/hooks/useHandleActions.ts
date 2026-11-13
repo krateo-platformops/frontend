@@ -790,8 +790,8 @@ export const useHandleAction = () => {
     reloadRoutes,
     resolveJq,
     setLoading: setIsActionLoading,
-    writes: writes && !!session,
     supportsCallProvenance: () => snowplowReadsCallProvenance(config?.api.SNOWPLOW_API_BASE_URL ?? '', getAccessToken),
+    writes: writes && !!session,
   })
 
   const handleAction = async (

@@ -72,22 +72,22 @@ const widget = (kind: string, name: string, widgetData: Record<string, unknown>,
 
 /** The page: a root Flex declaring `s` and `t`, holding a Table, a Form, a Button, an Upload and a streaming List. */
 const fixtures: Record<string, unknown> = {
+  'demo-button': widget('Button', 'demo-button', {
+    actions: { rest: [{ id: 'write', payload: {}, resourceRefId: 'write-target', type: 'rest' }] },
+    clickActionId: 'write',
+    label: 'Make a change',
+  }, [ref('write-target', '/call?resource=configmaps&apiVersion=v1&name=target&namespace=krateo-system', 'POST')]),
   'demo-form': widget('Form', 'demo-form', {
     actions: { rest: [{ headers: ['Content-Type: application/json'], id: 'submit', payload: {}, resourceRefId: 'form-target', type: 'rest' }] },
     buttonConfig: { primary: { label: 'Send request' } },
     schema: { properties: { note: { title: 'Note', type: 'string' } }, type: 'object' },
     submitActionId: 'submit',
   }, [ref('form-target', '/call?resource=configmaps&apiVersion=v1&name=form-target&namespace=krateo-system', 'POST')]),
+  'demo-list': widget('Listy', 'demo-list', { dataSource: [], sseEndpoint: '/notifications', sseTopic: 'krateo' }),
   'demo-table': widget('Table', 'demo-table', {
     columns: [{ title: 'Name', valueKey: 'name' }],
     dataSource: [[{ kind: 'jsonSchemaType', stringValue: 'alpha-row', type: 'string', valueKey: 'name' }]],
   }),
-  'demo-button': widget('Button', 'demo-button', {
-    actions: { rest: [{ id: 'write', payload: {}, resourceRefId: 'write-target', type: 'rest' }] },
-    clickActionId: 'write',
-    label: 'Make a change',
-  }, [ref('write-target', '/call?resource=configmaps&apiVersion=v1&name=target&namespace=krateo-system', 'POST')]),
-  'demo-list': widget('Listy', 'demo-list', { dataSource: [], sseEndpoint: '/notifications', sseTopic: 'krateo' }),
   'demo-upload': widget('Upload', 'demo-upload', { label: 'Upload a file', resourceRefId: 'upload-target' }, [
     ref('upload-target', '/call?resource=configmaps&apiVersion=v1&name=upload&namespace=krateo-system', 'POST'),
   ]),
@@ -122,7 +122,13 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 const fakeFetch = vi.fn((input: RequestInfo | URL, init: RequestInit = {}) => {
   let url: string
-  if (typeof input === 'string') { url = input } else if (input instanceof URL) { url = input.toString() } else { ({ url } = input) }
+  if (typeof input === 'string') {
+    url = input
+  } else if (input instanceof URL) {
+    url = input.toString()
+  } else {
+    ({ url } = input)
+  }
   recorded.push({ body: typeof init.body === 'string' ? init.body : undefined, channel: 'fetch', headers: lowerCased(init.headers), method: (init.method ?? 'GET').toUpperCase(), url })
   if (url.startsWith('/config/')) { return Promise.resolve(json(config)) }
   if (url.startsWith(SNOWPLOW)) {
@@ -138,6 +144,17 @@ const fakeFetch = vi.fn((input: RequestInfo | URL, init: RequestInit = {}) => {
 // Saved and restored as property DESCRIPTORS: the prototype methods are swapped for recorders below.
 const XHR_METHODS = ['open', 'setRequestHeader', 'send'] as const
 const realXhr = Object.fromEntries(XHR_METHODS.map((name) => [name, Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, name)]))
+
+// The XHR recorders swapped onto the prototype in beforeEach. `function`, for the XHR as `this`.
+type RecordingXhr = XMLHttpRequest & { __rec?: Recorded }
+function recordOpen(this: RecordingXhr, method: string, url: string | URL) {
+  this.__rec = { channel: 'xhr', headers: {}, method, url: String(url) }
+  recorded.push(this.__rec)
+}
+function recordHeader(this: RecordingXhr, name: string, value: string) {
+  if (this.__rec) { this.__rec.headers[name.toLowerCase()] = value }
+}
+function neverSend() { /* never sent */ }
 
 // The whole app, imported once: every widget module loads with it, which is slow on a busy machine.
 let App: React.ComponentType
@@ -185,20 +202,9 @@ beforeEach(() => {
     removeEventListener() { /* none */ }
   })
   // Every XHR is recorded and none leaves: the Upload widget is the XHR user.
-  Object.defineProperty(XMLHttpRequest.prototype, 'open', {
-    configurable: true,
-    value: function recordOpen(this: XMLHttpRequest & { __rec?: Recorded }, method: string, url: string | URL) {
-      this.__rec = { channel: 'xhr', headers: {}, method, url: String(url) }
-      recorded.push(this.__rec)
-    },
-  })
-  Object.defineProperty(XMLHttpRequest.prototype, 'setRequestHeader', {
-    configurable: true,
-    value: function recordHeader(this: XMLHttpRequest & { __rec?: Recorded }, name: string, value: string) {
-      if (this.__rec) { this.__rec.headers[name.toLowerCase()] = value }
-    },
-  })
-  Object.defineProperty(XMLHttpRequest.prototype, 'send', { configurable: true, value: function neverSend() { /* never sent */ } })
+  Object.defineProperty(XMLHttpRequest.prototype, 'open', { configurable: true, value: recordOpen })
+  Object.defineProperty(XMLHttpRequest.prototype, 'setRequestHeader', { configurable: true, value: recordHeader })
+  Object.defineProperty(XMLHttpRequest.prototype, 'send', { configurable: true, value: neverSend })
 })
 
 afterEach(() => {

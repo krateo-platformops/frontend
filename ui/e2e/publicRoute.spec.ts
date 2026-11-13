@@ -74,8 +74,8 @@ const openWithStoredSession = async (page: Page, address: string, statusFor?: Re
 
 const expectNoCredential = async (requests: Request[]) => {
   expect(requests.length).toBeGreaterThan(0)
-  for (const request of requests) {
-    const headers = await request.allHeaders()
+  const sent = await Promise.all(requests.map(async (request) => ({ headers: await request.allHeaders(), request })))
+  for (const { headers, request } of sent) {
     expect(headers.authorization, `${request.method()} ${request.url()}`).toBeUndefined()
     expect(request.url()).not.toContain(TOKEN)
   }
