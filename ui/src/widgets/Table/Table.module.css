@@ -157,3 +157,35 @@
 .resizeHandle:focus-visible {
   outline-offset: -2px;
 }
+
+/* The `rowActions` column header (#700): named for assistive tech, invisible on screen, as the
+   controls below it name themselves. */
+.srOnly {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* The `rowActions` cell (#700): outside the row's interaction, so it drops the row's pointer cursor;
+   the controls inside it keep their own. */
+.actionsCell {
+  cursor: default;
+}
+
+/* A control sitting on the text baseline adds the descender gap beneath it, and the row grew 1.8px
+   past a row of text (measured: 39.5 against 37.7px) — past a virtual table's row estimate too.
+   Top-aligned, the control (controlHeightSM) stays inside the cell's line. */
+.actionsCell > :global(.ant-btn),
+.actionsCell > :global(.ant-space) {
+  vertical-align: top;
+}
+
+/* The same for the buttons inside the Space: each item is a block holding an inline-block button,
+   so it drew a line box of its own, taller than the button (the row measured 39.5 against 37.7px
+   with top alignment alone). As a flex container the item is exactly its button's height. */
+.actionsCell :global(.ant-space-item) {
+  display: flex;
+}

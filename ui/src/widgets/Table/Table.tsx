@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router'
 
 import { useFilter } from '../../components/FiltesProvider/FiltersProvider'
 import RefChild, { refChildState } from '../../components/RefChild'
+import { RowActionControls, useFireRowAction } from '../../components/RowActions'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useMeasuredWidth } from '../../hooks/useMeasuredWidth'
 import { getColorCode, getTagStyle, resolveTextColor } from '../../theme/palette'
@@ -19,11 +20,12 @@ import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
 import TableCellTooltip from './TableCellTooltip'
 import { type ColumnWidths, DEFAULT_COLUMN_WIDTH, readColumnWidths, writeColumnWidths } from './tableColumnResize'
-import { columnLayout } from './tableColumnWidths'
+import { columnLayout, rowActionsColumnWidth } from './tableColumnWidths'
 import { buildExportRequest } from './tableExport'
 import TableExportControl from './TableExportControl'
 import { computeTablePagination, shouldVirtualize, VIRTUAL_SCROLL_Y } from './tablePagination'
 import TableResizableHeaderCell, { type ColumnResize } from './TableResizableHeaderCell'
+import { tableRowValues } from './tableRowValues'
 import { getColumnSortProps } from './tableSorting'
 
 export type TableWidgetData = WidgetType['spec']['widgetData']
@@ -50,8 +52,29 @@ const measureHeaderWidths = (table: HTMLElement | null): ColumnWidths => {
   return widths
 }
 
-const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData>) => {
-  const { bordered, columns, dataSource, fitContent, pagination, prefix, resizableColumns, rowNavigateTo, size } = widgetData
+/**
+ * The `valueKey` of the stand-in column `rowActions` adds to the layout (columnLayout), so the text
+ * columns share the container less the actions. No cell carries it, so it is never numeric or a tag.
+ */
+const ROW_ACTIONS_KEY = '\u0000rowActions'
+
+type FireRowAction = (actionId: string, row: unknown) => Promise<void>
+
+/**
+ * The events that started inside a `rowActions` cell (#700). The cell marks them on the way up and
+ * the row ignores what is marked, so NOTHING in that cell reaches `rowNavigateTo`: not its padding,
+ * not the space between two buttons, not the kebab's dropdown. The dropdown is the reason this is a
+ * mark and not a DOM `contains` check: antd renders it in a portal under <body>, outside the row's
+ * DOM, but React still bubbles its events through the cell to the row.
+ *
+ * Marked rather than stopped: a native stopPropagation at the cell would also hide the event from
+ * the window listeners antd's Dropdown closes itself with (a click elsewhere, Escape).
+ */
+const fromRowActions = new WeakSet<Event>()
+const markFromRowActions = (event: { nativeEvent: Event }) => { fromRowActions.add(event.nativeEvent) }
+
+const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData> & { fireRowAction?: FireRowAction }) => {
+  const { bordered, columns, dataSource, fitContent, pagination, prefix, resizableColumns, rowActions, rowActionsDisplay, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
   const navigate = useNavigate()
@@ -165,10 +188,27 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
   // so a scrolling virtual table read as clipped ("Underprovisio" in a Portal Builder preview with
   // the Agentiko rail open, 151 pods) with nothing on screen to scroll it by.
   const truncating = Boolean(fitContent) || virtual
-  const layout = columnLayout(columns, dataTable ?? [], {
+  // antd Table cell inline padding: `padding` for large, `paddingXS` for middle and small.
+  const cellPadding = 2 * (size === 'large' ? token.padding : token.paddingXS) + (bordered ? token.lineWidth : 0)
+  // `rowActions` (#700) — only when the widget has a way to fire them (the Table wrapper below), so
+  // a Table without them lays out, and renders, exactly as it did.
+  const actionControls = fireRowAction && rowActions?.length ? rowActions : undefined
+  const actionsWidth = actionControls
+    ? rowActionsColumnWidth(actionControls, rowActionsDisplay, {
+      // A small antd Button: its paddingInlineSM is a fixed `8 - lineWidth` per side, plus the border.
+      buttonChrome: 2 * 8,
+      buttonFontSize: token.fontSize,
+      cellPadding,
+      iconWidth: token.fontSize + token.marginXS,
+      kebabWidth: token.controlHeightSM,
+      spaceGap: token.paddingXS,
+    })
+    : undefined
+  // The actions column counts as a fixed-width column, so the text columns share what is left.
+  const layoutColumns = actionsWidth ? [...columns, { title: '', valueKey: ROW_ACTIONS_KEY, width: actionsWidth }] : columns
+  const layout = columnLayout(layoutColumns, dataTable ?? [], {
     cellFontSize: token.fontSize,
-    // antd Table cell inline padding: `padding` for large, `paddingXS` for middle and small.
-    cellPadding: 2 * (size === 'large' ? token.padding : token.paddingXS) + (bordered ? token.lineWidth : 0),
+    cellPadding,
     fontSize: token.fontSizeSM,
     // --krateo-text-label-sm, the header's size (Table.module.css `.headerWrap`).
     headerFontSize: HEADER_FONT_SIZE,
@@ -202,7 +242,7 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
   const resizable = resizableColumns !== false
   const resized = resizable && columns.some(({ valueKey }) => columnWidths[valueKey] !== undefined)
   const resizedWidth = (index: number): number => columnWidths[columns[index].valueKey] ?? startWidth(index)
-  const resizedScrollX = resized ? columns.reduce((sum, _, index) => sum + resizedWidth(index), 0) : 0
+  const resizedScrollX = resized ? columns.reduce((sum, _, index) => sum + resizedWidth(index), actionControls ? actionsWidth ?? 0 : 0) : 0
 
   const commitColumnWidths = (next: ColumnWidths, persist: boolean) => {
     columnWidthsRef.current = next
@@ -244,10 +284,48 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
   // client pager.
   const paginationProp: TablePaginationConfig | false = computeTablePagination({ crPagination: pagination, rowCount, serverPagination })
 
+  // `rowActions` (#700): List's own controls, in a trailing column, fired with THIS row's values.
+  // The controls stop their click and their Enter/Space from reaching the row (RowActionControls),
+  // and the row's onKeyDown takes only keys aimed at the row itself, so `rowNavigateTo` keeps
+  // working everywhere else on the row and never fires from a control.
+  const actionsColumn = actionControls && fireRowAction
+    ? [{
+      align: 'right' as const,
+      // Pinned to the trailing edge (antd's sticky column), so the verbs stay in view when the table
+      // is wider than its box. Measured in a browser (visual/tableRowActions.spec.ts): at phone width
+      // a virtual table with two buttons put them 28px past its edge, where its hidden scrollbar
+      // gave no sign there was anything to scroll to; max-content and fitContent tables put them
+      // off-screen behind a horizontal scroll.
+      fixed: 'right' as const,
+      key: `${uid}-col-row-actions`,
+      // The whole cell is outside the row's interaction (fromRowActions), and does not look like part
+      // of it either: no pointer cursor over its padding.
+      onCell: () => ({ className: styles.actionsCell, onClick: markFromRowActions, onKeyDown: markFromRowActions }),
+      render: (_: unknown, row: TableRow) => (
+        <RowActionControls
+          display={rowActionsDisplay}
+          onFire={(actionId) => { void fireRowAction(actionId, tableRowValues(row)) }}
+          rowActions={actionControls}
+          // Small, so a row of buttons is no taller than a row of text (controlHeightSM is within
+          // the cell's line). Measured in a browser: middle buttons made every row 49px against
+          // 37.7px without them, and a virtual table — whose row estimate is a text row — opened
+          // scrolled, its first row 12px under the header.
+          size='small'
+        />
+      ),
+      // A header cell with no name reads as an unlabelled column; the label is for assistive tech,
+      // since the controls name themselves on sight.
+      title: <span className={styles.srOnly}>Actions</span>,
+      // A resized table is fixed-layout (#556): a column without a width there shares what the others
+      // leave, so the actions take their measured width, counted in its scroll.x.
+      width: truncating || resized ? actionsWidth : undefined,
+    }]
+    : []
+
   const table = (
     <AntdTable
       bordered={bordered}
-      columns={columns?.map(({ color, minWidth, title, valueKey, width }, index) => ({
+      columns={[...columns.map(({ color, minWidth, title, valueKey, width }, index) => ({
         // UX #13: inferred client-side sorting — an automatic `sorter` comparing
         // the RAW dataSource values (numeric / kubectl-age / ISO-date / string,
         // sniffed per column) + `align: 'right'` for numeric/age columns. No
@@ -414,7 +492,7 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
             </div>
           ),
         width: resized ? resizedWidth(index) : widths[index] ?? width,
-      }))}
+      })), ...actionsColumn]}
       components={TABLE_COMPONENTS}
       dataSource={dataTable}
       key={uid}
@@ -435,11 +513,16 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
           // announced as an actionable control (role=button), and activated by Enter/Space
           // (matching native button semantics). Previously mouse-click only.
           return {
-            onClick: go,
+            onClick: (event: React.MouseEvent<HTMLElement>) => {
+              // A click that started in the rowActions cell is not the row's (fromRowActions).
+              if (fromRowActions.has(event.nativeEvent)) { return }
+              go()
+            },
             onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
               // Only a key aimed at the ROW activates it, as List's rows do. A focusable child — a
-              // cell carrying a `tooltip`, a control in a `widget` cell — keeps its own keys.
-              if (event.target !== event.currentTarget) { return }
+              // cell carrying a `tooltip`, a control in a `widget` cell — keeps its own keys. A key
+              // from the rowActions cell is never the row's either, wherever it is aimed.
+              if (event.target !== event.currentTarget || fromRowActions.has(event.nativeEvent)) { return }
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
                 go()
@@ -477,5 +560,20 @@ const Table = ({ deniedRefIds, exportRequestFor, resourcesRefs, serverPagination
     </div>
   )
 }
+
+/**
+ * A Table with `rowActions` needs the action dispatcher (useHandleAction: the query client, the app
+ * context, the router's routes). Only such a Table mounts it, so one without `rowActions` renders
+ * exactly the tree it always has and needs nothing it did not need before.
+ */
+const TableWithRowActions = (props: WidgetProps<TableWidgetData>) => {
+  const { deniedRefIds, resourcesRefs, widget, widgetData } = props
+  const fireRowAction = useFireRowAction({ actions: widgetData.actions, deniedRefIds, noun: 'table', resourcesRefs, widget })
+  return <TableView {...props} fireRowAction={fireRowAction} />
+}
+
+const Table = (props: WidgetProps<TableWidgetData>) => (
+  props.widgetData.rowActions?.length ? <TableWithRowActions {...props} /> : <TableView {...props} />
+)
 
 export default Table

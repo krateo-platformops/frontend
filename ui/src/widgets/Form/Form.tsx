@@ -22,6 +22,7 @@ import { FailedFieldsContext } from './failedFields'
 import { applyFieldConfig } from './fieldConfig'
 import { collectDependencies, dependentsToClear, type FieldPath } from './fieldDependencies'
 import { createOptionRegistry, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
+import { type FieldPresentation, FieldPresentationContext } from './fieldPresentation'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
 import { setFormReviewing } from './reviewPhase'
@@ -46,6 +47,14 @@ export const convertDayjsToISOString = (values: Record<string, unknown>) => {
 
   return result
 }
+
+/**
+ * antd's `requiredMark` render for a schema form under `requiredMark: optional`: the label as it is.
+ * The field header already carries "(optional)" beside the name (SchemaFields `requiredMarkFor`);
+ * antd's own would follow the whole label, under the description. Being a render, it still tells
+ * antd the form marks optional fields, so no required asterisk is drawn.
+ */
+const identityMark = (label: React.ReactNode): React.ReactNode => label
 
 interface FormExtraProps {
   buttonConfig?: FormWidgetData['buttonConfig']
@@ -279,7 +288,7 @@ export const ReviewSummary = ({ agentKeys, optionLabels, schema, secretPaths, va
  * button runs the same submit action. Default (flag off) is unchanged.
  */
 const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>) => {
-  const { actions, autocomplete, buttonConfig, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, initialValues, items, layout, notice, objectFields, propertiesToHide, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, suggestions } = widgetData
+  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, hasFeedback, initialValues, items, layout, notice, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, suggestions } = widgetData
   // Prefer `stringSchema` (the schema as a raw JSON STRING) when present: `JSON.parse`
   // preserves the object's key insertion order, so a server that hands us the blueprint's
   // values.schema.json verbatim (e.g. from the per-blueprint jsonschema ConfigMap, which
@@ -287,8 +296,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // from the CRD's openAPIV3Schema, whose properties map is serialized alphabetically. Falls
   // back to the `schema` object when stringSchema is absent or not valid JSON. Memoized so
   // the (potentially large) parse doesn't run on every controlled-form keystroke.
-  // The field lists of widgetData (`autocomplete`, `dependencies`, `displayingDependencies`,
-  // `objectFields`, `suggestions`) are then written on the fields they name (fieldConfig.ts).
+  // The field lists of widgetData (`autocomplete`, `checkboxes`, `dependencies`,
+  // `displayingDependencies`, `objectFields`, `suggestions`) are then written on the fields they
+  // name (fieldConfig.ts).
   const jsonSchema = useMemo<JSONSchema4 | undefined>(() => {
     let parsed: JSONSchema4 | undefined = schema
     if (typeof stringSchema === 'string' && stringSchema.trim() !== '') {
@@ -299,8 +309,12 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       }
     }
 
-    return applyFieldConfig(parsed, { autocomplete, dependencies: optionDependencies, displayingDependencies, objectFields, suggestions })
-  }, [schema, stringSchema, autocomplete, optionDependencies, displayingDependencies, objectFields, suggestions])
+    return applyFieldConfig(parsed, { autocomplete, checkboxes, dependencies: optionDependencies, displayingDependencies, objectFields, suggestions })
+  }, [schema, stringSchema, autocomplete, checkboxes, optionDependencies, displayingDependencies, objectFields, suggestions])
+  const presentation = useMemo<FieldPresentation>(() => ({
+    hasFeedback: hasFeedback === 'rules' ? 'rules' : undefined,
+    requiredMark: requiredMark === 'optional' ? 'optional' : undefined,
+  }), [hasFeedback, requiredMark])
   const { insideDrawer, setDrawerData } = useDrawerContext()
   const alreadySetDrawerData = useRef(false)
 
@@ -671,6 +685,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
           onFinish={(formValues) => { onFinish(formValues as Record<string, unknown>) }}
           onFinishFailed={({ errorFields }) => { setFailedFields(errorFields.map(({ name }) => name)) }}
           onValuesChange={onValuesChange}
+          // A schema form draws its own marks in each field's header; a composable Form's
+          // children are plain Form.Items, and antd marks them.
+          requiredMark={presentation.requiredMark && (jsonSchema?.properties ? identityMark : presentation.requiredMark)}
           size={size}
         >
           {jsonSchema?.properties
@@ -682,7 +699,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
                   ? <Alert className={styles.notice} showIcon title={notice} type='info' />
                   : null}
                 <FailedFieldsContext.Provider value={failedFields}>
-                  <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
+                  <FieldPresentationContext.Provider value={presentation}>
+                    <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
+                  </FieldPresentationContext.Provider>
                 </FailedFieldsContext.Provider>
               </FormRefsContext.Provider>
             )

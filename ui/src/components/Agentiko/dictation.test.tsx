@@ -515,7 +515,7 @@ describe('stopping, on every path a user expects', () => {
   })
 
   /**
-   * The rail collapses with `width: 0; overflow: hidden`, so its whole body — including the
+   * The rail collapses with `width: 0; overflow: clip`, so its whole body — including the
    * Collapse button the user just pressed — stays in the DOM and keeps receiving keys.
    */
   it('Alt+M does NOTHING while the rail is collapsed — no microphone without a visible Cancel', async () => {

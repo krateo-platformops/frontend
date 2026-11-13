@@ -138,6 +138,30 @@ describe('Login failure message', () => {
     expect(text).not.toMatch(/check your input/i)
   })
 
+  /*
+   * authn's name guard on the ldap form. These are 403s that come AFTER the password was accepted,
+   * and the password form's fall-through reads an unknown 403 as "retype" — so the page said "Wrong
+   * username or password" to someone whose password was right, and emptied the field. authn's
+   * guidance for all three is "Tell an administrator".
+   */
+  it.each([
+    'UsernameUnavailable',
+    'SystemGroupNotAllowed',
+    'PlatformGroupNotAllowed',
+  ])('%s says the sign-in worked and this account needs an administrator — never "Wrong username or password"', async (reason) => {
+    installFetchMock(403, statusBody(reason))
+    const text = await signIn()
+
+    expect(text).toMatch(/Sign-in unavailable/)
+    expect(text).toMatch(/your sign-in worked, but this account cannot be admitted as it is set up/i)
+    expect(text).toMatch(/tell an administrator/i)
+    expect(text).toMatch(new RegExp(reason))
+    expect(text).not.toMatch(/wrong username or password|check both|check them/i)
+    expect(text).not.toMatch(/retry shortly|try again/i)
+    // A retype clears the password field; this is not one, so the password stays.
+    expect(screen.getByLabelText<HTMLInputElement>('Password').value).toBe('pw')
+  })
+
   it('a strategy with no `path` is a configuration fault — never "Wrong username or password"', async () => {
     const fetchMock = installFetchMock(200, '{}', {
       strategies: () => Promise.resolve(new Response(JSON.stringify([{ kind: 'ldap', name: 'corp' }]), { status: 200 })),
