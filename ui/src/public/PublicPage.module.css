@@ -2,12 +2,12 @@
 .page {
   box-sizing: border-box;
   min-height: 100vh;
-  padding: 24px;
+  padding: var(--spacing-lg);
   width: 100%;
 }
 
 @media (width <= 575px) {
   .page {
-    padding: 16px;
+    padding: var(--spacing-md);
   }
 }
