@@ -19,6 +19,33 @@ export const overrides = [
     },
   },
 
+  // Public routes: the widget tree and the public page take their credential from the widget
+  // transport in context (src/transport/widgetTransport.ts) and never read the stored token
+  // themselves. Outside the signed-in shell that transport is anonymous, so a direct import here
+  // would put a stored token on a public page's requests — and snowplow answers a stale or invalid
+  // token with 401, never falling back to the public identity. The SSE client and the signed-in
+  // transport are fenced for the same reason: both carry the token. src/transport/tokenReach.test.ts
+  // checks the same property across all of src/, including files this glob does not cover.
+  // Placed BEFORE the drawer allow-list below, which switches the whole rule off for its files.
+  {
+    files: ['src/widgets/**/*.{ts,tsx}', 'src/publicPages/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    name: 'Widgets and public pages read through the transport (public routes)',
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [{
+          importNames: ['Drawer'],
+          message: 'Use components/DrawerHeader + drawerCloseProps with an existing drawer surface; do not hand-roll a new antd Drawer (issue #86 §0.10).',
+          name: 'antd',
+        }],
+        patterns: [{
+          group: ['**/getAccessToken*', '**/sessionResume*', '**/hooks/sseClient*', '**/signedInTransport*'],
+          message: 'Widgets and public pages never touch the stored session: read through useWidgetTransport() (src/transport/widgetTransport.ts), and reach a signed-in-only capability through its `session`, which the anonymous transport of a public page does not have.',
+        }],
+      }],
+    },
+  },
+
   // #86 §0.10: the shared drawer surfaces legitimately import antd `Drawer`; allow-list them so the
   // ban above applies everywhere else (a 5th hand-rolled drawer can't bypass components/DrawerHeader).
   //

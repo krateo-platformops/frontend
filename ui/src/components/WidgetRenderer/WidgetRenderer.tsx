@@ -1,10 +1,13 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react'
 
 import { useConfigContext } from '../../context/ConfigContext'
+import { EMPTY_FRAGMENT_EXTRAS, fragmentKeysOf, pickFragment } from '../../context/pageFragment'
+import { FragmentExtrasProvider, PageRootReset, usePageRoot } from '../../context/PageRootContext'
 import { RenderChainProvider, inspectChain, useRenderChain } from '../../context/RenderChainContext'
 import { isWidgetArmed, isWidgetLiveRefreshEnabled } from '../../hooks/refreshSse'
 import useCatchError from '../../hooks/useCatchError'
 import { useWidgetQuery } from '../../hooks/useWidgetQuery'
+import { useWidgetTransport } from '../../transport/widgetTransport'
 import type { ServerPagination, Widget } from '../../types/Widget'
 import { getWidgetModule } from '../../widgets/registry'
 import { useFilter } from '../FiltesProvider/FiltersProvider'
@@ -104,6 +107,7 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   const { isWidgetFilteredByProps } = useFilter()
   const { catchError } = useCatchError()
   const { config } = useConfigContext()
+  const transport = useWidgetTransport()
 
   if (!widgetEndpoint?.includes('widgets.templates.krateo.io')) {
     console.warn(`WidgetRenderer received widgetEndpoint=${widgetEndpoint}, which is probably invalid. An url is expected.`)
@@ -123,7 +127,8 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   // subscription open on the tab-wide stream (isWidgetArmed(widgetId)), so the green
   // "Live" dot means a push channel is genuinely open — not merely that the last fetch
   // succeeded. Replaces the earlier render-local `isSuccess && !isStale` proxy.
-  const liveRefreshEnabled = isWidgetLiveRefreshEnabled(config)
+  // Live refresh is a signed-in channel; an anonymous transport has no session and never arms it.
+  const liveRefreshEnabled = isWidgetLiveRefreshEnabled(config) && !!transport.session
   const liveArmed = liveRefreshEnabled && isWidgetArmed(widgetId)
 
   useEffect(() => {
@@ -131,6 +136,36 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
       onLoadingChange(isLoading)
     }
   }, [isLoading, onLoadingChange])
+
+  // THE PAGE ROOT (context/PageRootContext.tsx). The page wraps its root renderer in a PageRoot whose
+  // endpoint is this one; only that renderer is the root, and it clears the context for everything
+  // below it. Outside a page (chrome, a drawer, a test) there is no PageRoot and none of this runs.
+  const pageRoot = usePageRoot()
+  const isPageRoot = !!pageRoot && pageRoot.endpoint === widgetEndpoint
+  const resolvedRoot = isPageRoot && widget && typeof widget.status === 'object' ? widget : undefined
+  // A Status-kind body (string status) is snowplow answering an error in the body; it carries the code.
+  const rootFailure = ((): { status: number | undefined } | undefined => {
+    if (!isPageRoot || isPending) { return undefined }
+    if (error) { return { status: (error as { status?: number } | null)?.status } }
+    if (widget && typeof widget.status === 'string') { return { status: widget.code } }
+    return undefined
+  })()
+  // The descendants' fragment extras, computed DURING render so a child's first read already has
+  // them — the root draws its children in this same render.
+  const fragmentExtras = useMemo(
+    () => (pageRoot && resolvedRoot ? pickFragment(pageRoot.fragment, fragmentKeysOf(resolvedRoot)) : undefined),
+    [pageRoot, resolvedRoot],
+  )
+  // Layout effects, so a page that swaps itself for a state of its own on a failed root (the
+  // public page on a 403) does so before this renderer's own error card is ever painted.
+  useLayoutEffect(() => {
+    if (pageRoot && resolvedRoot) { pageRoot.resolved(resolvedRoot) }
+  }, [pageRoot, resolvedRoot])
+  const rootFailureStatus = rootFailure?.status
+  const rootFailed = !!rootFailure
+  useLayoutEffect(() => {
+    if (pageRoot && rootFailed) { pageRoot.failed(rootFailureStatus) }
+  }, [pageRoot, rootFailed, rootFailureStatus])
 
   // `isPending` (not `isLoading`) keeps the loading state visible across retry
   // backoff gaps, so a not-yet-ready backend shows a skeleton — not the error
@@ -313,8 +348,15 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   }
 
   // Every descendant sees this endpoint in its chain, so the check above fires one level down.
+  // The page root also hands its descendants the page's fragment extras, and stops any of them
+  // from taking itself for the root. Decided by `isPageRoot`, which is fixed for this renderer's
+  // life, so the subtree's shape never flips (a flip would remount every widget below).
   const withChain = (content: React.ReactNode) => (
-    <RenderChainProvider endpoint={widgetEndpoint}>{content}</RenderChainProvider>
+    <RenderChainProvider endpoint={widgetEndpoint}>
+      {isPageRoot
+        ? <PageRootReset><FragmentExtrasProvider value={fragmentExtras ?? EMPTY_FRAGMENT_EXTRAS}>{content}</FragmentExtrasProvider></PageRootReset>
+        : content}
+    </RenderChainProvider>
   )
 
   if (wrapper) {

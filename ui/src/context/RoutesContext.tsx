@@ -10,6 +10,7 @@ import Auth from '../pages/Auth/Auth'
 import Login from '../pages/Login'
 import Logout from '../pages/Logout'
 import Profile from '../pages/Profile'
+import PublicRoute, { isPublicPath, PUBLIC_ROUTE_PATHS } from '../publicPages/PublicPage'
 import type { ResourceRef } from '../types/Widget'
 
 export interface AppRoute {
@@ -42,15 +43,30 @@ const RoutesContext = createContext<RoutesContextType | undefined>(undefined)
 // (no chrome). Logout is a static route on purpose: it's the recovery escape hatch,
 // so it must resolve even when the snowplow-driven shell pages fail to render.
 // Dynamic routes are inserted into the shell's children by registerRoutes.
+//
+// The PUBLIC pages (publicPages/PublicPage.tsx) sit outside the shell too, for a stronger reason than
+// chrome: the shell is what provides the signed-in transport, so a page rendered outside it reads
+// anonymously and cannot reach the stored token at all. The whole `/public/…` space is theirs — a
+// navigation or Builder route there would be a shell child, and a static segment outranks the
+// public route's dynamic one, so it would pull a public address back into the signed-in shell.
+// Both kinds are dropped (and said so) instead.
 const SHELL_ROUTE_ID = 'shell'
 
 /** The paths the app serves itself — no Builder's route may take one. */
-const STATIC_PATHS = ['/login', '/auth', '/logout', '/profile', '*']
+const STATIC_PATHS = ['/login', '/auth', '/logout', '/profile', ...PUBLIC_ROUTE_PATHS, '*']
+
+/** Drop shell routes that would take a public address, naming each one. */
+const outsidePublicSpace = (routes: RouteObject[], source: string): RouteObject[] => routes.filter((route) => {
+  if (!isPublicPath(route.path)) { return true }
+  console.warn(`[routes] ignored the ${source} route "${route.path}": /public/… addresses belong to public pages, outside the signed-in shell.`)
+  return false
+})
 
 const defaultRoutes: RouteObject[] = [
   { element: <Login />, path: '/login' },
   { element: <Auth />, path: '/auth' },
   { element: <Logout />, path: '/logout' },
+  ...PUBLIC_ROUTE_PATHS.map((path) => ({ element: <PublicRoute />, path })),
   {
     children: [
       { element: <Profile />, path: '/profile' },
@@ -140,7 +156,7 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const registry = useSyncExternalStore(subscribeBuilders, currentBuilderRegistry)
   const mountedSignature = useRef('')
   useEffect(() => {
-    const fresh = builderRoutes(STATIC_PATHS)
+    const fresh = outsidePublicSpace(builderRoutes(STATIC_PATHS), 'Builder')
     const signature = builderRoutesSignature(fresh)
     if (signature === mountedSignature.current) { return }
     mountedSignature.current = signature
@@ -192,7 +208,7 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const children = shell.children ?? []
       // A path already served is kept — except a builder route, which the portal's own replaces;
       // the '*' catch-all stays last (mergeShellChildren).
-      const mergedChildren = mergeShellChildren(children, newRoutes)
+      const mergedChildren = mergeShellChildren(children, outsidePublicSpace(newRoutes, 'navigation'))
       if (mergedChildren === children) { return prevRoutes }
 
       const updatedRoutes = [...prevRoutes]

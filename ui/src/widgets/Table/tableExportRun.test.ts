@@ -7,6 +7,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { signedInTransport } from '../../transport/signedInTransport'
+
 import { runExport, TRUNCATED_HEADER } from './tableExportRun'
 
 vi.mock('../../utils/getAccessToken', () => ({ getAccessToken: () => 'tok' }))
@@ -126,9 +128,21 @@ describe('it POSTs, with extras in the body (snowplow POST /export)', () => {
     expect(JSON.parse(seen[0].body)).toEqual({ extras: {} })
   })
 
-  it('declares JSON and carries the bearer token', async () => {
+  it('declares JSON and adds no credential itself: the credential is the widget transport\'s', async () => {
     const { fetchMock, seen } = capture()
     await runExport('http://sp/c', null, 'csv', 'p.csv', { deliver, fetch: fetchMock })
+    expect(seen[0].headers?.['Content-Type']).toBe('application/json')
+    expect(seen[0].headers?.Authorization).toBeUndefined()
+  })
+
+  it('through the signed-in transport (what the shell provides) the bearer arrives, as before', async () => {
+    const { fetchMock, seen } = capture()
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      await runExport('http://sp/c', null, 'csv', 'p.csv', { deliver, fetch: signedInTransport.read })
+    } finally {
+      vi.unstubAllGlobals()
+    }
     expect(seen[0].headers?.['Content-Type']).toBe('application/json')
     expect(seen[0].headers?.Authorization).toBe('Bearer tok')
   })

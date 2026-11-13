@@ -7,12 +7,12 @@ import { useParams, useSearchParams } from 'react-router'
 
 import { isTimeoutError } from '../components/WidgetStates'
 import { useConfigContext } from '../context/ConfigContext'
+import { EMPTY_FRAGMENT_EXTRAS } from '../context/pageFragment'
+import { useFragmentExtras } from '../context/PageRootContext'
 import { useWidgetScope } from '../context/WidgetScopeContext'
+import { type TransportRead, useWidgetTransport } from '../transport/widgetTransport'
 import type { Widget } from '../types/Widget'
-import { authFailureCauseOf } from '../utils/authFailureCause'
-import { getAccessToken } from '../utils/getAccessToken'
 import { getUserInfo } from '../utils/getUserInfo'
-import { raiseSessionExpired } from '../utils/sessionResume'
 
 import type { WatchMatcher } from './liveRefresh'
 import { getRefreshEntry, isWidgetLiveRefreshEnabled, recordRefreshHeaders, wasRefetchEventTriggered } from './refreshSse'
@@ -155,8 +155,17 @@ export const buildExtrasParam = (
   username?: string,
   injectIdentity: boolean = true,
   callerExtras: Readonly<Record<string, unknown>> = EMPTY_CALLER_EXTRAS,
+  fragmentExtras: Readonly<Record<string, string>> = EMPTY_FRAGMENT_EXTRAS,
 ): string => {
   const extras: Record<string, unknown> = Object.fromEntries(searchParams.entries())
+  // The page's FRAGMENT extras (context/pageFragment.ts) beat the query string and nothing else:
+  // a fragment is exactly as easy to type as a query, so it must not override the identity (which
+  // the query cannot either) or a route param. Precedence, extended: caller > route > identity >
+  // fragment > query. Empty for every page that declares no fragment keys, which writes nothing and
+  // leaves the string — the react-query key and the L1 cache cell key — byte-identical.
+  for (const [key, value] of Object.entries(fragmentExtras)) {
+    extras[key] = value
+  }
   for (const [key, value] of Object.entries(routeParams)) {
     if (value !== undefined) { extras[key] = value }
   }
@@ -248,8 +257,32 @@ export const boundedWindow = (
   defaultPageSize: number | undefined,
 ): number | undefined => endpointPerPage ?? defaultPageSize
 
+/**
+ * A widget read with its extras in the BODY: POST /call/read, every other parameter left on the
+ * query. Used only when the extras carry the page's fragment values, which must reach no URL.
+ *
+ * Refuses an endpoint that is not a `/call` — there is no body-carrying form of anything else, and
+ * falling back to the query would put the values in the very URL this exists to keep them out of.
+ */
+export const readWithBodyExtras = (read: TransportRead, requestUrl: URL, extrasParam: string): Promise<Response> => {
+  const url = new URL(requestUrl.toString())
+  if (!url.pathname.endsWith('/call')) {
+    throw new WidgetFetchError(`A widget with fragment extras must read through /call, not ${url.pathname}`)
+  }
+  url.pathname = `${url.pathname}/read`
+  url.searchParams.delete('extras')
+  return read(url.toString(), {
+    body: JSON.stringify({ extras: extrasParam ? JSON.parse(extrasParam) as unknown : {} }),
+    headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+  })
+}
+
 export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOptions = {}) => {
   const { config } = useConfigContext()
+  // The credential, if any, is the transport's (transport/widgetTransport.ts): signed in inside the
+  // shell, anonymous everywhere else. This hook never reads a token itself.
+  const transport = useWidgetTransport()
   const [searchParams] = useSearchParams()
   const matchedParams = useParams()
   // snowplow#777. react-router shares ONE params object across the matched branch, so a widget
@@ -265,14 +298,23 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   const routeParams = scope === 'chrome' ? EMPTY_ROUTE_PARAMS : matchedParams
   const widgetSearchParams = scope === 'chrome' ? EMPTY_SEARCH_PARAMS : searchParams
   const { defaultPageSize, extras: callerExtras } = options
+  // The page's fragment extras, when this widget is below a page root that declares fragment keys
+  // the page was opened with. They must never reach a URL — a fragment exists precisely so they
+  // reach no server log — so a widget that carries any reads through POST /call/read, with the
+  // whole extras envelope in the body (snowplow#186; same chain, same RBAC as GET /call).
+  const fragmentExtras = useFragmentExtras()
+  const extrasInBody = Object.keys(fragmentExtras).length > 0
   // Extras envelope snowplow forwards into the RESTAction jq dict (`?extras=<json>`):
   // route params (e.g. /compositions/:namespace/:name) + browser URL query (search `q`)
   // + login identity `displayName` (greeting) + `username` (per-user server state, e.g.
   // blueprint drafts) — the identity pair ONLY when snowplow is not injecting it
   // server-side (capability flag api.SNOWPLOW_IDENTITY_INJECTION). See buildExtrasParam.
   const { displayName, username } = getUserInfo()
-  const injectIdentity = !config?.api.SNOWPLOW_IDENTITY_INJECTION
-  const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, callerExtras)
+  // Only a SIGNED-IN read volunteers an identity. A public page renders with the anonymous transport
+  // and is the page anyone sees, so the identity an earlier sign-in left in storage must not ride on
+  // its reads either — it would also tell the RESTActions who is looking.
+  const injectIdentity = !config?.api.SNOWPLOW_IDENTITY_INJECTION && !!transport.session
+  const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, callerExtras, fragmentExtras)
 
   const widgetFullUrl = `${config!.api.SNOWPLOW_API_BASE_URL}${widgetEndpoint}`
   const requestUrl = new URL(widgetFullUrl)
@@ -280,8 +322,13 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // Per-widget live-refresh (snowplow `/refreshes` SSE). The `widgetId` is the
   // serialized query key — stable per (endpoint, extras) — used to key the captured
   // refresh headers and arm the stream. ON by default; per-install kill-switch in config
-  // (see refreshSse.isWidgetLiveRefreshEnabled).
-  const refreshEnabled = isWidgetLiveRefreshEnabled(config)
+  // (see refreshSse.isWidgetLiveRefreshEnabled). A live stream is a signed-in channel (it
+  // authenticates with the session's bearer), so an anonymous transport — no `session` — never arms
+  // one, and never records the headers that would.
+  //
+  // A widget reading with extras in the body does not arm either: the refresh coordinates are built
+  // from the request URL's query, which then does not carry the extras the read was made with.
+  const refreshEnabled = isWidgetLiveRefreshEnabled(config) && !!transport.session && !extrasInBody
   const widgetId = JSON.stringify(['widgets', widgetEndpoint, extrasParam])
 
   /* TO DEBUG BEFORE SNOWPLOW RETURNS THESE IN THE widgetEndpoint */
@@ -341,7 +388,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     if (typeof perPage === 'number') {
       requestUrl.searchParams.set('perPage', perPage.toString())
     }
-    if (extrasParam) {
+    if (extrasParam && !extrasInBody) {
       requestUrl.searchParams.set('extras', extrasParam)
     }
 
@@ -354,27 +401,19 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     //   urlString,
     // })
 
-    const res = await fetch(urlString, {
-      headers: {
-        Authorization: `Bearer ${getAccessToken()}`,
-      },
-    })
+    const res = extrasInBody ? await readWithBodyExtras(transport.read, requestUrl, extrasParam) : await transport.read(urlString)
 
     if (!res.ok) {
       // ONE read of the body, shared by the 401 classification and the thrown detail.
       const { body, detail } = await readErrorBody(res)
       if (res.status === 401) {
-        // Expired/invalid token → raise the IN-PLACE session-resume modal (single app-level
-        // mount, see components/SessionResume) instead of hard-wiping the session and dumping
-        // the user on /login. Concurrent 401s (every widget failing at once) coalesce into ONE
-        // pending resume; on successful re-auth the modal invalidates all queries so this very
-        // widget refetches with the fresh token and the page resumes where it was. Non-basic
-        // auth strategies fall back to the legacy forceLogout inside the flow.
-        //
-        // The cause decides what the surface offers: a step-up prompt, a fresh sign-in, or — for
-        // a cluster that cannot issue the credential at all — no form, because offering one would
-        // be an action that cannot succeed (snowplow#1029).
-        void raiseSessionExpired(authFailureCauseOf(body))
+        // The transport decides what a 401 means. Signed in: an expired/invalid token, so the
+        // IN-PLACE session-resume modal (components/SessionResume), with the cause snowplow named
+        // in the body (snowplow#1029) — concurrent 401s coalesce into one resume, and a successful
+        // re-auth invalidates every query so this widget refetches with the fresh token.
+        // Anonymous: public serving is off on this install, which the public page reports once for
+        // the whole page — never a sign-in prompt, and never a redirect.
+        transport.onUnauthorized(body)
       }
       throw new WidgetFetchError(`Widget fetch failed: ${res.status} ${res.statusText}`, res.status, detail)
     }
