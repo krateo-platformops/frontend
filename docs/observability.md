@@ -187,8 +187,10 @@ instrumentation-fetch 0.223 clones the response and drains the clone before it e
 an SSE reply keeps the span open until its last byte. Two consequences:
 
 - A body that errors mid-way — the rail aborting the turn, a dropped connection — ends the span
-  at that moment, through the library's error path, with `http.response.status_code` **0** even
-  though a 200 had arrived. A `0` therefore means "the body did not complete", not "no answer".
+  at that moment, through the library's error path. The library records
+  `http.response.status_code` **0** there, even though a 200 had arrived, and leaves the status
+  UNSET. The export **omits that 0 and sets `ERROR`** (below), so an unfinished turn reads as a
+  failure, not as a success with no status.
 - A tab closed mid-stream never ends the span, so nothing is exported for that request.
 
 Both are pinned against the installed library in `ui/src/otel/spanContract.a2a.test.ts`: a bump
@@ -198,7 +200,17 @@ duration claims.
 | attribute | value |
 |---|---|
 | `http.request.method` | `POST` — the only method that becomes this span |
-| `http.response.status_code` | as recorded; `0` when the request or its body failed (above) |
+| `http.response.status_code` | the response's status, only when it is 100–599; **absent** when no complete response was read |
+
+**Errors.** A recorded 4xx/5xx keeps its status code, and the library's own `ERROR`. When no
+complete response was read — a network failure, or a body that errored or was aborted
+mid-stream — instrumentation-fetch writes `http.response.status_code` 0 and leaves the status
+UNSET. snowplow accepts 100–599 only, and 0 is the absence of a status rather than one, so the
+export omits it and sets `ERROR`: the "`ERROR` with no status code" shape the consumer already
+reads as a failure. The user stopping a turn lands here too, since the request did not complete,
+whoever stopped it. This applies to `krateo.agentiko.a2a` only. `krateo.widget.fetch` carries the
+same 0 from the same library path and is unchanged, because reclassifying it would move the SLI
+error rate.
 | `http.route` | always the literal template `/api/a2a/{namespace}/{agent}` — never the concrete path, which snowplow refuses |
 | `krateo.a2a.method` | the JSON-RPC method, only when it is `message/stream`, `message/send`, `tasks/get` or `tasks/resubscribe`; **absent** otherwise |
 

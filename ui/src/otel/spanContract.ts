@@ -87,8 +87,10 @@ export type SpanName = typeof SPAN_NAMES[keyof typeof SPAN_NAMES]
  * `onSuccess` clones the response and drains the clone before ending the span, rather than ending
  * it when the headers resolve. So for `message/stream` it measures the WHOLE streamed turn, request
  * → last SSE byte. A body that errors mid-way (the rail's AbortController, a dropped connection)
- * ends the span at that moment through the library's error path, with `http.response.status_code`
- * 0 even though a 200 had arrived. A tab closed mid-stream never ends it, so nothing is exported.
+ * ends the span at that moment through the library's error path, which records
+ * `http.response.status_code` 0 even though a 200 had arrived (the export turns that into ERROR
+ * with no status code: `a2aStatusOf`). A tab closed mid-stream never ends it, so nothing is
+ * exported.
  * spanContract.a2a.test.ts pins this against the installed library: a bump that changes where the
  * span ends fails there, because moving a boundary silently changes what the duration claims.
  */
