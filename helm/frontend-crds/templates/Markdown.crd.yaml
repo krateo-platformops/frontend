@@ -157,6 +157,11 @@ spec:
                     markdown:
                       description: markdown string to be displayed
                       type: string
+                    tone:
+                      description: '`secondary`: the text in the secondary text colour at the small size, as a muted line (links keep the link colour). Absent: the body text colour and size'
+                      enum:
+                        - secondary
+                      type: string
                   required:
                     - markdown
                   type: object
