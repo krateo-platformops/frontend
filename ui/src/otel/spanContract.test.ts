@@ -66,9 +66,11 @@ describe('the five names are the whole accepted set', () => {
     ])
   })
 
-  it('plus one counted span, outside the SLI set', () => {
-    expect(Object.values(COUNTED_SPAN_NAMES)).toEqual(['krateo.agentiko.claim.unbacked'])
-    expect(Object.values(SPAN_NAMES)).not.toContain(COUNTED_SPAN_NAMES.agentikoClaimUnbacked)
+  it('plus two spans exported outside the SLI set', () => {
+    expect(Object.values(COUNTED_SPAN_NAMES).sort()).toEqual(['krateo.agentiko.a2a', 'krateo.agentiko.claim.unbacked'])
+    for (const name of Object.values(COUNTED_SPAN_NAMES)) {
+      expect(Object.values(SPAN_NAMES)).not.toContain(name)
+    }
   })
 })
 

@@ -88,7 +88,7 @@ function snowplowPrefixOf(api: TracingConfig['api']): string | null {
  * Same-origin needs no propagation entry: `shouldPropagateTraceHeaders` always injects on
  * same-origin requests, which is why the span's context already reaches the gateway today.
  */
-function agentikoA2aPrefixOf(api: TracingConfig['api']): string | null {
+export function agentikoA2aPrefixOf(api: TracingConfig['api']): string | null {
   const base = agentikoConfig(api, 'API_BASE_URL')
   if (typeof base !== 'string' || base.length === 0) {
     return null
