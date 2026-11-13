@@ -1,0 +1,5 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the sign-in card's band and heading > by default: the bundled logo, "Sign in", "to Krateo PlatformOps" 1`] = `"<div class="_band"><img alt="Krateo | PlatformOps" class="_logo" src="/src/assets/images/logo_big.svg"></div><h1 class="_title">Sign in</h1><p class="_to">to Krateo PlatformOps</p>"`;
+
+exports[`the sign-in card's band and heading > with a logo, its alt and an installation name from config 1`] = `"<div class="_band"><img alt="Example" class="_logo" src="/brand/logo.svg"></div><h1 class="_title">Sign in</h1><p class="_to">to Krateo PlatformOps · <span class="_installation">cmp.example.dev</span></p>"`;
