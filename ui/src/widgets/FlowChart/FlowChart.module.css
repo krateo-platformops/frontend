@@ -23,6 +23,20 @@
   position: relative;
 }
 
+/* The cards FlowChart measures before it lays the graph out (EVERY NAME IN FULL): laid out at their
+   true size, so each is as tall as its lines need, but drawn nowhere. Zero height with the overflow
+   hidden, so they take no room and add no scroll; hidden, so nothing paints, takes a pointer or is
+   announced (the element is aria-hidden as well). Absolute, against the box, so it moves nothing. */
+.probe {
+  height: 0;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  visibility: hidden;
+}
+
 /* portal#310: the graph runs past this box. `fit="natural"` pins its LEFT edge, so what is missing
    is always on the RIGHT, and a card clipped mid-name reads as damage unless something says the
    drawing continues. A fade over the last 48px does that without moving or shrinking anything — the

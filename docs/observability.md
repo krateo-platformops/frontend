@@ -234,7 +234,7 @@ duration claims.
 |---|---|
 | `http.request.method` | `POST` — the only method that becomes this span |
 | `http.response.status_code` | the response's status, only when it is 100–599; **absent** when no complete response was read |
-| `http.route` | always the literal template `/api/a2a/{namespace}/{agent}` — never the concrete path, which snowplow refuses |
+| `http.route` | always the literal template `/api/a2a/{namespace}/{agent}`, never the concrete path. The frontend guarantees this by sending only that constant (`A2A_ROUTE`); snowplow's ingest checks the route's syntax only (no query string, no %-escapes, no token-shaped segments, absolute path), so it would accept a concrete path. It does not enforce the template. |
 | `krateo.a2a.method` | the JSON-RPC method, only when it is `message/stream`, `message/send`, `tasks/get` or `tasks/resubscribe`; **absent** otherwise |
 
 **Errors.** A recorded 4xx/5xx keeps its status code, and the library's own `ERROR`. When no

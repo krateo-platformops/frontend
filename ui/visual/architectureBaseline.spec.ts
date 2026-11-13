@@ -44,7 +44,9 @@ const settledCards = async (page: Page): Promise<{ box: Rect; cards: Rect[] }> =
 const ARC_HEADROOM = 26
 const PADDING = 16
 
-for (const [width, card] of [[1400, 84], [1179, 84], [1000, 56]] as const) {
+// The regular card is as tall as V1B's tallest card needs — `publish-pod-sizing-v1b-source` takes a
+// second line — and at least 84px (FlowChart measures it); the compact card is always 56px.
+for (const [width, density] of [[1400, 'regular'], [1179, 'regular'], [1000, 'compact']] as const) {
   test(`in a ${width}px box the four cards share one baseline, and the box is as tall as the drawing`, async ({ page }) => {
     await page.goto(`/visual/index.html?fixture=architecture&box=${width}`)
     await page.evaluate(() => document.fonts.ready)
@@ -53,7 +55,14 @@ for (const [width, card] of [[1400, 84], [1179, 84], [1000, 56]] as const) {
     for (const centre of centres) {
       expect(Math.abs(centre - centres[0]), `centres ${JSON.stringify(centres)}`).toBeLessThanOrEqual(1)
     }
-    expect(cards.map(({ bottom, top }) => Math.round(bottom - top))).toEqual([card, card, card, card])
+    const heights = cards.map(({ bottom, top }) => Math.round(bottom - top))
+    const [card] = heights
+    expect(heights).toEqual([card, card, card, card])
+    if (density === 'compact') {
+      expect(card).toBe(56)
+    } else {
+      expect(card).toBeGreaterThanOrEqual(84)
+    }
     // The content is the row plus the arc's headroom; the box is that and the margins — no more.
     const content = ARC_HEADROOM + card
     expect(box.bottom - box.top).toBeLessThanOrEqual(content + 2 * PADDING)
@@ -122,9 +131,13 @@ test('G6 holds every main-chain card on one y, and no painted edge passes throug
   for (const { y } of nodes) {
     expect(Math.abs(y - nodes[0].y)).toBeLessThanOrEqual(1)
   }
-  // Each card's rendered box is the 240×84 the layout reserved (ARCHITECTURE_NODE_SIZE).
+  // Each card's rendered box is the one the layout reserved: 240 wide, and as tall as the card the
+  // page draws (the tallest card's height, at least 84px) — so a card's whole drawn box is what the
+  // edges below are checked against.
+  const drawnCard = await page.getByRole('group').first().boundingBox()
+  expect(drawnCard!.height).toBeGreaterThanOrEqual(84)
   for (const { max, min } of nodes) {
-    expect([Math.round(max[0] - min[0]), Math.round(max[1] - min[1])]).toEqual([240, 84])
+    expect([Math.round(max[0] - min[0]), Math.round(max[1] - min[1])]).toEqual([240, Math.round(drawnCard!.height)])
   }
   const crossings: string[] = []
   for (const each of edges) {

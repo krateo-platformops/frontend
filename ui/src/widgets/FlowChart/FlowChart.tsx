@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import DependencyGraph, { NATURAL_PADDING, type GraphDirection, type GraphNode } from '../../components/DependencyGraph'
 import { WidgetEmpty } from '../../components/WidgetStates'
@@ -6,9 +6,9 @@ import type { WidgetProps } from '../../types/Widget'
 
 import ArchitectureStateNode from './ArchitectureStateNode'
 import {
-  ARCHITECTURE_DENSITY,
   architectureEdgeAppearance,
   architectureFit,
+  architectureNodeSize,
   architectureShape,
   toArchitectureGraphData,
   type ArchitectureDensity,
@@ -16,6 +16,7 @@ import {
 import styles from './FlowChart.module.css'
 import type { FlowChart as WidgetType } from './FlowChart.type'
 import FlowChartNodeElement from './FlowChartNodeElement'
+import { useArchitectureCardHeight } from './useArchitectureCardHeight'
 import { toGraphData } from './utils'
 
 export type FlowChartWidgetData = WidgetType['spec']['widgetData']
@@ -39,11 +40,8 @@ const NODE_SIZE: [number, number] = [400, 150]
 
 const renderNode = ({ data }: GraphNode<FlowChartNodeData>) => <FlowChartNodeElement data={data} />
 
-/** One card renderer per density, each a module constant: a new renderNode is a re-layout. */
-const RENDER_ARCHITECTURE_NODE: Record<ArchitectureDensity, (node: GraphNode<FlowChartNodeData>) => ReactNode> = {
-  compact: ({ data }) => <ArchitectureStateNode data={data} density='compact' />,
-  regular: ({ data }) => <ArchitectureStateNode data={data} />,
-}
+/** The compact card's renderer, a module constant: a new renderNode is a re-layout. */
+const renderCompactNode = ({ data }: GraphNode<FlowChartNodeData>) => <ArchitectureStateNode data={data} density='compact' />
 
 interface VariantProps {
   data: FlowChartData
@@ -77,6 +75,13 @@ interface ArchitectureProps extends VariantProps {
  *     dagre and its fixed box: its fit closes the rank gap DOWN the box, which needs a height to fit
  *     into, and the trace page's call graphs are where dagre's own handling has been checked.
  *
+ *   - EVERY NAME IN FULL. The regular card wraps its name rather than cut it, so a long name makes a
+ *     taller card — and the layout reserves ONE box per node, the same for all. So the cards are
+ *     drawn first out of sight (`useArchitectureCardHeight`: the card's own lines and stylesheet),
+ *     the tallest is measured, and every card is drawn, and laid out, at that height: no taller card
+ *     runs into its neighbour, and the rows stay one height. The graph is created once the fonts
+ *     have arrived and the cards are measured in them, so it is laid out once.
+ *
  * `direction` and `density` (both optional) are for a box narrower than the chain is long. The trace
  * page's services column is ~415px: three 240px cards left to right are 1040px, so only the first was
  * in view. TB compact draws one 180×56 card per row, and is as wide as its broadest row. A density
@@ -90,6 +95,8 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
   const box = useRef<HTMLDivElement>(null)
   // The box's [clientWidth, clientHeight]; null until it has been measured once.
   const [boxSize, setBoxSize] = useState<[number, number] | null>(null)
+  // EVERY NAME IN FULL (see above): the tallest card, what every regular card is drawn and laid out at.
+  const { height: cardHeight, measured, probe } = useArchitectureCardHeight(graphData.nodes)
 
   // ADAPT, NEVER CLIP (architectureVariant's `architectureFit`): the box is measured, here and on
   // every resize, and the graph drawn with the gap, the card and the scale that fit it — or, past
@@ -117,8 +124,13 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
   }, [empty])
 
   const fit = useMemo(
-    () => architectureFit(shape, { box: boxSize ?? [0, 0], density, direction }),
-    [boxSize, density, direction, shape],
+    () => architectureFit(shape, { box: boxSize ?? [0, 0], cardHeight, density, direction }),
+    [boxSize, cardHeight, density, direction, shape],
+  )
+  // A new renderer is a re-layout: it changes only with the height, which is a re-layout anyway.
+  const renderRegularNode = useCallback(
+    ({ data: node }: GraphNode<FlowChartNodeData>) => <ArchitectureStateNode data={node} height={cardHeight} />,
+    [cardHeight],
   )
   // LR: the box's height is the drawing's, at the fit's card, gaps and scale, with the placement's
   // margin above and below — so `placeAtNaturalSize` centres it, and no fixed height leaves it floating.
@@ -142,7 +154,9 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
       ref={box}
       style={height}
     >
-      {boxSize
+      {probe}
+      {/* Created once both are known, so G6 lays the graph out once: the box, and the card's height in its own face. */}
+      {boxSize && measured
         ? (
           <DependencyGraph
             arrangement='baseline'
@@ -150,9 +164,9 @@ const ArchitectureFlowChart = ({ data, density, direction, uid }: ArchitecturePr
             edgeAppearance={architectureEdgeAppearance}
             edges={graphData.edges}
             fit='natural'
-            nodeSize={ARCHITECTURE_DENSITY[fit.density].nodeSize}
+            nodeSize={architectureNodeSize(fit.density, cardHeight)}
             nodes={graphData.nodes}
-            renderNode={RENDER_ARCHITECTURE_NODE[fit.density]}
+            renderNode={fit.density === 'compact' ? renderCompactNode : renderRegularNode}
             spacing={fit.spacing}
             zoom={fit.scale}
           />
