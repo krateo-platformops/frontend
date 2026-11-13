@@ -4,8 +4,8 @@ import { useConfigContext } from '../../context/ConfigContext'
 import { EMPTY_FRAGMENT_EXTRAS, fragmentKeysOf, pickFragment } from '../../context/pageFragment'
 import { FragmentExtrasProvider, PageRootReset, usePageRoot } from '../../context/PageRootContext'
 import { RenderChainProvider, inspectChain, useRenderChain } from '../../context/RenderChainContext'
+import { useErrorNotice } from '../../hooks/errorNotice'
 import { isWidgetArmed, isWidgetLiveRefreshEnabled } from '../../hooks/refreshSse'
-import useCatchError from '../../hooks/useCatchError'
 import { useWidgetQuery } from '../../hooks/useWidgetQuery'
 import { useWidgetTransport } from '../../transport/widgetTransport'
 import type { ServerPagination, Widget } from '../../types/Widget'
@@ -105,7 +105,9 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   const chainVerdict = inspectChain(renderChain, widgetEndpoint)
 
   const { isWidgetFilteredByProps } = useFilter()
-  const { catchError } = useCatchError()
+  // Showing an error is shared; REACTING to one (a session resume, a trip to /login) is the signed-in
+  // transport's, so a public page cannot reach either (hooks/errorNotice.tsx).
+  const { showError } = useErrorNotice()
   const { config } = useConfigContext()
   const transport = useWidgetTransport()
 
@@ -158,7 +160,7 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   )
   // A 401 snowplow answered IN THE BODY (a Status with code 401 on a 200). The transport decides what
   // it means, exactly as for an HTTP 401 (hooks/useWidgetQuery.ts). Signed in: the in-place session
-  // resume, with the cause classified from this body (what catchError's 401 branch did here). On a
+  // resume, with the cause classified from this body (what useCatchError's 401 branch did here). On a
   // public page: public serving is off — never a session resume, which with no resume surface
   // mounted falls through to a real logout. An effect, not a call during render: on a public page it
   // changes the page's own state.
@@ -240,19 +242,21 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
 
   if (typeof status === 'string') {
     if (kind === 'Status') {
-      // A credentials failure sends a signed-in person back to sign in. A public page has no
-      // sign-in to go back to; it shows the widget's error below instead.
-      if (transport.identity === 'signed-in' && code === 500 && status === 'Failure' && message?.includes('credentials')) {
-        catchError(
+      // A credentials failure sends a signed-in person back to sign in — through the session, which
+      // a public page does not have: there it shows the widget's error below instead.
+      const { session } = transport
+      if (session && code === 500 && status === 'Failure' && message?.includes('credentials')) {
+        showError(
           {
             data: { message },
             message: `Credentials error (code: ${code})`,
             status: code,
           },
-          'notification'
+          'notification',
+          { suppressed: session.isResumePending },
         )
 
-        window.location.replace('/login')
+        session.signInAgain()
       }
 
       const params = new URLSearchParams(widgetEndpoint)

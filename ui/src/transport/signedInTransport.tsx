@@ -15,7 +15,7 @@ import { subscribeSse } from '../hooks/signedInSseClient'
 import { holdTelemetryCredential } from '../otel/telemetryCredential'
 import { authFailureCauseOf } from '../utils/authFailureCause'
 import { getAccessToken } from '../utils/getAccessToken'
-import { raiseSessionExpired } from '../utils/sessionResume'
+import { isSessionResumePending, raiseSessionExpired } from '../utils/sessionResume'
 
 import { type TransportInit, type WidgetTransport, WidgetTransportProvider } from './widgetTransport'
 
@@ -33,7 +33,13 @@ export const signedInTransport: WidgetTransport = {
     // surface offers: a step-up prompt, a fresh sign-in, or no form (snowplow#1029).
     void raiseSessionExpired(authFailureCauseOf(body))
   },
-  session: { getAccessToken, resume: () => raiseSessionExpired(), subscribeSse },
+  session: {
+    getAccessToken,
+    isResumePending: () => isSessionResumePending(),
+    resume: () => raiseSessionExpired(),
+    signInAgain: () => { window.location.replace('/login') },
+    subscribeSse,
+  },
   writes: true,
 }
 

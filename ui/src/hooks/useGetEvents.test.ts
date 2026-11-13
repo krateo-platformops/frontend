@@ -40,7 +40,9 @@ const signedIn: WidgetTransport = {
   onUnauthorized: () => undefined,
   session: {
     getAccessToken: () => 'header.payload.signature',
+    isResumePending: () => false,
     resume: () => Promise.resolve('resumed'),
+    signInAgain: () => undefined,
     subscribeSse: (url: string, topic: string, subscriber: SseSubscriber) => {
       // Recorded loosely: the tests below open a stream with only `reopened`, no scope.
       sseSubscriptions.push({ onMessage: subscriber.onMessage, onOpen: subscriber.onOpen as Subscriber['onOpen'], topic, url })

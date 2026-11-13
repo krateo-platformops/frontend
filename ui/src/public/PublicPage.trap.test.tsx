@@ -138,7 +138,7 @@ const fakeFetch = vi.fn((input: RequestInfo | URL, init: RequestInit = {}) => {
     const status = statusFor[name]
     if (status) { return Promise.resolve(json({ code: status, kind: 'Status', message: `answered ${status}`, status: 'Failure' }, status)) }
     const inBody = bodyStatusFor[name]
-    if (inBody) { return Promise.resolve(json({ code: inBody, kind: 'Status', message: `answered ${inBody} in the body`, status: 'Failure' })) }
+    if (inBody) { return Promise.resolve(json({ code: inBody, kind: 'Status', message: inBody === 500 ? 'invalid credentials for the upstream' : `answered ${inBody} in the body`, status: 'Failure' })) }
     const body = fixtures[name]
     return Promise.resolve(body ? json(body) : json({ message: 'not found' }, 404))
   }
@@ -333,6 +333,17 @@ describe('what an anonymous read answered decides what the page shows', () => {
     expect(window.location.pathname).toBe('/public/demo')
     expect(localStorage.getItem('K_user')).toContain(TOKEN)
     expect(screen.queryByText(/session/i)).toBeNull()
+  })
+
+  it('a credentials 500 in a CHILD\'s body shows that child\'s error state: no trip to /login, the stored session untouched', async () => {
+    bodyStatusFor['demo-button'] = 500
+    await open('/public/demo')
+
+    expect(await screen.findByTestId('widget-error')).toBeTruthy()
+    expect(await screen.findByText(/upload a file/i)).toBeTruthy()
+    expect(window.location.pathname).toBe('/public/demo')
+    expect(localStorage.getItem('K_user')).toContain(TOKEN)
+    expect(notices).toEqual([])
   })
 
   it('403 on the root: "This page isn\'t public"', async () => {

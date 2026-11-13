@@ -29,7 +29,7 @@ vi.mock('../utils/getAccessToken', () => ({
 }))
 
 const raiseSessionExpired = vi.fn((_cause?: unknown) => Promise.resolve('resumed'))
-vi.mock('../utils/sessionResume', () => ({ raiseSessionExpired: (cause: unknown) => raiseSessionExpired(cause) }))
+vi.mock('../utils/sessionResume', () => ({ isSessionResumePending: () => false, raiseSessionExpired: (cause: unknown) => raiseSessionExpired(cause) }))
 
 vi.mock('../context/ConfigContext', () => ({
   useConfigContext: () => ({ config: { api: { SNOWPLOW_API_BASE_URL: 'http://sp.test', SNOWPLOW_IDENTITY_INJECTION: 'true', WIDGET_LIVE_REFRESH_ENABLED: false } } }),
@@ -70,6 +70,14 @@ describe('the signed-in transport', () => {
   it('a 401 raises the in-place session resume, with the cause snowplow named', () => {
     signedInTransport.onUnauthorized({ details: { causes: [{ reason: 'StepUpRequired' }] } })
     expect(raiseSessionExpired).toHaveBeenCalledTimes(1)
+  })
+
+  it('its session carries the signed-in reactions: the resume state, and the trip back to sign in', () => {
+    const replace = vi.fn()
+    vi.stubGlobal('location', { ...window.location, replace })
+    signedInTransport.session?.signInAgain()
+    expect(replace).toHaveBeenCalledWith('/login')
+    expect(signedInTransport.session?.isResumePending()).toBe(false)
   })
 
   it('is live and writes, and carries the session: the token getter and the SSE client', () => {

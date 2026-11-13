@@ -52,6 +52,10 @@ export interface SignedInSession {
   readonly subscribeSse: (url: string, topic: string, subscriber: SseSubscriber) => () => void
   /** The in-place session resume (utils/sessionResume), for a channel that met a 401 and must know how it ended. */
   readonly resume: () => Promise<SessionResumeOutcome>
+  /** Whether a session resume is pending: error toasts hold off meanwhile, so the modal is not buried. */
+  readonly isResumePending: () => boolean
+  /** Leave for the sign-in page — a widget whose credentials snowplow says are unusable. */
+  readonly signInAgain: () => void
 }
 
 export interface WidgetTransport {

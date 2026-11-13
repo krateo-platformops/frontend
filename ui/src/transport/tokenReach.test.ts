@@ -10,7 +10,10 @@
  *    The walk starts at what a public page mounts — PublicPage, WidgetRenderer and every widget module
  *    the registry loads (widgets/load.ts globs `widgets/<Kind>/index.ts`) — follows every runtime
  *    import, static or dynamic, and stops only at transport/signedInTransport.tsx, the one module
- *    allowed to bind the token getter (and which nothing on that graph imports). A hook that
+ *    allowed to bind the token getter, the session resume and forceLogout (and which nothing on that
+ *    graph imports). The session resume and utils/logout are held to the same rule as the token: on a
+ *    page with no resume surface the resume falls through to forceLogout, which clears the stored
+ *    session and leaves for /login — a visitor's, on a public page. A hook that
  *    imports `utils/getAccessToken` itself, even one a public page never CALLS, fails here: the
  *    guarantee is that the getter is unreachable, not that a flag keeps it unused.
  *
@@ -150,18 +153,28 @@ describe('nothing a public page renders can reach the token, except through the 
     }
   })
 
-  it('utils/getAccessToken is unreachable from it', () => {
+  // The token getter, and the two modules that act on a stored session: the session resume, and
+  // utils/logout (forceLogout), which the resume falls through to when no resume surface is mounted
+  // — as on a public page — and which clears the stored session and leaves for /login.
+  it.each([
+    ['utils/getAccessToken.ts'],
+    ['utils/sessionResume.ts'],
+    ['utils/logout.ts'],
+  ])('%s is unreachable from it', (target) => {
+    const targetFile = join(SRC, target)
     const graph = reachableFrom(publicPageEntries(), new Set([SIGNED_IN_TRANSPORT]))
     const leaks = [...graph.keys()]
-      .filter((file) => file !== SIGNED_IN_TRANSPORT && runtimeImports(file).includes(TOKEN_GETTER))
+      .filter((file) => file !== SIGNED_IN_TRANSPORT && runtimeImports(file).includes(targetFile))
       .map((file) => chainTo(graph, file))
-    expect(leaks, 'each line is a chain from a public-page entry to a module that imports utils/getAccessToken').toEqual([])
-    expect(graph.has(TOKEN_GETTER)).toBe(false)
+    expect(leaks, `each line is a chain from a public-page entry to a module that imports ${target}`).toEqual([])
+    expect(graph.has(targetFile)).toBe(false)
   })
 
-  it('control: the same walk, NOT stopped at the signed-in transport, does reach the getter through it', () => {
+  it('control: the same walk, NOT stopped at the signed-in transport, does reach all three through it', () => {
     const graph = reachableFrom([SIGNED_IN_TRANSPORT], new Set())
     expect(graph.has(TOKEN_GETTER)).toBe(true)
+    expect(graph.has(join(SRC, 'utils/sessionResume.ts'))).toBe(true)
+    expect(graph.has(join(SRC, 'utils/logout.ts'))).toBe(true)
   })
 })
 
