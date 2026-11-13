@@ -14,9 +14,14 @@ import { cleanup, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+/** The width the stub ResizeObserver reports for the table, 0 for "never measured" (jsdom's own). */
+let observedWidth = 0
 vi.stubGlobal('ResizeObserver', class {
+  constructor(private readonly callback: ResizeObserverCallback) {}
   disconnect = vi.fn()
-  observe = vi.fn()
+  observe = () => {
+    if (observedWidth > 0) { this.callback([{ contentRect: { width: observedWidth } } as ResizeObserverEntry], this) }
+  }
   unobserve = vi.fn()
 })
 vi.stubGlobal('matchMedia', (query: string) => ({
@@ -38,7 +43,10 @@ import type { TableWidgetData } from './Table'
 import { columnLayout, headerWidth, TAG_GLYPH_EM } from './tableColumnWidths'
 import { VIRTUAL_ROW_THRESHOLD } from './tablePagination'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  observedWidth = 0
+})
 
 const verdicts = ['Underprovisioned', 'Overprovisioned', 'Right-sized', 'Unknown']
 
@@ -128,20 +136,21 @@ describe('Table — tag cells in a narrow container', () => {
     // at the foot of the 640px viewport. A scrolling virtual table read as clipped ("Underprovisio",
     // Portal Builder preview, 151 pods, Agentiko rail open), so it fits instead: the tag column keeps
     // its width and the other columns share the rest, ellipsized with the full text on hover.
+    observedWidth = 320
     const { colWidths, container } = renderTable(podsTable(VIRTUAL_ROW_THRESHOLD))
 
     expect(container.querySelector('.ant-table-virtual')).not.toBeNull()
-    // Only the tag column is sized (antd's virtual grid gives the others a 1px placeholder it then
-    // stretches over the rest of the container).
+    // The tag column keeps the width that fits its widest tag; the text columns share the rest of
+    // the container (every column of a virtual table is sized: its header and rows line up by
+    // nothing else, see Table.virtualColumns.test.tsx).
     expect(colWidths[2]).toBe(`${widestTag}px`)
-    expect(colWidths.slice(0, 2)).not.toContain(`${widestTag}px`)
+    const [ns, pod] = colWidths.slice(0, 2).map((width) => Number.parseFloat(width))
+    expect(ns + pod + widestTag).toBe(320)
 
-    // Not the numeric floor (widestTag + the text columns' floors, wider than the 320px container):
-    // the table is at least its container and no wider than its columns' own widths.
+    // The table is its container's width, not a horizontal scroll.
     const table = container.querySelector<HTMLTableElement>('.ant-table-header table')
     expect(table?.style.minWidth).toBe('100%')
-    expect(Number.parseFloat(table?.style.width ?? '')).toBeLessThan(320)
-    expect(Number.parseFloat(table?.style.width ?? '')).not.toBe(widestTag + textFloors)
+    expect(Number.parseFloat(table?.style.width ?? '')).toBe(320)
 
     // Every tag in full; every other cell ellipsizes with its full text in a title.
     const tags = [...container.querySelectorAll('.ant-table-tbody .ant-tag')]
