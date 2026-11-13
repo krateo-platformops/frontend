@@ -34,7 +34,9 @@ default), `SNOWPLOW_IDENTITY_INJECTION` (identity-extras rollout flag),
 `PROVENANCE_ENABLED` (AuditRecord emission), `RENDER_API_BASE_URL` (helm-render dry-run
 preview), `PREVIEW_SANDBOX_NAMESPACE` (portal-builder live preview), `OTEL_COLLECTOR_URL`
 (browser tracing). `params` carries `FRONTEND_NAMESPACE` (the namespace convention pages
-resolve in) and `DELAY_SAVE_NOTIFICATION`; an optional `login` block carries login-screen
+resolve in), `PUBLIC_NAMESPACE` (the namespace a short public address, `/public/<slug>`, reads
+its page from; absent, a short address opens nothing, with no fallback to `FRONTEND_NAMESPACE`)
+and `DELAY_SAVE_NOTIFICATION`; an optional `login` block carries login-screen
 branding, set through the chart's `login` value (docs/configuration.md).
 
 The production image mounts this file as a volume; the build-time `dist/config` is deleted

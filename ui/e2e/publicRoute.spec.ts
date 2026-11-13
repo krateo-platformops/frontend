@@ -45,7 +45,7 @@ const mockBackend = async (page: Page, statusFor: Record<string, number> = {}) =
   await page.route('**/config/config.json', (route) => route.fulfill({
     body: JSON.stringify({
       api: { AUTHN_API_BASE_URL: `${snowplow}/authn`, EVENTS_API_BASE_URL: `${snowplow}/events`, EVENTS_PUSH_API_BASE_URL: `${snowplow}/events`, INIT, SNOWPLOW_API_BASE_URL: snowplow },
-      params: { DELAY_SAVE_NOTIFICATION: '10000', FRONTEND_NAMESPACE: 'krateo-system' },
+      params: { DELAY_SAVE_NOTIFICATION: '10000', FRONTEND_NAMESPACE: 'krateo-system', PUBLIC_NAMESPACE: 'krateo-public' },
     }),
     contentType: 'application/json',
   }))

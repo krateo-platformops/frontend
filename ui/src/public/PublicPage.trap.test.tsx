@@ -54,7 +54,7 @@ const config = {
     PUBLIC_POST_PATHS: '/request-access/api/v1/',
     SNOWPLOW_API_BASE_URL: SNOWPLOW,
   },
-  params: { DELAY_SAVE_NOTIFICATION: '10000', FRONTEND_NAMESPACE: 'krateo-system' },
+  params: { DELAY_SAVE_NOTIFICATION: '10000', FRONTEND_NAMESPACE: 'krateo-system', PUBLIC_NAMESPACE: 'krateo-public' },
 }
 
 const endpoint = (resource: string, name: string) =>
@@ -364,6 +364,51 @@ describe('what an anonymous read answered decides what the page shows', () => {
     expect(screen.queryByText("This page isn't public")).toBeNull()
   })
 
+  // A 503 is retried with backoff before it is final (hooks/useWidgetQuery.ts, about 5 s), so these
+  // wait longer for the state than the default.
+  const AFTER_RETRIES = { timeout: 15_000 }
+
+  it('503 on the root: "This page is temporarily unavailable", with a Retry and no word about signing in', async () => {
+    statusFor['page-demo'] = 503
+    await open('/public/demo')
+
+    expect(await screen.findByText('This page is temporarily unavailable', undefined, AFTER_RETRIES)).toBeTruthy()
+    expect(screen.getByText('Try again in a moment.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
+    expect(screen.queryByText(/sign in/i)).toBeNull()
+    expect(screen.queryByTestId('widget-timeout')).toBeNull()
+    expect(window.location.pathname).toBe('/public/demo')
+  }, 30_000)
+
+  it('Retry on the 503 state reads the root again, and the page renders with the link\'s fragment inputs', async () => {
+    statusFor['page-demo'] = 503
+    await open('/public/demo#s=S1&anchor')
+    await screen.findByText('This page is temporarily unavailable', undefined, AFTER_RETRIES)
+    const rootReads = requestsTo('page-demo').length
+
+    delete statusFor['page-demo']
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    await screen.findByRole('button', { name: /make a change/i })
+    expect(requestsTo('page-demo').length).toBeGreaterThan(rootReads)
+    expect(screen.queryByText('This page is temporarily unavailable')).toBeNull()
+    // The failed root cleared the address bar; the page still had the value it was opened with.
+    const [button] = requestsTo('demo-button')
+    const { extras } = JSON.parse(button.body ?? '{}') as { extras: Record<string, unknown> }
+    expect(extras.s).toBe('S1')
+  }, 30_000)
+
+  it('503 on a CHILD: that child shows its own timeout state, with its own Retry, in place, and its siblings render', async () => {
+    statusFor['demo-button'] = 503
+    await open('/public/demo')
+
+    const timeout = await screen.findByTestId('widget-timeout', undefined, AFTER_RETRIES)
+    expect(timeout.querySelector('button')?.textContent).toBe('Retry')
+    expect(await screen.findByText(/upload a file/i)).toBeTruthy()
+    expect(screen.queryByText('This page is temporarily unavailable')).toBeNull()
+    expect(screen.queryByText(/sign in/i)).toBeNull()
+  }, 30_000)
+
   it('a failed root clears the whole fragment: the values can never be read, so they do not linger', async () => {
     statusFor['page-demo'] = 403
     await open('/public/demo#s=S1&anchor')
@@ -377,6 +422,14 @@ describe('what an anonymous read answered decides what the page shows', () => {
 
     expect(await screen.findByText("This page isn't public")).toBeTruthy()
     expect(snowplowRequests()).toEqual([])
+  })
+
+  it('/public/:slug reads page-<slug> in PUBLIC_NAMESPACE, not in the frontend\'s own namespace', async () => {
+    await open('/public/demo')
+
+    await waitFor(() => { expect(requestsTo('page-demo').length).toBeGreaterThan(0) })
+    const url = new URL(requestsTo('page-demo')[0].url)
+    expect(url.searchParams.get('namespace')).toBe('krateo-public')
   })
 
   it('/public/:namespace/:slug reads page-<slug> in that namespace', async () => {
