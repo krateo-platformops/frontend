@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Card as AntdCard, Badge, Button, Tag, Tooltip } from 'antd'
 import useApp from 'antd/es/app/useApp'
 
-import { BrandBand, BrandFrameContext, useBrand } from '../../components/BrandFrame'
+import { BrandBandFromConfig, BrandFrameContext } from '../../components/BrandFrame'
 import RefChild from '../../components/RefChild'
 import StatusPill from '../../components/StatusPill'
 import WidgetRenderer from '../../components/WidgetRenderer'
@@ -66,9 +66,8 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
   // `brand`: the sign-in card's band (logo from the frontend's own config.login, never from the CR)
   // across the top, above any `cover` widget. The installation line is drawn by the heading of the
   // framed content (BrandFrameContext), so it goes with that heading.
-  const { logoAlt, logoSrc } = useBrand()
   const coverWidget = coverEndpoint ? <WidgetRenderer widgetEndpoint={coverEndpoint} /> : undefined
-  const coverNode = brand ? <><BrandBand logoAlt={logoAlt} logoSrc={logoSrc} />{coverWidget}</> : coverWidget
+  const coverNode = brand ? <><BrandBandFromConfig />{coverWidget}</> : coverWidget
   // The frame options, all opt-in: absent, the card's class, body class and style are as before.
   const frameClasses = [brand ? styles.branded : '', centered ? styles.centered : ''].filter(Boolean).join(' ')
   const frameStyle = typeof maxWidth === 'number' && maxWidth > 0 ? { maxWidth, width: '100%' } : undefined

@@ -52,6 +52,18 @@ export const InstallationLine = ({ installationName }: Pick<Brand, 'installation
   </p>
 )
 
+/**
+ * The band and the line with the brand read from the config above, for a widget. Components, not a
+ * hook in the widget, so a widget reads the config only when it draws a brand: an unbranded Card or
+ * Form never touches it.
+ */
+export const BrandBandFromConfig = () => {
+  const { logoAlt, logoSrc } = useBrand()
+  return <BrandBand logoAlt={logoAlt} logoSrc={logoSrc} />
+}
+
+export const InstallationLineFromConfig = () => <InstallationLine installationName={useBrand().installationName} />
+
 /** The class of the brand's display-face heading. */
 export const brandTitleClass = styles.title
 

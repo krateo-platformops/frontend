@@ -1,6 +1,6 @@
 import { Typography } from 'antd'
 
-import { brandHeadingClass, brandTitleClass, InstallationLine } from '../../components/BrandFrame'
+import { brandHeadingClass, brandTitleClass, InstallationLineFromConfig } from '../../components/BrandFrame'
 
 import styles from './Form.module.css'
 
@@ -13,14 +13,14 @@ import styles from './Form.module.css'
  * PlatformOps · <installation>", from the frontend's config) under it — both from
  * components/BrandFrame, so they are the sign-in card's own. The line goes with the heading.
  */
-export const FormHeading = ({ brand, installationName, title }: { brand: boolean; installationName?: string; title: string }) => {
+export const FormHeading = ({ brand, title }: { brand: boolean; title: string }) => {
   if (!brand) {
     return <Typography.Title className={styles.title} level={3}>{title}</Typography.Title>
   }
   return (
     <div className={brandHeadingClass}>
       <Typography.Title className={brandTitleClass} level={1}>{title}</Typography.Title>
-      <InstallationLine installationName={installationName} />
+      <InstallationLineFromConfig />
     </div>
   )
 }

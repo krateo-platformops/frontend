@@ -7,7 +7,7 @@ import type { JSONSchema4 } from 'json-schema'
 import { useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 
 import { useAgentDraft } from '../../components/Agentiko/agentDraft'
-import { BrandFrameContext, useBrand } from '../../components/BrandFrame'
+import { BrandFrameContext } from '../../components/BrandFrame'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import YamlBlock from '../../components/YamlBlock'
 import { useHandleAction } from '../../hooks/useHandleActions'
@@ -246,7 +246,6 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   const { insideDrawer, setDrawerData } = useDrawerContext()
   // Inside a Card's `brand` frame the title is the brand heading, with the installation line under it.
   const inBrandFrame = useContext(BrandFrameContext)
-  const { installationName } = useBrand()
   const alreadySetDrawerData = useRef(false)
 
   const { notification } = useApp()
@@ -646,7 +645,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   return (
     <div className={styles.form} data-inside-drawer={insideDrawer}>
       {/* The form's own heading: it goes with the form when a Result replaces it. */}
-      {typeof title === 'string' && title.trim() ? <FormHeading brand={inBrandFrame} installationName={installationName} title={title} /> : null}
+      {typeof title === 'string' && title.trim() ? <FormHeading brand={inBrandFrame} title={title} /> : null}
       {/* Kept mounted (hidden in review) so "Back to edit" preserves every entered value. */}
       <div style={reviewing ? { display: 'none' } : undefined}>
         <AntdForm
