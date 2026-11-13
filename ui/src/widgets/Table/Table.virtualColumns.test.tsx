@@ -23,7 +23,7 @@ vi.stubGlobal('ResizeObserver', class {
   constructor(private readonly callback: ResizeObserverCallback) {}
   disconnect = vi.fn()
   observe = () => {
-    if (observedWidth > 0) { this.callback([{ contentRect: { width: observedWidth } } as ResizeObserverEntry], this as unknown as ResizeObserver) }
+    if (observedWidth > 0) { this.callback([{ contentRect: { width: observedWidth } } as ResizeObserverEntry], this) }
   }
   unobserve = vi.fn()
 })
@@ -44,7 +44,7 @@ vi.mock('../../components/FiltesProvider/FiltersProvider', () => ({
 /** Every set of props Table rendered antd's Table with, latest last. */
 const antdProps: TableProps[] = []
 vi.mock('antd', async (importOriginal) => {
-  const antd = await importOriginal<typeof import('antd')>()
+  const antd = await importOriginal<Record<string, unknown>>()
   const { createElement, forwardRef } = await import('react')
   const Spy = forwardRef<unknown, TableProps>((props, ref) => {
     antdProps.push(props)

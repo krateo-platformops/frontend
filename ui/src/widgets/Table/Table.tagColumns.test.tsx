@@ -20,7 +20,7 @@ vi.stubGlobal('ResizeObserver', class {
   constructor(private readonly callback: ResizeObserverCallback) {}
   disconnect = vi.fn()
   observe = () => {
-    if (observedWidth > 0) { this.callback([{ contentRect: { width: observedWidth } } as ResizeObserverEntry], this as unknown as ResizeObserver) }
+    if (observedWidth > 0) { this.callback([{ contentRect: { width: observedWidth } } as ResizeObserverEntry], this) }
   }
   unobserve = vi.fn()
 })
