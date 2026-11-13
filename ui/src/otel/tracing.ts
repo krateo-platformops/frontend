@@ -8,6 +8,8 @@ import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BatchSpanProcessor, WebTracerProvider } from '@opentelemetry/sdk-trace-web'
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 
+import { agentikoConfig } from '../context/agentikoConfig'
+
 import { tracesEndpointOf } from './endpoint'
 import { ContractSpanProcessor, redactUrlAttributes } from './spanContract'
 import { telemetryAuthHeaders } from './telemetryCredential'
@@ -65,6 +67,40 @@ function snowplowPrefixOf(api: TracingConfig['api']): string | null {
     // Resolved against the document origin so a relative base still yields an absolute prefix.
     // Trailing slash stripped so `…/content` and `…/content/` behave identically.
     return new URL(base, window.location.origin).href.replace(/\/+$/, '')
+  } catch {
+    // A malformed config entry must not break tracing init.
+    return null
+  }
+}
+
+/**
+ * The Agentiko A2A URL prefix (`AGENTIKO_API_BASE_URL`, read through `agentikoConfig` like every
+ * other reader of it; resolved against the document origin, no trailing slash) — or null, which
+ * leaves A2A requests exactly as they were before `krateo.agentiko.a2a` existed: renamed
+ * `krateo.widget.fetch` and dropped at export for not being under the snowplow base.
+ *
+ * NULL WHEN THE BASE IS ON ANOTHER ORIGIN, deliberately. The point of exporting this span is that
+ * its context is the `traceparent` the request carried. Cross-origin, `propagateTraceHeaderCorsUrls`
+ * (snowplow only) does not list the A2A base, so the request carries NO traceparent and the span
+ * would be an orphan root linked to nothing — budget spent on a trace that joins nothing. Listing
+ * the base there would also need the gateway to CORS-allow the header, which is not this change.
+ *
+ * Same-origin needs no propagation entry: `shouldPropagateTraceHeaders` always injects on
+ * same-origin requests, which is why the span's context already reaches the gateway today.
+ */
+function agentikoA2aPrefixOf(api: TracingConfig['api']): string | null {
+  const base = agentikoConfig(api, 'API_BASE_URL')
+  if (typeof base !== 'string' || base.length === 0) {
+    return null
+  }
+  try {
+    const resolved = new URL(base, window.location.origin)
+    if (resolved.origin !== window.location.origin) {
+      return null
+    }
+    // `a2aUrl` POSTs to the base WITH a trailing slash; the prefix is matched at a path boundary
+    // (`underPrefix`), so the slash-less form covers both.
+    return resolved.href.replace(/\/+$/, '')
   } catch {
     // A malformed config entry must not break tracing init.
     return null
@@ -147,6 +183,7 @@ export function initTracing(cfg: TracingConfig): void {
           url: tracesEndpoint,
         })),
         snowplowPrefix,
+        agentikoA2aPrefixOf(cfg.api),
       ),
     ],
   })

@@ -1,5 +1,5 @@
 /**
- * The five span names the SLI is computed from, the one counted span outside it, and the processor
+ * The five span names the SLI is computed from, the spans exported outside it, and the processor
  * that enforces them (X5).
  *
  * THESE NAMES ARE A CONTRACT, not labels. The SLI query and the SLO dashboard key on them
@@ -26,9 +26,9 @@
  * and is what actually means "this is an HTTP client span". Matching the attribute cannot drift
  * with a naming change, which is why the next bump will not repeat this.
  */
-import type { Context, Span as ApiSpan } from '@opentelemetry/api'
+import { context, createContextKey, type Attributes, type Context, type Span as ApiSpan } from '@opentelemetry/api'
 import type { ReadableSpan, Span, SpanProcessor } from '@opentelemetry/sdk-trace-web'
-import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_ROUTE, ATTR_URL_FULL } from '@opentelemetry/semantic-conventions'
+import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_RESPONSE_STATUS_CODE, ATTR_HTTP_ROUTE, ATTR_URL_FULL } from '@opentelemetry/semantic-conventions'
 // `http.url` is deprecated AND experimental on semconv's own surface, hence the `/incubating`
 // subpath. Imported anyway rather than hand-typed: if semconv removes it in a minor, this file
 // fails to BUILD, which is the loud version of the only other outcome — a legacy key quietly
@@ -55,15 +55,37 @@ export const SPAN_NAMES = {
 export type SpanName = typeof SPAN_NAMES[keyof typeof SPAN_NAMES]
 
 /**
- * Spans that are COUNTED, not timed: no SLI keys on them and their duration means nothing. Kept out
- * of `SPAN_NAMES` so that set stays exactly what the SLI is computed from.
+ * Spans exported OUTSIDE the SLI: no SLI keys on them. Kept out of `SPAN_NAMES` so that set stays
+ * exactly what the SLI is computed from. (The set is named for its first member, which is counted
+ * rather than timed. `krateo.agentiko.a2a` is timed, but what it times is the agent's work, and no
+ * interaction SLI is computed from it.)
  *
  * `krateo.agentiko.claim.unbacked` — one per reply that claims an action its turn did not back
- * (`components/Agentiko/claimTelemetry.ts`). Name and attributes agreed with snowplow 2026-11; its
- * ingest forwards the span only once its allowlist names it, and drops it until then (per span, as
- * `dropped_name`: the rest of the batch is unaffected).
+ * (`components/Agentiko/claimTelemetry.ts`). Counted, not timed: its duration means nothing. Name
+ * and attributes agreed with snowplow 2026-11; its ingest forwards the span only once its allowlist
+ * names it, and drops it until then (per span, as `dropped_name`: the rest of the batch is
+ * unaffected).
+ *
+ * `krateo.agentiko.a2a` — one portal → Agentiko A2A request: the auto fetch span ITSELF, renamed by
+ * `ContractSpanProcessor` when its URL sits under the configured A2A base (`AGENTIKO_API_BASE_URL`,
+ * same-origin only — see `agentikoA2aPrefixOf` in tracing.ts). Because it is the same span, its
+ * context IS the `traceparent` the request carried, so the gateway's `POST /api/a2a/*` span finds
+ * its parent stored instead of dangling. No separate span is started. Its attributes are exactly
+ * the ones `a2aAttributesOf` keeps. Name, attributes and values agreed with snowplow 2026-11
+ * (snowplow#1398), whose ingest allowlists the same name.
+ *
+ * ITS BOUNDARY, which is NOT "time to stream start". It starts when `fetch` is called and ends when
+ * the instrumentation has read the response BODY to its end: instrumentation-fetch 0.223's
+ * `onSuccess` clones the response and drains the clone before ending the span, rather than ending
+ * it when the headers resolve. So for `message/stream` it measures the WHOLE streamed turn, request
+ * → last SSE byte. A body that errors mid-way (the rail's AbortController, a dropped connection)
+ * ends the span at that moment through the library's error path, with `http.response.status_code`
+ * 0 even though a 200 had arrived. A tab closed mid-stream never ends it, so nothing is exported.
+ * spanContract.a2a.test.ts pins this against the installed library: a bump that changes where the
+ * span ends fails there, because moving a boundary silently changes what the duration claims.
  */
 export const COUNTED_SPAN_NAMES = {
+  agentikoA2a: 'krateo.agentiko.a2a',
   agentikoClaimUnbacked: 'krateo.agentiko.claim.unbacked',
 } as const
 
@@ -225,7 +247,7 @@ export const redactUrlAttributes = (span: ApiSpan, snowplowPrefix: string | null
  * outside that list turns every span into "origin unknown", which drops them all; the pin against
  * the installed instrumentation lives in spanContract.instrumentation.test.ts.
  */
-const urlOf = (span: ReadableSpan): string | null => {
+const urlOf = (span: Pick<ReadableSpan, 'attributes'>): string | null => {
   for (const key of URL_ATTRS) {
     const value = span.attributes[key]
     if (typeof value === 'string' && value.length > 0) {
@@ -234,6 +256,126 @@ const urlOf = (span: ReadableSpan): string | null => {
   }
   return null
 }
+
+/** True when the span's URL sits under `prefix` (path boundary). No prefix, or no URL: false. */
+const spanUnder = (span: Pick<ReadableSpan, 'attributes'>, prefix: string | null): boolean => {
+  if (prefix === null) {
+    return false
+  }
+  const url = urlOf(span)
+  if (url === null) {
+    // No URL attribute: we cannot tell whose request it was, and "cannot tell" must not read as
+    // "ours". Dropping is the honest choice — the alternative exports spans of unknown origin.
+    return false
+  }
+  try {
+    return underPrefix(new URL(url, window.location.origin).href, prefix)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * `http.route` on every `krateo.agentiko.a2a` span: ALWAYS this literal template, never the
+ * concrete path. snowplow refuses a concrete route (snowplow#1398), and every distinct value would
+ * be its own metric series. The concrete path also names the namespace and the agent, which the
+ * template deliberately does not. The same value whether the configured base is the gateway's
+ * `…/api/a2a/<ns>/<agent>` or the same-origin nginx location `/<agent>`, because nginx rewrites the
+ * latter to the former and the template describes the request the gateway serves.
+ */
+export const A2A_ROUTE = '/api/a2a/{namespace}/{agent}'
+
+/** The JSON-RPC method of the A2A request a `krateo.agentiko.a2a` span measures. Optional. */
+export const ATTR_A2A_METHOD = 'krateo.a2a.method'
+
+/**
+ * The values `krateo.a2a.method` may carry: a CLOSED enum agreed with snowplow (snowplow#1398),
+ * which drops and counts any other value. So any other method — `tasks/resubscribe`, which the
+ * transport sends to resume a dropped stream, or a method a future transport adds — is OMITTED
+ * rather than sent, and the span is still exported without it.
+ */
+export const A2A_METHODS: ReadonlySet<string> = new Set(['message/send', 'message/stream', 'tasks/get'])
+
+/**
+ * Where the transport's JSON-RPC method travels to the processor: the ACTIVE CONTEXT at the moment
+ * `fetch` is called, which is the parent context the SDK hands `onStart` for the span the fetch
+ * instrumentation creates inside that call.
+ *
+ * Why not read the request body: the body is the user's message, and parsing it to find one field
+ * means the telemetry path reading content it must never ship. The transport knows the method
+ * because it wrote it; it says so here instead.
+ */
+const A2A_METHOD_KEY = createContextKey('krateo.a2a.method')
+
+/**
+ * Run `fn` — the transport's `fetch` call — with its JSON-RPC method on the active context, so the
+ * A2A span that call creates records it. Without a registered tracer (telemetry off) the context
+ * API is a no-op passthrough, so this costs nothing on an install that does not collect traces.
+ */
+export const withA2aMethod = <T>(method: string, fn: () => T): T =>
+  context.with(context.active().setValue(A2A_METHOD_KEY, method), fn)
+
+/** The method on a context, when it is one of the agreed values; otherwise nothing. */
+const a2aMethodOf = (ctx: Context): string | null => {
+  const value = ctx.getValue(A2A_METHOD_KEY)
+  return typeof value === 'string' && A2A_METHODS.has(value) ? value : null
+}
+
+/** The attributes copied from the span as the instrumentation recorded them. */
+const A2A_COPIED = [ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_RESPONSE_STATUS_CODE] as const
+
+/**
+ * The ONLY attributes a `krateo.agentiko.a2a` span exports: `http.request.method`,
+ * `http.response.status_code`, `http.route` (the template) and, when it is an agreed value,
+ * `krateo.a2a.method`.
+ *
+ * An ALLOWLIST, built fresh, rather than a list of things to strip. Everything else the
+ * instrumentation recorded goes: `url.full` (it names the namespace and agent; `redactUrlAttributes`
+ * already took its query), `server.address`, `server.port`, `error.type`,
+ * `http.request.method_original`, and whatever a future instrumentation adds. A strip list would
+ * export the next new attribute by default; this exports nothing it was not told to. The request's
+ * headers and body never become attributes at all — instrumentation-fetch does not record them.
+ */
+export const a2aAttributesOf = (attributes: Attributes): Attributes => {
+  const kept: Attributes = { [ATTR_HTTP_ROUTE]: A2A_ROUTE }
+  for (const key of A2A_COPIED) {
+    if (attributes[key] !== undefined) {
+      kept[key] = attributes[key]
+    }
+  }
+  const method = attributes[ATTR_A2A_METHOD]
+  if (typeof method === 'string' && A2A_METHODS.has(method)) {
+    kept[ATTR_A2A_METHOD] = method
+  }
+  return kept
+}
+
+/**
+ * The same ended span with only `attributes` replaced. Everything else — above all `spanContext`,
+ * which is the traceparent the request carried, and the parent — is the original's, read through.
+ *
+ * Every `ReadableSpan` field is written out, so if the SDK adds one this stops COMPILING rather than
+ * exporting a span with the new field silently missing.
+ */
+const withAttributes = (span: ReadableSpan, attributes: Attributes): ReadableSpan => ({
+  attributes,
+  droppedAttributesCount: span.droppedAttributesCount,
+  droppedEventsCount: span.droppedEventsCount,
+  droppedLinksCount: span.droppedLinksCount,
+  duration: span.duration,
+  ended: span.ended,
+  endTime: span.endTime,
+  events: span.events,
+  instrumentationScope: span.instrumentationScope,
+  kind: span.kind,
+  links: span.links,
+  name: span.name,
+  parentSpanContext: span.parentSpanContext,
+  resource: span.resource,
+  spanContext: () => span.spanContext(),
+  startTime: span.startTime,
+  status: span.status,
+})
 
 /**
  * Renames auto-instrumented portal → snowplow requests to `krateo.widget.fetch`, and DROPS every
@@ -248,14 +390,21 @@ const urlOf = (span: ReadableSpan): string | null => {
  * `/config/config.json`, so an origin check would rename and export those as widget fetches. The
  * prefix `https://portal.krateo.dev/content` is what identifies a snowplow call. It is the same
  * derivation the propagator uses, so "we propagate here" and "we export from here" cannot drift.
+ *
+ * AND renames auto-instrumented portal → Agentiko A2A requests to `krateo.agentiko.a2a`: the same
+ * attribute test, a URL under `agentikoA2aPrefix` instead. That prefix is null — and A2A requests
+ * stay exactly as before, renamed `krateo.widget.fetch` and dropped at `onEnd` for not being under
+ * the snowplow base — when no A2A base is configured or it is on another origin (tracing.ts).
  */
 export class ContractSpanProcessor implements SpanProcessor {
   private readonly inner: SpanProcessor
   private readonly snowplowPrefix: string | null
+  private readonly agentikoA2aPrefix: string | null
 
-  constructor(inner: SpanProcessor, snowplowPrefix: string | null) {
+  constructor(inner: SpanProcessor, snowplowPrefix: string | null, agentikoA2aPrefix: string | null = null) {
     this.inner = inner
     this.snowplowPrefix = snowplowPrefix
+    this.agentikoA2aPrefix = agentikoA2aPrefix
   }
 
   forceFlush(): Promise<void> {
@@ -268,10 +417,22 @@ export class ContractSpanProcessor implements SpanProcessor {
    * `ReadableSpan.name` is read-only, so by `onEnd` the name cannot be changed — only the mutable
    * `Span` handed to `onStart` can be renamed, via `updateName`. Attempting it at the end is the
    * obvious implementation and silently does nothing.
+   *
+   * The A2A test needs the URL at START, and has it: instrumentation-fetch passes `url.full` in the
+   * `startSpan` attributes, and the SDK sets those before calling `onStart`. `krateo.a2a.method` is
+   * set here too, because `parentContext` — where the transport put it — exists only here.
    */
   onStart(span: Span, parentContext: Context): void {
     if (isAutoHttpSpan(span)) {
-      span.updateName(SPAN_NAMES.widgetFetch)
+      if (spanUnder(span, this.agentikoA2aPrefix)) {
+        span.updateName(COUNTED_SPAN_NAMES.agentikoA2a)
+        const method = a2aMethodOf(parentContext)
+        if (method !== null) {
+          span.setAttribute(ATTR_A2A_METHOD, method)
+        }
+      } else {
+        span.updateName(SPAN_NAMES.widgetFetch)
+      }
     }
     this.inner.onStart(span, parentContext)
   }
@@ -282,7 +443,15 @@ export class ContractSpanProcessor implements SpanProcessor {
     }
     // A renamed fetch span is only ours if it went to a backend we export for. A fetch to a static
     // asset or a third party carries no traceparent and must not be exported either.
-    if (span.name === SPAN_NAMES.widgetFetch && !this.isExportable(span)) {
+    if (span.name === SPAN_NAMES.widgetFetch && !spanUnder(span, this.snowplowPrefix)) {
+      return
+    }
+    if (span.name === COUNTED_SPAN_NAMES.agentikoA2a) {
+      // The same rule, against the A2A base — checked BEFORE the allowlist below drops the URL.
+      if (!spanUnder(span, this.agentikoA2aPrefix)) {
+        return
+      }
+      this.inner.onEnd(withAttributes(span, a2aAttributesOf(span.attributes)))
       return
     }
     this.inner.onEnd(span)
@@ -290,23 +459,5 @@ export class ContractSpanProcessor implements SpanProcessor {
 
   shutdown(): Promise<void> {
     return this.inner.shutdown()
-  }
-
-  /** True when the span's URL sits under the snowplow base. */
-  private isExportable(span: ReadableSpan): boolean {
-    if (this.snowplowPrefix === null) {
-      return false
-    }
-    const url = urlOf(span)
-    if (url === null) {
-      // No URL attribute: we cannot tell whose request it was, and "cannot tell" must not read as
-      // "ours". Dropping is the honest choice — the alternative exports spans of unknown origin.
-      return false
-    }
-    try {
-      return underPrefix(new URL(url, window.location.origin).href, this.snowplowPrefix)
-    } catch {
-      return false
-    }
   }
 }
