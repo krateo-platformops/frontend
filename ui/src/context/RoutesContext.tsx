@@ -53,7 +53,7 @@ const RoutesContext = createContext<RoutesContextType | undefined>(undefined)
 const SHELL_ROUTE_ID = 'shell'
 
 /** The paths the app serves itself — no Builder's route may take one. */
-const STATIC_PATHS = ['/login', '/auth', '/logout', '/profile', ...PUBLIC_ROUTE_PATHS, '*']
+const STATIC_PATHS = ['/login', '/auth', '/logout', '/profile', '/public', ...PUBLIC_ROUTE_PATHS, '*']
 
 /** Drop shell routes that would take a public address, naming each one. */
 const outsidePublicSpace = (routes: RouteObject[], source: string): RouteObject[] => routes.filter((route) => {
