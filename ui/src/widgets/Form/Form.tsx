@@ -19,16 +19,20 @@ import { getEndpointUrl } from '../../utils/utils'
 import { useDrawerContext } from '../Drawer/DrawerContext'
 
 import { FailedFieldsContext } from './failedFields'
+import { FieldCheckContext } from './fieldCheck'
 import { applyFieldConfig } from './fieldConfig'
 import { collectDependencies, dependentsToClear, type FieldPath } from './fieldDependencies'
 import { createOptionRegistry, getFieldOptionsSpec, type OptionRegistry } from './fieldOptions'
 import { type FieldPresentation, FieldPresentationContext } from './fieldPresentation'
 import styles from './Form.module.css'
 import type { Form as WidgetType } from './Form.type'
+import { FormResult } from './FormResult'
 import { setFormReviewing } from './reviewPhase'
 import { SchemaForm } from './SchemaFields'
 import { SecretFieldsContext, type SecretFieldsRegistry } from './secretFieldsRegistry'
+import { submitModeProblem } from './submitPost'
 import { FormRefsContext } from './useFieldOptions'
+import { useSubmitPost } from './useSubmitPost'
 import { fieldlessSchemaMessage, getDefaultsFromSchema, narrowAgentDraft } from './utils'
 import { hiddenPaths, omitPaths } from './visibleWhen'
 
@@ -288,7 +292,7 @@ export const ReviewSummary = ({ agentKeys, optionLabels, schema, secretPaths, va
  * button runs the same submit action. Default (flag off) is unchanged.
  */
 const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>) => {
-  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, hasFeedback, initialValues, items, layout, notice, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, suggestions } = widgetData
+  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, fieldChecks, fieldHelp, hasFeedback, initialValues, items, layout, notice, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, submitPost, suggestions } = widgetData
   // Prefer `stringSchema` (the schema as a raw JSON STRING) when present: `JSON.parse`
   // preserves the object's key insertion order, so a server that hands us the blueprint's
   // values.schema.json verbatim (e.g. from the per-blueprint jsonschema ConfigMap, which
@@ -309,8 +313,8 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       }
     }
 
-    return applyFieldConfig(parsed, { autocomplete, checkboxes, dependencies: optionDependencies, displayingDependencies, objectFields, suggestions })
-  }, [schema, stringSchema, autocomplete, checkboxes, optionDependencies, displayingDependencies, objectFields, suggestions])
+    return applyFieldConfig(parsed, { autocomplete, checkboxes, dependencies: optionDependencies, displayingDependencies, fieldChecks, fieldHelp, objectFields, suggestions })
+  }, [schema, stringSchema, autocomplete, checkboxes, optionDependencies, displayingDependencies, fieldChecks, fieldHelp, objectFields, suggestions])
   const presentation = useMemo<FieldPresentation>(() => ({
     hasFeedback: hasFeedback === 'rules' ? 'rules' : undefined,
     requiredMark: requiredMark === 'optional' ? 'optional' : undefined,
@@ -325,6 +329,10 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   // seeded via initialValues but not rendered, e.g. the per-user draft key) — onFinish
   // only yields validated, registered fields.
   const [form] = AntdForm.useForm()
+
+  // `submitPost` / `fieldChecks`: the token-less allow-listed post, and what an answer put on
+  // screen — a Result instead of the form, an inline Alert above the buttons (useSubmitPost.ts).
+  const { alert: submitAlert, checkEnv, posting, result: formResult, submit: postSubmit } = useSubmitPost(form)
 
   // In-place Review state: the validated values captured on "Review →" (null = editing).
   const [reviewValues, setReviewValues] = useState<Record<string, unknown> | null>(null)
@@ -514,7 +522,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     }
   }, [buttonConfig, formId, insideDrawer, isActionLoading, setDrawerData])
 
-  const allActions = Object.values(actions).flat()
+  const allActions = Object.values(actions ?? {}).flat()
   const action = allActions.find(({ id }) => id === submitActionId)
 
   // Field-conditional submit routing: when `submitActionSelector` is set, the effective submit
@@ -557,6 +565,11 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     : undefined
 
   const onSubmit = async (formValues: Record<string, unknown>) => {
+    // `submitPost`: POST to the allow-listed path; the form stays mounted, disabled, button loading.
+    if (submitPost) {
+      await postSubmit(submitPost, convertDayjsToISOString(formValues))
+      return
+    }
     const effectiveAction = resolveSubmitAction(formValues)
 
     if (!effectiveAction) {
@@ -629,6 +642,27 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     )
   }
 
+  // Exactly one way to submit: `submitPost`, or `actions` with `submitActionId`. Neither leaves the
+  // primary button with nothing to do, and both leave it ambiguous, so the CR is refused here,
+  // saying which (submitModeProblem). Every CR from before `submitPost` has the second.
+  const submitProblem = submitModeProblem(widgetData)
+  if (submitProblem) {
+    return (
+      <div className={styles.message}>
+        <Result status='error' subTitle={submitProblem} title='Error while rendering widget' />
+      </div>
+    )
+  }
+
+  // A `submitPost` response or a `fieldChecks` answer with a `result`: it replaces the form.
+  if (formResult) {
+    return (
+      <div className={styles.form} data-inside-drawer={insideDrawer}>
+        <FormResult result={formResult} />
+      </div>
+    )
+  }
+
   if (isActionLoading) {
     return (
       <div className={styles.loading}>
@@ -647,7 +681,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       </Button>
       <Button
         htmlType='button'
-        loading={isActionLoading}
+        loading={isActionLoading || posting}
         onClick={() => { if (reviewValues) { void onSubmit(reviewValues) } }}
         type='primary'
       >
@@ -659,8 +693,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   const editButtons = (
     <FormExtra
       buttonConfig={buttonConfig}
+      disabled={posting || undefined}
       form={formId}
-      loading={isActionLoading}
+      loading={isActionLoading || posting}
       onDraft={onDraft}
       submitDisabled={submitPristine}
       submitLabel={reviewBeforeSubmit ? (buttonConfig?.review?.label || 'Review →') : undefined}
@@ -677,7 +712,8 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       {/* Kept mounted (hidden in review) so "Back to edit" preserves every entered value. */}
       <div style={reviewing ? { display: 'none' } : undefined}>
         <AntdForm
-          disabled={disabled}
+          // While a `submitPost` is in flight the fields keep their values and cannot change.
+          disabled={posting || disabled}
           form={form}
           id={formId}
           initialValues={effectiveInitialValues}
@@ -700,7 +736,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
                   : null}
                 <FailedFieldsContext.Provider value={failedFields}>
                   <FieldPresentationContext.Provider value={presentation}>
-                    <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
+                    <FieldCheckContext.Provider value={checkEnv}>
+                      <SchemaForm hide={propertiesToHide} schema={jsonSchema} />
+                    </FieldCheckContext.Provider>
                   </FieldPresentationContext.Provider>
                 </FailedFieldsContext.Provider>
               </FormRefsContext.Provider>
@@ -717,6 +755,11 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       </div>
 
       {reviewing && reviewValues ? <ReviewSummary agentKeys={agentAuthoredKeys(agentAuthoredRef.current, reviewValues)} optionLabels={optionRegistry} schema={jsonSchema} secretPaths={widgetSecretPaths} values={reviewValues} /> : null}
+
+      {/* What a `submitPost` response said, inline above the buttons — never a toast. */}
+      {submitAlert
+        ? <Alert description={submitAlert.description} role='alert' showIcon title={submitAlert.title} type={submitAlert.type} />
+        : null}
 
       {/* In a drawer the buttons live in the drawer's header, so there is no action bar to draw. */}
       {footer ? <div className={styles.extra}>{footer}</div> : null}

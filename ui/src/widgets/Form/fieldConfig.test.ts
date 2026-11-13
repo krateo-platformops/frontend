@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { applyFieldConfig, templatePathOf } from './fieldConfig'
 import { collectDependencies, nodeAt, resolveFieldPath } from './fieldDependencies'
-import { OPTIONS_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
+import { CHECK_KEY, HELP_KEY, OPTIONS_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
 import { getFieldOptionsSpec } from './fieldOptions'
 import { isVisible } from './visibleWhen'
 
@@ -154,5 +154,33 @@ describe('applyFieldConfig', () => {
   it('removes the internal keys an incoming schema carries: only widgetData configures a field', () => {
     const schema = applyFieldConfig({ properties: { region: { [OPTIONS_KEY]: { ref: 'regions' }, [VISIBLE_WHEN_KEY]: { field: 'x', notEmpty: true }, type: 'string' } }, type: 'object' }, {})
     expect(schema?.properties?.region).toEqual({ type: 'string' })
+  })
+
+  it('removes an incoming fieldHelp or fieldChecks key too', () => {
+    const schema = applyFieldConfig({ properties: { region: { [CHECK_KEY]: { path: '/x' }, [HELP_KEY]: 'smuggled', type: 'string' } }, type: 'object' }, {})
+    expect(schema?.properties?.region).toEqual({ type: 'string' })
+  })
+
+  it('writes fieldHelp on a leaf, and skips a group or a list', () => {
+    const schema = applyFieldConfig(SCHEMA, { fieldHelp: [{ name: 'owner', text: 'Who owns it.' }, { name: 'service', text: 'no' }, { name: 'hosts', text: 'no' }, { name: 'owner', text: '  ' }] })
+    expect(schema?.properties?.owner?.[HELP_KEY]).toBe('Who owns it.')
+    expect(schema?.properties?.service?.[HELP_KEY]).toBeUndefined()
+    expect(schema?.properties?.hosts?.[HELP_KEY]).toBeUndefined()
+  })
+
+  it('writes fieldChecks on a text-like leaf, with the body key defaulting to the last segment', () => {
+    const answers = [{ message: 'ok', validateStatus: 'success', when: { status: [200] } }]
+    const schema = applyFieldConfig(SCHEMA, {
+      fieldChecks: [
+        { answers, bodyExtras: { token: 't' }, name: 'service.type', path: '/intake/checks', timeoutMs: 5000 },
+        { name: 'tls', path: '/intake/checks' },
+        { name: 'hosts', path: '/intake/checks' },
+        { name: 'owner' },
+      ],
+    })
+    expect(nodeAt(schema as JSONSchema4, ['service', 'type'])?.[CHECK_KEY]).toEqual({ answers, bodyExtras: { token: 't' }, bodyKey: 'type', path: '/intake/checks', timeoutMs: 5000 })
+    expect(schema?.properties?.tls?.[CHECK_KEY]).toBeUndefined()
+    expect(schema?.properties?.hosts?.[CHECK_KEY]).toBeUndefined()
+    expect(schema?.properties?.owner?.[CHECK_KEY]).toBeUndefined()
   })
 })
