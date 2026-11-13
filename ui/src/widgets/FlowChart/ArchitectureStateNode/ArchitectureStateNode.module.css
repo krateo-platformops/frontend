@@ -1,5 +1,7 @@
 /* FlowChart's architecture node: one resource a chart declares, in the state the composition is in.
-   240×84, the box ARCHITECTURE_NODE_SIZE tells dagre (pinned to it by architectureFit.test.ts).
+   240 wide and at least 84 tall, ARCHITECTURE_NODE_SIZE (pinned to it by architectureFit.test.ts).
+   Taller where the name needs more lines: the name is shown in full, and FlowChart reserves the
+   tallest card's height for every card, handing it to each as its `height`.
    240, not 220: at the 12px floor a forEach kind and the exception chip share the eyebrow in full. The same tokens as the Blueprint Composer's
    node card (ArchitectureCanvas.module.css), so the author's graph and the live one read alike.
 
@@ -16,8 +18,8 @@
   flex-direction: column;
   font-family: var(--font-family);
   gap: var(--spacing-xxs);
-  height: 84px;
   justify-content: center;
+  min-height: 84px;
   padding: var(--spacing-sm) var(--spacing-smd);
   width: 240px;
 }
@@ -30,7 +32,6 @@
 }
 
 .kind,
-.name,
 .detail {
   min-width: 0;
   overflow: hidden;
@@ -46,10 +47,16 @@
   text-transform: uppercase;
 }
 
+/* THE NAME IN FULL, on as many lines as it needs. It breaks after a hyphen or a dot (the component
+   puts a <wbr> there), and `anywhere` breaks a single token longer than the line rather than let it
+   run out of the card. Never an ellipsis: the end of the name is what tells the resources apart. */
 .name {
   font-size: var(--krateo-text-body-sm);
   font-weight: var(--font-weight-bold);
   line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .detail {
@@ -129,9 +136,12 @@
    lines (it breaks after a hyphen), and `overflow-wrap: anywhere` lets a name with no hyphen wrap
    rather than run out of the card. The full name is the line's `title`. The detail line stays one
    line. No vertical padding: the content (2 × 15px of name, 2px, 14px of detail) is centred in the
-   54px inside the border. The state rules above apply as they are. */
+   54px inside the border. A fixed box, unlike the regular card's: compact is the step a box too
+   narrow for the regular card takes, and the clamp is what keeps it 56px. The state rules above
+   apply as they are. */
 .card[data-density='compact'] {
   height: 56px;
+  min-height: 56px;
   padding: 0 var(--spacing-smd);
   position: relative;
   width: 180px;
@@ -142,8 +152,8 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-height: 1.15;
-  overflow-wrap: anywhere;
-  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card[data-density='compact'] .detail {

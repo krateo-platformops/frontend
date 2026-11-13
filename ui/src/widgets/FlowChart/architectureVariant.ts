@@ -40,7 +40,9 @@ export interface ArchitectureEdgeData {
 /**
  * [width, height]: ArchitectureStateNode's CSS box, and so what dagre reserves per node (C19) — the
  * one source every width here is computed from (the stylesheet's box is pinned to it by
- * architectureFit.test.ts). Wider than the composer's 156×72 because this card shows resolved names,
+ * architectureFit.test.ts). The height is the regular card's MINIMUM: its name is shown in full, on
+ * as many lines as it needs, and FlowChart measures the tallest card and reserves that height for
+ * every card (`architectureNodeSize`). Wider than the composer's 156×72 because this card shows resolved names,
  * and a forEach range such as `publish-pod-sizing-v1b-000 … 009` does not fit in 156px.
  *
  * 240, not 220: with the eyebrow at the 12px floor, a forEach kind and the exception chip need
@@ -74,6 +76,22 @@ export const ARCHITECTURE_COMPACT_SPACING: GraphSpacing = { nodesep: 16, ranksep
 export const ARCHITECTURE_DENSITY: Record<ArchitectureDensity, { nodeSize: [number, number]; spacing?: GraphSpacing }> = {
   compact: { nodeSize: ARCHITECTURE_COMPACT_NODE_SIZE, spacing: ARCHITECTURE_COMPACT_SPACING },
   regular: { nodeSize: ARCHITECTURE_NODE_SIZE },
+}
+
+/**
+ * The box a density's card takes in a graph whose tallest regular card is `cardHeight` px (FlowChart
+ * measures it; never under 84). Compact is fixed: its name is clamped to two lines. The same array
+ * object for the same box, because DependencyGraph re-lays out on a new `nodeSize`: at 84px it is
+ * ARCHITECTURE_NODE_SIZE itself, so a graph whose names fit one line hands G6 exactly what it did.
+ */
+const SIZES = new Map<number, [number, number]>()
+export const architectureNodeSize = (density: ArchitectureDensity, cardHeight = ARCHITECTURE_NODE_SIZE[1]): [number, number] => {
+  if (density === 'compact' || cardHeight <= ARCHITECTURE_NODE_SIZE[1]) { return ARCHITECTURE_DENSITY[density].nodeSize }
+  const known = SIZES.get(cardHeight)
+  if (known) { return known }
+  const made: [number, number] = [ARCHITECTURE_NODE_SIZE[0], cardHeight]
+  SIZES.set(cardHeight, made)
+  return made
 }
 
 /** What the drawn size depends on besides the graph: which way it runs, the card, and the gaps. */
@@ -267,12 +285,17 @@ export interface ArchitectureFitInput {
   density?: ArchitectureDensity
   /** A type role's size in px: the tokens', unless a test gives another scale. */
   roleSize?: (role: string) => number
+  /**
+   * The tallest regular card's height, px, as FlowChart measured it (absent: 84). It changes no width,
+   * so it never changes which step LR takes; it is the LR drawing's height, and in TB it is fitted.
+   */
+  cardHeight?: number
 }
 
 /** A density's card and its own gaps, regular's being C19's. */
-const densityGeometry = (density: ArchitectureDensity): { nodeSize: [number, number]; spacing: GraphSpacing } => {
-  const { nodeSize, spacing } = ARCHITECTURE_DENSITY[density]
-  return { nodeSize, spacing: spacing ?? { nodesep: GRAPH_LAYOUT.nodesep, ranksep: GRAPH_LAYOUT.ranksep } }
+const densityGeometry = (density: ArchitectureDensity, cardHeight?: number): { nodeSize: [number, number]; spacing: GraphSpacing } => {
+  const { spacing } = ARCHITECTURE_DENSITY[density]
+  return { nodeSize: architectureNodeSize(density, cardHeight), spacing: spacing ?? { nodesep: GRAPH_LAYOUT.nodesep, ranksep: GRAPH_LAYOUT.ranksep } }
 }
 
 /**
@@ -298,14 +321,14 @@ const gapsOf = (density: ArchitectureDensity, nodesep: number, ranksep: number):
  */
 export const architectureFit = (
   shape: ArchitectureShape,
-  { box: [boxWidth, boxHeight], density, direction, roleSize = textPx }: ArchitectureFitInput,
+  { box: [boxWidth, boxHeight], cardHeight, density, direction, roleSize = textPx }: ArchitectureFitInput,
 ): ArchitectureFit => {
   const tb = direction === 'TB'
   const roomWidth = boxWidth - 2 * NATURAL_PADDING
   const roomHeight = boxHeight - 2 * NATURAL_PADDING
 
   const fitOf = (chosen: ArchitectureDensity, rankGap: number, scale: number, step: ArchitectureFitStep): ArchitectureFit => {
-    const { nodeSize, spacing: own } = densityGeometry(chosen)
+    const { nodeSize, spacing: own } = densityGeometry(chosen, cardHeight)
     const spacing = gapsOf(chosen, own.nodesep, rankGap)
     const [width, height] = drawnSize(shape, { direction, nodeSize, spacing })
     const size: [number, number] = [width * scale, height * scale]
@@ -331,9 +354,9 @@ export const architectureFit = (
 
   // Steps 1 and 2: each density in turn, at the widest gap that fits — its own, or less, to the minimum.
   for (const [index, chosen] of candidates.entries()) {
-    const { nodeSize: [cardWidth, cardHeight], spacing: { ranksep: ownGap } } = densityGeometry(chosen)
+    const { nodeSize: [cardWidth, cardTall], spacing: { ranksep: ownGap } } = densityGeometry(chosen, cardHeight)
     const minGap = Math.min(ownGap, ARCHITECTURE_MIN_RANK_GAP)
-    const card = tb ? cardHeight : cardWidth
+    const card = tb ? cardTall : cardWidth
     const roomPerGap = shape.ranks > 1 ? ((tb ? roomHeight : roomWidth) - shape.ranks * card) / (shape.ranks - 1) : ownGap
     const stepped = Math.floor(roomPerGap / ARCHITECTURE_RANK_GAP_STEP) * ARCHITECTURE_RANK_GAP_STEP
     const rankGap = Math.min(ownGap, Math.max(minGap, stepped))

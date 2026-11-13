@@ -9,11 +9,12 @@
  * show is whether the text fits the box once a real font sets it. This measures it, at both densities, with the
  * longest values a chart realistically hands the card (main.tsx `?fixture=architecture-cards`).
  *
- * WHAT "FITS" MEANS PER LINE. Nothing wraps, and nothing is drawn outside the card's border. The
- * exception label is always in full. The kind and detail lines are one line, cut with an ellipsis
- * where they must be; the kind is in full, alone or beside either chip. The name is cut as it always
- * was: one line and an ellipsis on the regular card, two lines and an ellipsis on the compact one,
- * the full name in its `title`.
+ * WHAT "FITS" MEANS PER LINE. Nothing is drawn outside the card's border. The exception label is
+ * always in full. The kind and detail lines are one line, cut with an ellipsis where they must be;
+ * the kind is in full, alone or beside either chip. The NAME is in full on the regular card: it
+ * wraps (at a hyphen where it can, anywhere as the last resort) and the card grows to hold it, from
+ * its 84px; FlowChart reserves the tallest card's height for every card (architectureNames.spec.ts).
+ * On the compact card it is two lines and an ellipsis, the full name in its `title`.
  */
 import { expect, test, type Page } from '@playwright/test'
 
@@ -104,17 +105,29 @@ test('every line of the architecture card fits its box at the 12px floor, at bot
 
   for (const card of cards) {
     const at = `${card.case}: ${JSON.stringify(card)}`
-    // The box dagre reserves (ARCHITECTURE_DENSITY).
-    expect([card.width, card.height], at).toEqual(card.density === 'compact' ? [180, 56] : [240, 84])
+    // The box dagre reserves (ARCHITECTURE_DENSITY): compact's is fixed; the regular card is 240px
+    // wide and at least 84px tall, taller where its name needs more lines.
+    if (card.density === 'compact') {
+      expect([card.width, card.height], at).toEqual([180, 56])
+    } else {
+      expect(card.width, at).toBe(240)
+      expect(card.height, at).toBeGreaterThanOrEqual(84)
+    }
     expect([card.overflowX, card.overflowY], at).toEqual([false, false])
     for (const line of card.lines) {
       const of = `${card.case} ${line.role}: ${JSON.stringify(line)}`
       expect(line.fontSize, of).toBeGreaterThanOrEqual(12)
       expect(line.inside, of).toBe(true)
       if (line.role === 'name') {
-        // Cut as it always was: one line (regular) or two (compact), then the ellipsis.
-        expect(line.lines, of).toBeLessThanOrEqual(card.density === 'compact' ? 2 : 1)
-        expect(line.ellipsis, of).toBe(true)
+        if (card.density === 'compact') {
+          // Two lines, then the ellipsis, as it always was.
+          expect(line.lines, of).toBeLessThanOrEqual(2)
+          expect(line.ellipsis, of).toBe(true)
+        } else {
+          // In full, on as many lines as it needs: nothing cut, no ellipsis.
+          expect(line.cut, of).toBe(false)
+          expect(line.ellipsis, of).toBe(false)
+        }
         continue
       }
       // Every other line is one line. Where it is cut, it is cut with an ellipsis, never wrapped.
@@ -132,12 +145,16 @@ test('every line of the architecture card fits its box at the 12px floor, at bot
   // compact card's 154px (169px needed), as it was.
   expect(lineOf('compact/forEach-NotSynced', 'detail').cut).toBe(true)
 
-  // The 63-character name is long enough to be cut on both cards (else the case proves nothing).
-  for (const density of ['regular', 'compact']) {
-    const name = lineOf(`${density}/long-name`, 'name')
-    expect(name.text.length).toBe(63)
-    expect(name.cut).toBe(true)
-  }
+  // The 63-character name is long enough to need more than two lines (else the case proves
+  // nothing): cut on the compact card, in full on the regular one, whose card grew to hold it.
+  const compact = lineOf('compact/long-name', 'name')
+  expect(compact.text.length).toBe(63)
+  expect(compact.cut).toBe(true)
+  const regular = lineOf('regular/long-name', 'name')
+  expect(regular.text.length).toBe(63)
+  expect(regular.lines).toBeGreaterThan(2)
+  expect(regular.cut).toBe(false)
+  expect(cards.find((card) => card.case === 'regular/long-name')!.height).toBeGreaterThan(84)
 })
 
 test('the regular card\'s kind is in full, alone and beside either exception chip', async ({ page }) => {
