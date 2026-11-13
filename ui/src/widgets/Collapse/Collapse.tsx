@@ -14,13 +14,21 @@ export type CollapseWidgetData = WidgetType['spec']['widgetData']
 type Panel = CollapseWidgetData['items'][number]
 
 /**
+ * A panel's antd key: its own `key`, else its child's `resourceRefId`, else its position. `key` and
+ * `label` are optional so the Page Builder, which adds a child to any container as
+ * `{ resourceRefId }`, makes a valid panel rather than a CR the apiserver refuses.
+ */
+export const panelKey = (panel: Pick<Panel, 'key' | 'resourceRefId'>, index: number): string =>
+  panel.key ?? panel.resourceRefId ?? String(index)
+
+/**
  * The panels open on first render. The CR's `defaultActiveKey` when it gives one; otherwise every
  * panel carrying a `status` — the exception groups (what is broken, what needs a decision) start
  * open and the settled ones (Resolved, Closed, Ready) start folded, so a page opens on what needs
  * the reader and the rest is one click away.
  */
 export const openByDefault = (items: Panel[], defaultActiveKey: string[] | undefined): string[] =>
-  defaultActiveKey ?? items.filter((panel) => panel.status).map((panel) => panel.key)
+  defaultActiveKey ?? items.flatMap((panel, index) => (panel.status ? [panelKey(panel, index)] : []))
 
 /**
  * The slice of a panel's dataSource it draws, and whether its footer shows. Without `cap`, all of it
@@ -55,7 +63,7 @@ export const cappedBody = (panel: Pick<Panel, 'cap' | 'dataSource' | 'footer'>):
 const Collapse = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetProps<CollapseWidgetData>) => {
   const { accordion, actions, bordered, defaultActiveKey, ghost, grid, itemTemplate, items, size } = widgetData
 
-  const body = (panel: Panel) => {
+  const body = (panel: Panel, key: string) => {
     if (panel.resourceRefId) {
       return <RefChild deniedRefIds={deniedRefIds} label='panel' resourceRefId={panel.resourceRefId} resourcesRefs={resourcesRefs} />
     }
@@ -71,17 +79,17 @@ const Collapse = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: Widg
         itemTemplate={itemTemplate}
         items={shown}
         resourcesRefs={resourcesRefs}
-        rowKey={`${uid}-${panel.key}`}
+        rowKey={`${uid}-${key}`}
         widget={widget}
       />
     )
   }
 
-  const panels: CollapseProps['items'] = items.map((panel) => ({
-    children: body(panel),
+  const panels: CollapseProps['items'] = items.map((panel, index) => ({
+    children: body(panel, panelKey(panel, index)),
     collapsible: panel.collapsible,
     extra: panel.extra ? <Typography.Text className={styles.extra} type='secondary'>{panel.extra}</Typography.Text> : undefined,
-    key: panel.key,
+    key: panelKey(panel, index),
     label: (
       <span className={styles.header}>
         <span className={styles.title}>{panel.label}</span>

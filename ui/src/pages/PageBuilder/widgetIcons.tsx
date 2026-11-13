@@ -27,6 +27,7 @@ import {
   CheckSquareOutlined,
   CodeOutlined,
   DownOutlined,
+  DownSquareOutlined,
   EditOutlined,
   FilterOutlined,
   FormOutlined,
@@ -77,6 +78,8 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
   buttons: BorderOutlined,
   cards: BorderOutlined,
   checkboxes: CheckSquareOutlined,
+  // A disclosure: the panel's header opens and folds its body.
+  collapses: DownSquareOutlined,
   cols: ColumnHeightOutlined,
   datepickers: CalendarOutlined,
   descriptions: ProfileOutlined,

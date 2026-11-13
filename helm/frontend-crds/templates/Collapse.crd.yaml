@@ -699,10 +699,10 @@ spec:
                             description: in-app route the footer opens (e.g. the table view filtered to this group); when set the footer renders as a link.
                             type: string
                           key:
-                            description: 'antd Collapse item `key`: unique among the panels; what defaultActiveKey names.'
+                            description: 'antd Collapse item `key`: unique among the panels; what defaultActiveKey names. Absent, the panel''s resourceRefId, else its position ("0", "1", ...).'
                             type: string
                           label:
-                            description: 'antd Collapse item `label`: the panel''s title.'
+                            description: 'antd Collapse item `label`: the panel''s title. Absent, the header shows only the count and extra (a panel dropped into a Collapse in the Page Builder starts that way, before it is given a title).'
                             type: string
                           resourceRefId:
                             description: 'a STATIC body: the child widget to render in the panel, matching an `id` in spec.resourcesRefs. It is fetched the first time the panel opens. Takes precedence over dataSource.'
@@ -713,9 +713,6 @@ spec:
                               - error
                               - warning
                             type: string
-                        required:
-                          - key
-                          - label
                         type: object
                       type: array
                     size:

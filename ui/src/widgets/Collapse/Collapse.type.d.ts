@@ -24,13 +24,13 @@ export interface Collapse {
        */
       items: {
         /**
-         * antd Collapse item `key`: unique among the panels; what defaultActiveKey names.
+         * antd Collapse item `key`: unique among the panels; what defaultActiveKey names. Absent, the panel's resourceRefId, else its position ("0", "1", ...).
          */
-        key: string
+        key?: string
         /**
-         * antd Collapse item `label`: the panel's title.
+         * antd Collapse item `label`: the panel's title. Absent, the header shows only the count and extra (a panel dropped into a Collapse in the Page Builder starts that way, before it is given a title).
          */
-        label: string
+        label?: string
         /**
          * how many items the panel holds, drawn as a count badge after the title and read as part of the header's accessible name. Absent, no badge.
          */

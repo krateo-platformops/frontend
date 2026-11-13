@@ -36,18 +36,14 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "key",
-                  "label"
-                ],
                 "properties": {
                   "key": {
                     "type": "string",
-                    "description": "antd Collapse item `key`: unique among the panels; what defaultActiveKey names."
+                    "description": "antd Collapse item `key`: unique among the panels; what defaultActiveKey names. Absent, the panel's resourceRefId, else its position (\"0\", \"1\", ...)."
                   },
                   "label": {
                     "type": "string",
-                    "description": "antd Collapse item `label`: the panel's title."
+                    "description": "antd Collapse item `label`: the panel's title. Absent, the header shows only the count and extra (a panel dropped into a Collapse in the Page Builder starts that way, before it is given a title)."
                   },
                   "count": {
                     "type": "integer",

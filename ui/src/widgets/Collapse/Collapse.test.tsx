@@ -32,7 +32,7 @@ vi.mock('../../hooks/useHandleActions', () => ({
 // A child widget is fetched by reference; here it only has to say it was mounted.
 vi.mock('../../components/RefChild', () => ({ default: ({ resourceRefId }: { resourceRefId: string }) => <span data-testid='child'>{resourceRefId}</span> }))
 
-import Collapse, { cappedBody, openByDefault, type CollapseWidgetData } from './Collapse'
+import Collapse, { cappedBody, openByDefault, panelKey, type CollapseWidgetData } from './Collapse'
 
 const rows = (count: number, prefix: string) => Array.from({ length: count }, (_, index) => ({ name: `${prefix}-${index + 1}` }))
 
@@ -133,6 +133,15 @@ describe('Collapse', () => {
   it('draws `extra` as muted header meta', () => {
     renderCollapse()
     expect(within(header('Open')).getByText('5 alerts, largest first')).toBeTruthy()
+  })
+
+  it('a panel the Page Builder adds as `{ resourceRefId }` is a valid panel, keyed by its child', () => {
+    // The builder adds a child to any container that way; key and label are optional for it.
+    expect(panelKey({ resourceRefId: 'activity' }, 3)).toBe('activity')
+    expect(panelKey({}, 3)).toBe('3')
+    expect(panelKey({ key: 'open', resourceRefId: 'activity' }, 3)).toBe('open')
+    renderCollapse({ defaultActiveKey: ['activity'], items: [{ resourceRefId: 'activity' }] })
+    expect(screen.getByTestId('child').textContent).toBe('activity')
   })
 
   it('passes antd options through: accordion keeps one panel open', () => {
