@@ -138,6 +138,258 @@ spec:
                 widgetData:
                   description: The properties Table renders. Where Table wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
                   properties:
+                    actions:
+                      description: the actions of the widget (canonical map; see src/schemas/actions.schema.json). Referenced per-row by rowActions.
+                      properties:
+                        navigate:
+                          description: client-side navigation actions
+                          items:
+                            properties:
+                              id:
+                                description: unique identifier for the action
+                                type: string
+                              loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
+                                properties:
+                                  display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              path:
+                                description: the identifier of the route to navigate to
+                                type: string
+                              requireConfirmation:
+                                description: whether user confirmation is required before navigating
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              type:
+                                description: type of navigation action
+                                enum:
+                                  - navigate
+                                type: string
+                            required:
+                              - id
+                              - type
+                            type: object
+                          type: array
+                        openDrawer:
+                          description: actions to open side drawer components
+                          items:
+                            properties:
+                              id:
+                                description: unique identifier for the drawer action
+                                type: string
+                              loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
+                                properties:
+                                  display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              requireConfirmation:
+                                description: whether user confirmation is required before opening
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              size:
+                                description: drawer size to be displayed
+                                enum:
+                                  - default
+                                  - large
+                                type: string
+                              title:
+                                description: title shown in the drawer header
+                                type: string
+                              type:
+                                description: type of drawer action
+                                enum:
+                                  - openDrawer
+                                type: string
+                            required:
+                              - id
+                              - resourceRefId
+                              - type
+                            type: object
+                          type: array
+                        openModal:
+                          description: actions to open modal dialog components
+                          items:
+                            properties:
+                              customWidth:
+                                description: the custom width of the value, which should be used by setting the 'custom' value inside the 'size' property
+                                type: string
+                              id:
+                                description: unique identifier for the modal action
+                                type: string
+                              loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
+                                properties:
+                                  display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              requireConfirmation:
+                                description: whether user confirmation is required before opening
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              size:
+                                description: sets the Modal size, 'default' is 520px, 'large' is 80% of the screen width, 'fullscreen' is 100% of the screen width, 'custom' should be used with the 'customWidth' property
+                                enum:
+                                  - default
+                                  - large
+                                  - fullscreen
+                                  - custom
+                                type: string
+                              title:
+                                description: title shown in the modal header
+                                type: string
+                              type:
+                                description: type of modal action
+                                enum:
+                                  - openModal
+                                type: string
+                            required:
+                              - id
+                              - resourceRefId
+                              - type
+                            type: object
+                          type: array
+                        rest:
+                          description: rest api call actions triggered by the widget
+                          items:
+                            properties:
+                              errorMessage:
+                                description: a message that will be displayed inside a toast in case of error
+                                type: string
+                              fanOutPath:
+                                description: 'name of an ARRAY field in the submitted values: the action fans out into ONE ordered write per element (for each write, that field is replaced by the single element before payload/payloadToOverride interpolation). The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics); onEventNavigateTo is not supported on a fan-out action'
+                                type: string
+                              headers:
+                                description: 'array of headers as strings, format ''key: value'''
+                                items:
+                                  description: 'key and value as a single, example: ''x-custom-header: value'''
+                                  type: string
+                                type: array
+                              id:
+                                description: unique identifier for the action
+                                type: string
+                              loading:
+                                description: Whether this action shows an in-flight indicator while it runs.
+                                properties:
+                                  display:
+                                    description: Show the in-flight indicator. Set false to run the action without one.
+                                    type: boolean
+                                required:
+                                  - display
+                                type: object
+                              onEventNavigateTo:
+                                description: conditional navigation triggered by a specific event
+                                properties:
+                                  eventReason:
+                                    description: identifier of the awaited event reason
+                                    type: string
+                                  loadingMessage:
+                                    description: message to display while waiting for the event
+                                    type: string
+                                  reloadRoutes:
+                                    description: Re-fetch the route table before navigating. Set it when the action creates its own destination — publishing a new page, for example — so the route exists by the time the navigation happens.
+                                    type: boolean
+                                  timeout:
+                                    default: 50
+                                    description: the timeout in seconds to wait for the event
+                                    type: integer
+                                  url:
+                                    description: url to navigate to when the event is received
+                                    type: string
+                                required:
+                                  - eventReason
+                                  - url
+                                type: object
+                              onSuccessNavigateTo:
+                                description: url to navigate to after successful execution
+                                type: string
+                              ops:
+                                description: 'ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action''s own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op''s)'
+                                items:
+                                  properties:
+                                    payload:
+                                      description: static payload sent with this op's request
+                                      type: object
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    payloadToOverride:
+                                      description: list of this op's payload fields to override dynamically (values interpolate against the same submitted values as every other op)
+                                      items:
+                                        properties:
+                                          name:
+                                            description: name of the field to override
+                                            type: string
+                                          value:
+                                            description: value to use for overriding the field
+                                            type: string
+                                        required:
+                                          - name
+                                          - value
+                                        type: object
+                                      type: array
+                                    resourceRefId:
+                                      description: 'the identifier of the resource ref this op targets: its verb (must be mutating), path and payload base'
+                                      type: string
+                                  required:
+                                    - resourceRefId
+                                  type: object
+                                type: array
+                              payload:
+                                description: static payload sent with the request
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              payloadToOverride:
+                                description: list of payload fields to override dynamically
+                                items:
+                                  properties:
+                                    name:
+                                      description: name of the field to override
+                                      type: string
+                                    value:
+                                      description: value to use for overriding the field
+                                      type: string
+                                  required:
+                                    - name
+                                    - value
+                                  type: object
+                                type: array
+                              requireConfirmation:
+                                description: whether user confirmation is required before triggering the action
+                                type: boolean
+                              resourceRefId:
+                                description: the identifier of the k8s custom resource that should be represented
+                                type: string
+                              successMessage:
+                                description: a message that will be displayed inside a toast in case of success
+                                type: string
+                              type:
+                                description: type of action to execute
+                                enum:
+                                  - rest
+                                type: string
+                            required:
+                              - headers
+                              - id
+                              - resourceRefId
+                              - type
+                            type: object
+                          type: array
+                      type: object
                     allowedResources:
                       description: the resource plurals this container may hold as children. The enum is what this KIND can ever hold, by role. WHICH of them this instance accepts is its own declaration, checked against its real children by the X5 lint. Empty means unconstrained.
                       items:
@@ -298,6 +550,33 @@ spec:
                       type: object
                     prefix:
                       description: it's the filters prefix to get right values
+                      type: string
+                    rowActions:
+                      description: 'per-row action controls, rendered in a trailing column of each row as a kebab (⋯) menu or as buttons (see rowActionsDisplay) — the same field List takes as itemTemplate.rowActions. Each entry references an action id from widgetData.actions and is fired with the row''s values as the action payload (customPayload): an object of each cell''s valueKey to its value, so a navigate path of /x/${name} goes to that row''s `name` cell. A click or key on a control never fires the row''s rowNavigateTo, which keeps working everywhere else on the row.'
+                      items:
+                        properties:
+                          actionId:
+                            description: id of an action defined in widgetData.actions to fire when this menu item is clicked
+                            type: string
+                          danger:
+                            description: render the menu item in a destructive (red) style
+                            type: boolean
+                          icon:
+                            description: optional Font Awesome icon name for the menu item
+                            type: string
+                          label:
+                            description: menu item label
+                            type: string
+                        required:
+                          - actionId
+                          - label
+                        type: object
+                      type: array
+                    rowActionsDisplay:
+                      description: 'how rowActions are presented: menu (a kebab (⋯) in the row''s last cell, default) | buttons (antd Buttons in the row''s last cell, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (rowNavigateTo) is unchanged either way. Same field and values as List''s itemTemplate.rowActionsDisplay.'
+                      enum:
+                        - menu
+                        - buttons
                       type: string
                     rowNavigateTo:
                       description: optional route path to navigate to on row click; `{valueKey}` placeholders are filled from that row's cells (e.g. /compositions/{ns}/{name})

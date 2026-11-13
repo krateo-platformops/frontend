@@ -300,7 +300,7 @@ const AgentikoRail = () => {
   // FR 57: matched on `event.code`, so macOS does not insert "µ" into the textarea, and
   // only with Alt alone — a chord that happens to include Alt belongs to someone else.
   const onRailKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    // `.apRail` closes with `width: 0; overflow: hidden`, not `display: none`, so its controls
+    // `.apRail` closes with `width: 0; overflow: clip`, not `display: none`, so its controls
     // stay mounted. The collapsed rail is `inert` and every collapse hands focus to the header
     // toggle first (railFocus.ts), so no key should reach it; the `open` test still guards the one
     // outcome that must never happen: a microphone opened into a zero-width rail, its meter, timer
@@ -361,10 +361,12 @@ const AgentikoRail = () => {
           <span className={styles.apTitle}><AgentikoMark className={styles.apSpark} gradient size={20} />Agentiko</span>
           {/* AGENTIKO_RAIL_BADGE: the install's label for this rail replaces the live pill. */}
           {railBadge ? (
-            <Tag>{railBadge}</Tag>
+            <Tag className={styles.apBadge} title={railBadge}>{railBadge}</Tag>
           ) : (
-            <span className={`${styles.apLive} ${streaming ? '' : styles.idle}`}>
-              <span className={styles.apLiveDot} />{streaming ? 'streaming' : 'live'}
+            // On a narrow header the word is visually hidden and the pill shows its dot alone
+            // (.apLiveWord); the word stays its text, so the title repeats it for the eye.
+            <span className={`${styles.apLive} ${streaming ? '' : styles.idle}`} title={streaming ? 'streaming' : 'live'}>
+              <span className={styles.apLiveDot} /><span className={styles.apLiveWord}>{streaming ? 'streaming' : 'live'}</span>
             </span>
           )}
           <span className={styles.apSpacer} />

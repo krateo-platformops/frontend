@@ -5,6 +5,9 @@
 .apToggle {
   align-items: center;
   background: linear-gradient(90deg, var(--krateo-color-agentiko-fill-start), var(--krateo-color-agentiko-fill-end));
+
+  /* Spans the 1px transparent border instead of repeating into it (coloured strips at the edges). */
+  background-origin: border-box;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   color: var(--krateo-color-agentiko-on-fill);

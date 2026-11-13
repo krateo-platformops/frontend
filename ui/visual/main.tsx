@@ -40,8 +40,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App as AntdApp, Button, Space } from 'antd'
 import { loadAll } from 'js-yaml'
 import ReactDOM from 'react-dom/client'
-import { MemoryRouter } from 'react-router'
+import { Link, MemoryRouter } from 'react-router'
 
+import { AgentikoProvider, AgentikoShell, AgentikoToggle } from '../src/components/Agentiko'
 import AgentikoBrandScope from '../src/components/Agentiko/AgentikoBrandScope'
 import DependencyGraph from '../src/components/DependencyGraph'
 import DismissButton from '../src/components/DismissButton'
@@ -351,9 +352,78 @@ const login = () => (
     <Login />
   </ConfigContext.Provider>
 )
-const PAGE_FIXTURES = new Set(['login'])
+/**
+ * `?fixture=agentiko-rail`: the real Agentiko provider and shell around a page with one
+ * "Ask Agentiko →" link, which navigates with `?ask=` exactly as the widget buttons do, and the
+ * header's Agentiko toggle, which opens the rail with no turn in flight. The agent's
+ * endpoint is served by agentikoRail.spec.ts (the probe answers; a turn stays in flight), so the
+ * rail opens and streams as it does on a live install. `&badge=…` sets AGENTIKO_RAIL_BADGE.
+ */
+const agentikoConfig = { ...config, api: { ...config.api, AGENTIKO_API_BASE_URL: '/agentiko-a2a/', AGENTIKO_RAIL_BADGE: params.get('badge') ?? undefined } } as Config
+const agentikoRail = () => (
+  <ConfigContext.Provider value={{ config: agentikoConfig, isLoading: false, refetch: (() => Promise.resolve(undefined)) as never }}>
+    <AgentikoProvider>
+      <AgentikoShell>
+        <div style={{ padding: 'var(--spacing-md)' }}>
+          <Link to='?ask=Investigate%20the%20firing%20alert'>Ask Agentiko →</Link>
+          <AgentikoToggle />
+        </div>
+      </AgentikoShell>
+    </AgentikoProvider>
+  </ConfigContext.Provider>
+)
+const PAGE_FIXTURES = new Set(['agentiko-rail', 'login'])
+
+/**
+ * `?fixture=table-row-actions&display=menu|buttons|none&layout=normal|fit|virtual`: a Table with
+ * `rowActions` (#700) in the real theme — a max-content table, a `fitContent` one, or one large
+ * enough to virtualize. `display=none` is the same table without `rowActions`, the baseline its
+ * rows are measured against. tableRowActions.spec.ts measures the actions column against its controls at
+ * desktop and phone widths: the controls fit their cell, nothing overlaps, the header stays
+ * screen-reader-only.
+ */
+const rowActionsDisplayParam = params.get('display')
+const rowActionsDisplay = rowActionsDisplayParam === 'buttons' ? 'buttons' : 'menu'
+const rowActionsLayout = params.get('layout') ?? 'normal'
+const rowActionsRow = (index: number) => [
+  { kind: 'jsonSchemaType', stringValue: `payments-api-${String(index).padStart(3, '0')}-eu-west-1-blue`, type: 'string', valueKey: 'name' },
+  { kind: 'jsonSchemaType', stringValue: index % 2 ? 'team-checkout-production' : 'krateo-system', type: 'string', valueKey: 'ns' },
+  { color: index % 3 ? 'green' : 'red', kind: 'tag', stringValue: index % 3 ? 'Ready' : 'ReconcileError', valueKey: 'status' },
+  { kind: 'jsonSchemaType', numberValue: (index % 7) + 1, type: 'number', valueKey: 'replicas' },
+  { kind: 'jsonSchemaType', stringValue: 'Pod scheduled on gke-krateo-pool-1 after a 30 s backoff', type: 'string', valueKey: 'message' },
+]
+const tableRowActions = () => (
+  <Table
+    resourcesRefs={{ items: [] }}
+    uid='fixture-row-actions'
+    widget={{} as never}
+    widgetData={{
+      // eslint-disable-next-line no-template-curly-in-string -- a navigate action's `${valueKey}` path
+      actions: { navigate: [{ id: 'logs', path: '/compositions/${ns}/${name}/logs', type: 'navigate' }, { id: 'restart', path: '/compositions/${ns}/${name}/restart', type: 'navigate' }] },
+      allowedResources: [],
+      columns: [
+        { title: 'Name', valueKey: 'name' },
+        { title: 'Namespace', valueKey: 'ns' },
+        { title: 'Status', valueKey: 'status' },
+        { title: 'Replicas', valueKey: 'replicas' },
+        { title: 'Message', valueKey: 'message' },
+      ],
+      dataSource: Array.from({ length: rowActionsLayout === 'virtual' ? 120 : 3 }, (_, index) => rowActionsRow(index)),
+      fitContent: rowActionsLayout === 'fit',
+      rowActions: rowActionsDisplayParam === 'none'
+        ? undefined
+        : [
+          { actionId: 'logs', icon: 'fa-file-lines', label: 'Logs' },
+          { actionId: 'restart', danger: true, icon: 'fa-rotate-right', label: 'Restart' },
+        ],
+      rowActionsDisplay,
+      rowNavigateTo: '/compositions/{ns}/{name}',
+    } as unknown as TableWidgetData}
+  />
+)
 
 const fixtures: Record<string, () => React.ReactNode> = {
+  'agentiko-rail': agentikoRail,
   'app-shell': appShell,
   architecture,
   'architecture-cards': architectureCards,
@@ -368,6 +438,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'screen-header': () => screenHeader('Author a page and everything it needs, then publish the whole set as one change request.'),
   'screen-header-no-subtitle': () => screenHeader(),
   'table-cell-tooltip': () => <Table resourcesRefs={{ items: [] }} uid='fixture' widget={{} as never} widgetData={spansTable} />,
+  'table-row-actions': tableRowActions,
 }
 
 const missing = <pre data-testid='missing'>{`no renderable example ${doc} in ${folder}`}</pre>
