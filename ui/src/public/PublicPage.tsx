@@ -17,7 +17,7 @@
  *
  * HOW IT STAYS ANONYMOUS. It is a route of its own OUTSIDE the signed-in shell (context/
  * RoutesContext.tsx), so the signed-in transport is never above it and every read, from the root
- * down, goes through the anonymous transport (publicPages/anonymousTransport.ts), which has no way to
+ * down, goes through the anonymous transport (public/anonymousTransport.ts), which has no way to
  * reach the stored token. It also reads through its OWN query cache, so nothing the signed-in
  * portal cached in this tab — read with a token, possibly showing more — can be served here.
  */

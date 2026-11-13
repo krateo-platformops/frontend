@@ -10,7 +10,7 @@ import { useConfigContext } from '../context/ConfigContext'
 import { EMPTY_FRAGMENT_EXTRAS } from '../context/pageFragment'
 import { useFragmentExtras } from '../context/PageRootContext'
 import { useWidgetScope } from '../context/WidgetScopeContext'
-import { type TransportRead, useWidgetTransport } from '../transport/widgetTransport'
+import { type TransportFetch, useWidgetTransport } from '../transport/widgetTransport'
 import type { Widget } from '../types/Widget'
 import { getUserInfo } from '../utils/getUserInfo'
 
@@ -264,7 +264,7 @@ export const boundedWindow = (
  * Refuses an endpoint that is not a `/call` — there is no body-carrying form of anything else, and
  * falling back to the query would put the values in the very URL this exists to keep them out of.
  */
-export const readWithBodyExtras = (read: TransportRead, requestUrl: URL, extrasParam: string): Promise<Response> => {
+export const readWithBodyExtras = (read: TransportFetch, requestUrl: URL, extrasParam: string): Promise<Response> => {
   const url = new URL(requestUrl.toString())
   if (!url.pathname.endsWith('/call')) {
     throw new WidgetFetchError(`A widget with fragment extras must read through /call, not ${url.pathname}`)
@@ -313,7 +313,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // Only a SIGNED-IN read volunteers an identity. A public page renders with the anonymous transport
   // and is the page anyone sees, so the identity an earlier sign-in left in storage must not ride on
   // its reads either — it would also tell the RESTActions who is looking.
-  const injectIdentity = !config?.api.SNOWPLOW_IDENTITY_INJECTION && !!transport.session
+  const injectIdentity = !config?.api.SNOWPLOW_IDENTITY_INJECTION && transport.identity === 'signed-in'
   const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, callerExtras, fragmentExtras)
 
   const widgetFullUrl = `${config!.api.SNOWPLOW_API_BASE_URL}${widgetEndpoint}`
@@ -323,12 +323,12 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // serialized query key — stable per (endpoint, extras) — used to key the captured
   // refresh headers and arm the stream. ON by default; per-install kill-switch in config
   // (see refreshSse.isWidgetLiveRefreshEnabled). A live stream is a signed-in channel (it
-  // authenticates with the session's bearer), so an anonymous transport — no `session` — never arms
-  // one, and never records the headers that would.
+  // authenticates with the session's bearer), so a transport that is not `live` — a public page's —
+  // never arms one, and never records the headers that would.
   //
   // A widget reading with extras in the body does not arm either: the refresh coordinates are built
   // from the request URL's query, which then does not carry the extras the read was made with.
-  const refreshEnabled = isWidgetLiveRefreshEnabled(config) && !!transport.session && !extrasInBody
+  const refreshEnabled = isWidgetLiveRefreshEnabled(config) && transport.live && !extrasInBody
   const widgetId = JSON.stringify(['widgets', widgetEndpoint, extrasParam])
 
   /* TO DEBUG BEFORE SNOWPLOW RETURNS THESE IN THE widgetEndpoint */
@@ -401,7 +401,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     //   urlString,
     // })
 
-    const res = extrasInBody ? await readWithBodyExtras(transport.read, requestUrl, extrasParam) : await transport.read(urlString)
+    const res = extrasInBody ? await readWithBodyExtras(transport.fetch, requestUrl, extrasParam) : await transport.fetch(urlString)
 
     if (!res.ok) {
       // ONE read of the body, shared by the 401 classification and the thrown detail.

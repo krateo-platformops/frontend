@@ -143,12 +143,12 @@ export interface ActionContext {
   reloadRoutes: () => void | Promise<void>
   getAccessToken: () => string
   /**
-   * False when the transport in scope has no signed-in session — a public page. A snowplow write
+   * False when the transport in scope makes no writes (`WidgetTransport.writes`) — a public page. A snowplow write
    * (`rest`) is then refused before anything is sent: no capability probe, no /jq, no write, no
    * audit record — the person is told to sign in. Absent means signed in, so a context built
    * without it (every unit test) behaves exactly as before; the hook below always sets it.
    */
-  signedIn?: boolean
+  writes?: boolean
   openDrawer: typeof openDrawer
   openModal: typeof openModal
   closeDrawer: typeof closeDrawer
@@ -656,11 +656,11 @@ export const dispatchAction = async (action: WidgetAction, runtime: ActionRuntim
     return
   }
 
-  // A public page has no session, so it has no snowplow writes. Refused HERE, before runRest builds
+  // A public page's transport makes no writes. Refused HERE, before runRest builds
   // anything: building a write already reaches the network (the provenance capability probe, /jq
   // for payload overrides), and none of that may run on an anonymous transport. Drawers and modals
   // still open, and `navigate` was handled above.
-  if (action.type === 'rest' && ctx.signedIn === false) {
+  if (action.type === 'rest' && ctx.writes === false) {
     ctx.setLoading(false)
     ctx.message.destroy()
     ctx.notification.info({ description: SIGN_IN_TO_ACT, message: 'Sign in to do this', placement: 'bottomLeft' })
@@ -711,7 +711,7 @@ export const useHandleAction = () => {
   // The transport owns the credential (transport/widgetTransport.ts). Signed in, its session's
   // token getter is the same `getAccessToken` this hook used to import; anonymous, there is no
   // session, writes are refused in dispatchAction, and the getter only throws.
-  const { session } = useWidgetTransport()
+  const { session, writes } = useWidgetTransport()
   const getAccessToken = session?.getAccessToken ?? noSession
   const queryClient = useQueryClient()
   const { message, modal, notification } = useApp()
@@ -790,7 +790,7 @@ export const useHandleAction = () => {
     reloadRoutes,
     resolveJq,
     setLoading: setIsActionLoading,
-    signedIn: !!session,
+    writes: writes && !!session,
     supportsCallProvenance: () => snowplowReadsCallProvenance(config?.api.SNOWPLOW_API_BASE_URL ?? '', getAccessToken),
   })
 
@@ -830,8 +830,8 @@ export const useHandleAction = () => {
    * silent toasts) — see SetDispatchOptions; every other caller omits it.
    */
   const handleActionSet = async (ops: readonly WriteOp[], origin?: WriteOrigin, options?: SetDispatchOptions): Promise<WriteOpResult[] | null> => {
-    // A write-set is writes; without a session it is refused unsent, like a scalar `rest`.
-    if (!session) {
+    // A write-set is writes; on a transport that makes none it is refused unsent, like a scalar `rest`.
+    if (!writes || !session) {
       notification.info({ description: SIGN_IN_TO_ACT, message: 'Sign in to do this', placement: 'bottomLeft' })
       return null
     }

@@ -15,8 +15,8 @@
  * Reporting either as a plain success would hand someone a silently incomplete export, which is the
  * failure this whole feature is meant to avoid.
  */
-import { anonymousRead } from '../../publicPages/anonymousTransport'
-import type { TransportRead } from '../../transport/widgetTransport'
+import { anonymousFetch } from '../../public/anonymousTransport'
+import type { TransportFetch } from '../../transport/widgetTransport'
 
 import type { ExportFormat } from './tableExport'
 
@@ -37,7 +37,7 @@ export interface ExportTransport {
    * module never adds one. Defaults to anonymous, so a caller that passes none sends no credential.
    * Injected in tests too, so the outcome logic runs without a network or a DOM.
    */
-  fetch?: TransportRead
+  fetch?: TransportFetch
   /** Called on a 401, mirroring the widget query's own handling. */
   onSessionExpired?: () => void
   /** Hands the file to the browser. Replaced in tests. */
@@ -74,7 +74,7 @@ const messageOf = async (response: Response): Promise<string> => {
  * `url` is the full widget URL with the export query already on it (`buildExportRequest`).
  */
 export const runExport = async (url: string, extras: string | null, format: ExportFormat, filename: string, transport: ExportTransport = {}): Promise<ExportOutcome> => {
-  const doFetch = transport.fetch ?? anonymousRead
+  const doFetch = transport.fetch ?? anonymousFetch
   const deliver = transport.deliver ?? deliverDefault
 
   // POST, with `extras` in the body — snowplow's POST /export, the same envelope and decoder as

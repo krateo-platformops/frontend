@@ -127,8 +127,8 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   // subscription open on the tab-wide stream (isWidgetArmed(widgetId)), so the green
   // "Live" dot means a push channel is genuinely open — not merely that the last fetch
   // succeeded. Replaces the earlier render-local `isSuccess && !isStale` proxy.
-  // Live refresh is a signed-in channel; an anonymous transport has no session and never arms it.
-  const liveRefreshEnabled = isWidgetLiveRefreshEnabled(config) && !!transport.session
+  // Live refresh is a signed-in channel; a transport that is not `live` (a public page) never arms it.
+  const liveRefreshEnabled = isWidgetLiveRefreshEnabled(config) && transport.live
   const liveArmed = liveRefreshEnabled && isWidgetArmed(widgetId)
 
   useEffect(() => {

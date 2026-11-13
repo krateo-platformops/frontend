@@ -98,7 +98,7 @@ describe('fetchFieldOptions', () => {
   it('calls the resolved path with the Bearer token and merges extras over the path\'s own', async () => {
     respond({ status: ['a'] })
     // Through the signed-in transport, which is what the shell provides and what adds the bearer.
-    await fetchFieldOptions('http://snowplow.test', '/call?resource=restactions&name=zones&extras=%7B%22fixed%22%3A1%7D', { region: 'eu' }, signedInTransport.read)
+    await fetchFieldOptions('http://snowplow.test', '/call?resource=restactions&name=zones&extras=%7B%22fixed%22%3A1%7D', { region: 'eu' }, signedInTransport.fetch)
     const [[url, init]] = fetchMock.mock.calls
     const parsed = new URL(url as string)
     expect(parsed.searchParams.get('name')).toBe('zones')

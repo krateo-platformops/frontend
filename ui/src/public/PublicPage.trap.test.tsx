@@ -6,9 +6,10 @@
  * Why a trap rather than a unit test: the property is "no request carries Authorization", and the
  * way it breaks is a path nobody thought of — a widget's side fetch, a stream, an upload, the span
  * exporter. So this renders the REAL app at a public address, with a synthetic token in storage,
- * real widgets (a Flex holding a Button, an Upload and a streaming List), and records every request
- * the page makes through every channel jsdom has — fetch and XMLHttpRequest — then clicks the
- * things that would write.
+ * real widgets (a Flex holding a Table, a Form, a Button, an Upload and a streaming List), and
+ * records every request the page makes through every channel a browser has — fetch,
+ * XMLHttpRequest, EventSource, and the OTLP exporter's header function — then clicks the Button,
+ * submits the Form and picks a file for the Upload.
  *
  * The same render proves the rest of the contract: the page renders outside the signed-in shell
  * (no INIT layout is ever fetched, no redirect to /login), the declared fragment keys reach the
@@ -18,6 +19,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { telemetryAuthHeaders } from '../otel/telemetryCredential'
 import { invalidateAccessTokenCache } from '../utils/getAccessToken'
 
 /**
@@ -68,8 +70,18 @@ const widget = (kind: string, name: string, widgetData: Record<string, unknown>,
   status: { resourcesRefs: { items: refs }, widgetData },
 })
 
-/** The page: a root Flex declaring `s` and `t`, holding a Button, an Upload and a streaming List. */
+/** The page: a root Flex declaring `s` and `t`, holding a Table, a Form, a Button, an Upload and a streaming List. */
 const fixtures: Record<string, unknown> = {
+  'demo-form': widget('Form', 'demo-form', {
+    actions: { rest: [{ headers: ['Content-Type: application/json'], id: 'submit', payload: {}, resourceRefId: 'form-target', type: 'rest' }] },
+    buttonConfig: { primary: { label: 'Send request' } },
+    schema: { properties: { note: { title: 'Note', type: 'string' } }, type: 'object' },
+    submitActionId: 'submit',
+  }, [ref('form-target', '/call?resource=configmaps&apiVersion=v1&name=form-target&namespace=krateo-system', 'POST')]),
+  'demo-table': widget('Table', 'demo-table', {
+    columns: [{ title: 'Name', valueKey: 'name' }],
+    dataSource: [[{ kind: 'jsonSchemaType', stringValue: 'alpha-row', type: 'string', valueKey: 'name' }]],
+  }),
   'demo-button': widget('Button', 'demo-button', {
     actions: { rest: [{ id: 'write', payload: {}, resourceRefId: 'write-target', type: 'rest' }] },
     clickActionId: 'write',
@@ -80,16 +92,18 @@ const fixtures: Record<string, unknown> = {
     ref('upload-target', '/call?resource=configmaps&apiVersion=v1&name=upload&namespace=krateo-system', 'POST'),
   ]),
   'page-demo': widget('Flex', 'page-demo', {
-    allowedResources: ['buttons', 'uploads', 'listies'],
-    items: [{ resourceRefId: 'button' }, { resourceRefId: 'upload' }, { resourceRefId: 'list' }],
+    allowedResources: ['tables', 'forms', 'buttons', 'uploads', 'listies'],
+    items: [{ resourceRefId: 'table' }, { resourceRefId: 'form' }, { resourceRefId: 'button' }, { resourceRefId: 'upload' }, { resourceRefId: 'list' }],
   }, [
+    ref('table', endpoint('tables', 'demo-table')),
+    ref('form', endpoint('forms', 'demo-form')),
     ref('button', endpoint('buttons', 'demo-button')),
     ref('upload', endpoint('uploads', 'demo-upload')),
     ref('list', endpoint('listies', 'demo-list')),
   ], { 'krateo.io/fragment-keys': 's,t' }),
 }
 
-interface Recorded { body?: string; channel: 'fetch' | 'xhr'; headers: Record<string, string>; method: string; url: string }
+interface Recorded { body?: string; channel: 'fetch' | 'xhr' | 'eventsource'; headers: Record<string, string>; method: string; url: string }
 let recorded: Recorded[] = []
 /** Per-widget status overrides, keyed by object name. */
 let statusFor: Record<string, number> = {}
@@ -150,6 +164,14 @@ beforeEach(() => {
   localStorage.setItem('K_user', JSON.stringify({ accessToken: TOKEN, user: { displayName: 'Ada', username: 'ada' } }))
   invalidateAccessTokenCache()
   vi.stubGlobal('fetch', fakeFetch)
+  // Every EventSource is recorded and none connects. (The app's own SSE client streams over fetch,
+  // which is recorded above; this catches anything that would open a native one.)
+  vi.stubGlobal('EventSource', class {
+    constructor(url: string | URL) { recorded.push({ channel: 'eventsource', headers: {}, method: 'GET', url: String(url) }) }
+    addEventListener() { /* none */ }
+    close() { /* none */ }
+    removeEventListener() { /* none */ }
+  })
   // Every XHR is recorded and none leaves: the Upload widget is the XHR user.
   Object.defineProperty(XMLHttpRequest.prototype, 'open', {
     configurable: true,
@@ -182,6 +204,8 @@ describe('a public page in a browser that holds a session token', () => {
 
     await screen.findByRole('button', { name: /make a change/i })
     await screen.findByText(/upload a file/i)
+    await screen.findByText('alpha-row')
+    await screen.findByRole('button', { name: /send request/i })
 
     const noCredential = () => {
       expect(recorded.length).toBeGreaterThan(0)
@@ -194,6 +218,8 @@ describe('a public page in a browser that holds a session token', () => {
     }
     // Every read the page made to render.
     noCredential()
+    // The span exporter's header function, asked now as it would be for the next batch: nothing.
+    expect(telemetryAuthHeaders()).toEqual({})
 
     // The writes: a Button's `rest` action and an upload. Both are refused unsent.
     const before = recorded.length
@@ -204,9 +230,12 @@ describe('a public page in a browser that holds a session token', () => {
       fireEvent.change(input!, { target: { files: [new File(['x'], 'x.txt', { type: 'text/plain' })] } })
       await new Promise((resolve) => { setTimeout(resolve, 50) })
     })
-    await waitFor(() => { expect(notices.filter((notice) => notice === 'Sign in to do this')).toHaveLength(2) })
+    fireEvent.click(screen.getByRole('button', { name: /send request/i }))
+    await waitFor(() => { expect(notices.filter((notice) => notice === 'Sign in to do this')).toHaveLength(3) })
     expect(recorded.slice(before)).toEqual([])
     noCredential()
+    expect(recorded.some(({ channel }) => channel === 'eventsource')).toBe(false)
+    expect(telemetryAuthHeaders()).toEqual({})
   })
 
   it('never renders the signed-in shell: no INIT layout read, no events stream, no redirect to /login', async () => {

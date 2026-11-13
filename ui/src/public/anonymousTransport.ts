@@ -10,7 +10,7 @@
  * THE GUARANTEE IS STRUCTURAL. This module imports nothing that can reach the stored token
  * (utils/getAccessToken, the session resume, the SSE client): a test walks its import graph and
  * fails the moment such an edge appears (anonymousTransport.graph.test.ts), and eslint refuses
- * those imports under src/publicPages. On top of that it builds every request's headers itself, sends
+ * those imports under src/public. On top of that it builds every request's headers itself, sends
  * `credentials: 'omit'` so no cookie rides along either, and throws on an Authorization header a
  * caller hands it — a caller that tries is a bug, and failing loudly is how it gets found.
  *
@@ -18,7 +18,7 @@
  * audit record — can run on it. Its only write is `post`: a plain same-origin JSON POST to a path
  * the install allowlisted, for a public form (it is not a /call write).
  */
-import type { TransportInit, TransportRead, WidgetTransport } from '../transport/widgetTransport'
+import type { TransportInit, TransportFetch, WidgetTransport } from '../transport/widgetTransport'
 
 /** Thrown, synchronously, when a caller hands the anonymous transport a credential. */
 export class AnonymousCredentialError extends Error {
@@ -43,7 +43,7 @@ const hasAuthorization = (headers: Record<string, string> | undefined): boolean 
  * A read with no credential. The headers are copied, never shared, and `credentials: 'omit'` is
  * set last so a caller cannot turn cookies back on.
  */
-export const anonymousRead: TransportRead = (url: string, init: TransportInit = {}) => {
+export const anonymousFetch: TransportFetch = (url: string, init: TransportInit = {}) => {
   if (hasAuthorization(init.headers)) {
     throw new AnonymousCredentialError()
   }
@@ -78,6 +78,10 @@ const underPrefix = (pathname: string, prefix: string): boolean => {
   return pathname === prefix || pathname === base.slice(0, -1) || pathname.startsWith(base)
 }
 
+/** Any whitespace (Unicode `\s`) or a C0/DEL control character. */
+const hasWhitespaceOrControl = (text: string): boolean =>
+  /\s/u.test(text) || [...text].some((char) => { const code = char.charCodeAt(0); return code < 0x20 || code === 0x7f })
+
 /**
  * Resolve `path` against this origin and check it, or say why not. Pure: sends nothing.
  *
@@ -86,6 +90,9 @@ const underPrefix = (pathname: string, prefix: string): boolean => {
  */
 export const checkPublicPost = (path: unknown, allowlist: readonly string[], origin: string): { ok: true; url: string } | { ok: false; reason: string } => {
   if (typeof path !== 'string' || path === '') { return { ok: false, reason: 'the path is empty' } }
+  // Refused before parsing, because the URL parser REMOVES tabs and newlines anywhere in its input:
+  // `/\t/evil.example/x` would be judged as the `//evil.example/x` it becomes, not as what was written.
+  if (hasWhitespaceOrControl(path)) { return { ok: false, reason: 'the path contains whitespace or a control character' } }
   if (!path.startsWith('/')) { return { ok: false, reason: `"${path}" is not a same-origin absolute path` } }
   if (path.startsWith('//') || path.includes('\\')) { return { ok: false, reason: `"${path}" could leave this origin` } }
   let resolved: URL
@@ -109,7 +116,9 @@ export interface AnonymousTransportOptions {
 }
 
 export const createAnonymousTransport = ({ onUnauthorized, postAllowlist = [] }: AnonymousTransportOptions = {}): WidgetTransport => ({
+  fetch: anonymousFetch,
   identity: 'anonymous',
+  live: false,
   onUnauthorized: (body: unknown) => { onUnauthorized?.(body) },
   post: (path: string, json: unknown): Promise<Response> => {
     const origin = typeof window === 'undefined' ? '' : window.location.origin
@@ -124,5 +133,5 @@ export const createAnonymousTransport = ({ onUnauthorized, postAllowlist = [] }:
       method: 'POST',
     })
   },
-  read: anonymousRead,
+  writes: false,
 })

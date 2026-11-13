@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { createContext, useContext } from 'react'
 
 import { useConfigContext } from '../../context/ConfigContext'
-import { anonymousRead } from '../../publicPages/anonymousTransport'
-import { type TransportRead, useWidgetTransport } from '../../transport/widgetTransport'
+import { anonymousFetch } from '../../public/anonymousTransport'
+import { type TransportFetch, useWidgetTransport } from '../../transport/widgetTransport'
 import type { ResourcesRefs } from '../../types/Widget'
 
 import { type FieldOption, type OptionRegistry, parseFieldOptions } from './fieldOptions'
@@ -53,7 +53,7 @@ export const FIELD_OPTIONS_TIMEOUT_MS = 15_000
  * sends (`read`) — the bearer when signed in, nothing on a public page. Defaults to anonymous, so a
  * caller that passes no transport sends no credential.
  */
-export const fetchFieldOptions = async (baseUrl: string, path: string, extras: Record<string, unknown> | undefined, read: TransportRead = anonymousRead): Promise<FieldOption[]> => {
+export const fetchFieldOptions = async (baseUrl: string, path: string, extras: Record<string, unknown> | undefined, read: TransportFetch = anonymousFetch): Promise<FieldOption[]> => {
   const url = new URL(`${baseUrl}${path}`)
   if (extras && Object.keys(extras).length) {
     let base: Record<string, unknown> = {}
@@ -85,20 +85,20 @@ export const fetchFieldOptions = async (baseUrl: string, path: string, extras: R
 export const useFieldOptions = (ref: string, extras?: Record<string, unknown>, enabled = true): FieldOptionsResult => {
   const { deniedRefIds, resourcesRefs } = useContext(FormRefsContext)
   const { config } = useConfigContext()
-  const { read } = useWidgetTransport()
+  const transport = useWidgetTransport()
   const baseUrl = config?.api.SNOWPLOW_API_BASE_URL ?? ''
 
   const resourceRef = resourcesRefs?.items?.find((item) => item.id === ref)
   const denied = !!resourceRef && (resourceRef.allowed === false || !!deniedRefIds?.includes(ref))
   const path = resourceRef && !denied ? resourceRef.path : ''
 
-  // `read` is not in the key: it is the transport's, fixed for the tree this field renders in,
+  // The transport is not in the key: it is fixed for the tree this field renders in,
   // and a public page — the only tree with a different one — reads through its own QueryClient.
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const { data, isError, isPending, refetch } = useQuery({
     enabled: enabled && !!path && !!baseUrl,
     gcTime: 5 * 60 * 1000,
-    queryFn: () => fetchFieldOptions(baseUrl, path, extras, read),
+    queryFn: () => fetchFieldOptions(baseUrl, path, extras, transport.fetch),
     queryKey: ['form-field-options', baseUrl, path, extras ?? null],
     retry: false,
     staleTime: 30 * 1000,

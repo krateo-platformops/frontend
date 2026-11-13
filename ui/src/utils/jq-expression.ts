@@ -1,6 +1,6 @@
 import { useConfigContext } from '../context/ConfigContext'
-import { anonymousRead } from '../publicPages/anonymousTransport'
-import { type TransportRead, useWidgetTransport } from '../transport/widgetTransport'
+import { anonymousFetch } from '../public/anonymousTransport'
+import { type TransportFetch, useWidgetTransport } from '../transport/widgetTransport'
 
 /**
  * A `${ … }` wrapper that is not a wrapper at all. Thrown rather than returned, because the value
@@ -20,12 +20,12 @@ export class JqExpressionError extends Error {
  * Everything in `values` is sent to the server — the caller decides what that is (a form's secret
  * fields never are; see utils/secretJq.ts).
  *
- * `read` is the widget transport's (transport/widgetTransport.ts), which owns the credential: the
+ * `read` is the widget transport's `fetch` (transport/widgetTransport.ts), which owns the credential: the
  * signed-in one adds the bearer, the anonymous one sends none. Defaults to anonymous, so a caller
  * that passes nothing sends no credential rather than a stored one.
  * Example: '${"repo name: " + .json.spec.git.toRepo.name + ", event reason: " + .event.reason + ", response kind: " + .response.kind}'
  */
-export const resolveJqExpression = async (url: string, expression: string, values: Record<string, unknown>, read: TransportRead = anonymousRead): Promise<unknown> => {
+export const resolveJqExpression = async (url: string, expression: string, values: Record<string, unknown>, read: TransportFetch = anonymousFetch): Promise<unknown> => {
   // TRIMMED, matching secretJq's `expressionBody`. The two checks disagreed, and this was the
   // untrimmed one: a chart writing `value: >` gets a folded block with a TRAILING NEWLINE, so a
   // perfectly good `${ … }` arrives as "${ … }\n", fails `endsWith('}')`, and used to be returned
@@ -81,8 +81,8 @@ export const jqText = (resolved: unknown): string => {
 
 export function useResolveJqExpression() {
   const { config } = useConfigContext()
-  const { read } = useWidgetTransport()
+  const transport = useWidgetTransport()
   const url = `${config!.api.SNOWPLOW_API_BASE_URL}/jq`
 
-  return (expression: string, values: Record<string, unknown>) => resolveJqExpression(url, expression, values, read)
+  return (expression: string, values: Record<string, unknown>) => resolveJqExpression(url, expression, values, transport.fetch)
 }

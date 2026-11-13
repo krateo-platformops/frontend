@@ -139,7 +139,7 @@ describe('it POSTs, with extras in the body (snowplow POST /export)', () => {
     const { fetchMock, seen } = capture()
     vi.stubGlobal('fetch', fetchMock)
     try {
-      await runExport('http://sp/c', null, 'csv', 'p.csv', { deliver, fetch: signedInTransport.read })
+      await runExport('http://sp/c', null, 'csv', 'p.csv', { deliver, fetch: signedInTransport.fetch })
     } finally {
       vi.unstubAllGlobals()
     }

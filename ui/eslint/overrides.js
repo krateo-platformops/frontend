@@ -28,7 +28,7 @@ export const overrides = [
   // checks the same property across all of src/, including files this glob does not cover.
   // Placed BEFORE the drawer allow-list below, which switches the whole rule off for its files.
   {
-    files: ['src/widgets/**/*.{ts,tsx}', 'src/publicPages/**/*.{ts,tsx}'],
+    files: ['src/widgets/**/*.{ts,tsx}', 'src/public/**/*.{ts,tsx}'],
     ignores: ['**/*.test.{ts,tsx}'],
     name: 'Widgets and public pages read through the transport (public routes)',
     rules: {

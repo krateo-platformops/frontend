@@ -52,13 +52,13 @@ afterEach(() => {
 
 describe('the signed-in transport', () => {
   it('a plain read is exactly the call the widget query used to make: { headers: { Authorization } }', async () => {
-    await signedInTransport.read('http://sp.test/call?x=1')
+    await signedInTransport.fetch('http://sp.test/call?x=1')
     expect(fetchMock.mock.calls[0]).toEqual(['http://sp.test/call?x=1', { headers: { Authorization: 'Bearer SYNTHETIC-TOKEN' } }])
   })
 
   it('a caller\'s own headers and options survive, with the credential added', async () => {
     const { signal } = new AbortController()
-    await signedInTransport.read('http://sp.test/jq', { body: '{}', headers: { 'Content-Type': 'application/json' }, method: 'POST', signal })
+    await signedInTransport.fetch('http://sp.test/jq', { body: '{}', headers: { 'Content-Type': 'application/json' }, method: 'POST', signal })
     expect(fetchMock.mock.calls[0]).toEqual(['http://sp.test/jq', {
       body: '{}',
       headers: { Authorization: 'Bearer SYNTHETIC-TOKEN', 'Content-Type': 'application/json' },
@@ -72,7 +72,9 @@ describe('the signed-in transport', () => {
     expect(raiseSessionExpired).toHaveBeenCalledTimes(1)
   })
 
-  it('carries the session: the token getter and the SSE client', () => {
+  it('is live and writes, and carries the session: the token getter and the SSE client', () => {
+    expect(signedInTransport.live).toBe(true)
+    expect(signedInTransport.writes).toBe(true)
     expect(signedInTransport.session?.getAccessToken()).toBe('SYNTHETIC-TOKEN')
     expect(typeof signedInTransport.session?.subscribeSse).toBe('function')
   })

@@ -10,7 +10,7 @@ import Auth from '../pages/Auth/Auth'
 import Login from '../pages/Login'
 import Logout from '../pages/Logout'
 import Profile from '../pages/Profile'
-import PublicRoute, { isPublicPath, PUBLIC_ROUTE_PATHS } from '../publicPages/PublicPage'
+import PublicRoute, { isPublicPath, PUBLIC_ROUTE_PATHS } from '../public/PublicPage'
 import type { ResourceRef } from '../types/Widget'
 
 export interface AppRoute {
@@ -44,7 +44,7 @@ const RoutesContext = createContext<RoutesContextType | undefined>(undefined)
 // so it must resolve even when the snowplow-driven shell pages fail to render.
 // Dynamic routes are inserted into the shell's children by registerRoutes.
 //
-// The PUBLIC pages (publicPages/PublicPage.tsx) sit outside the shell too, for a stronger reason than
+// The PUBLIC pages (public/PublicPage.tsx) sit outside the shell too, for a stronger reason than
 // chrome: the shell is what provides the signed-in transport, so a page rendered outside it reads
 // anonymously and cannot reach the stored token at all. The whole `/public/…` space is theirs — a
 // navigation or Builder route there would be a shell child, and a static segment outranks the

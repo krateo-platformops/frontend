@@ -62,7 +62,7 @@ const reachable = (entry: string): Set<string> => {
 const FORBIDDEN = ['utils/getAccessToken.ts', 'utils/sessionResume.ts', 'hooks/sseClient.ts', 'transport/signedInTransport.tsx', 'hooks/refreshSse.ts']
 
 describe('the anonymous transport cannot reach the stored token', () => {
-  it.each(['publicPages/anonymousTransport.ts', 'transport/widgetTransport.ts'])('%s has no runtime import path to a token reader', (entry) => {
+  it.each(['public/anonymousTransport.ts', 'transport/widgetTransport.ts'])('%s has no runtime import path to a token reader', (entry) => {
     const graph = [...reachable(join(SRC, entry))].map((file) => relative(SRC, file))
     expect(graph).toContain(entry)
     expect(graph.filter((file) => FORBIDDEN.includes(file))).toEqual([])
@@ -119,7 +119,7 @@ describe('the widget tree takes its credential from the transport', () => {
     expect(readers.filter((file) => !(file in MAY_READ_TOKEN))).toEqual([])
   })
 
-  it('nothing under widgets/ or publicPages/ reads it', () => {
-    expect(Object.keys(MAY_READ_TOKEN).filter((file) => file.startsWith('widgets/') || file.startsWith('publicPages/'))).toEqual([])
+  it('nothing under widgets/ or public/ reads it', () => {
+    expect(Object.keys(MAY_READ_TOKEN).filter((file) => file.startsWith('widgets/') || file.startsWith('public/'))).toEqual([])
   })
 })

@@ -11,14 +11,14 @@
  * so a forgotten site is not merely a leak, it breaks the page.
  *
  * So the credential moved off the call sites and onto the transport. A call site asks the
- * transport in context to `read`, and never sees a token. Which transport is in context decides
+ * transport in context to `fetch`, and never sees a token. Which transport is in context decides
  * everything:
  *
  *  - the SIGNED-IN transport (transport/signedInTransport.tsx) adds the bearer, raises the in-place
  *    session resume on a 401, and carries a `session` — the token getter and the SSE client — for
  *    the paths that only make sense signed in (writes, live streams). Only the signed-in shell
  *    (components/Shell) provides it.
- *  - the ANONYMOUS transport (publicPages/anonymousTransport.ts) has no credential to add, refuses one if
+ *  - the ANONYMOUS transport (public/anonymousTransport.ts) has no credential to add, refuses one if
  *    a caller passes it, and has no `session` at all. It is the context DEFAULT, so anything rendered
  *    outside the signed-in shell is anonymous by construction rather than by a check.
  *
@@ -28,7 +28,7 @@ import { createContext, useContext } from 'react'
 
 // A TYPE import: erased at build, so it adds no runtime edge to the SSE client (or its token read).
 import type { SseSubscriber } from '../hooks/sseClient'
-import { createAnonymousTransport } from '../publicPages/anonymousTransport'
+import { createAnonymousTransport } from '../public/anonymousTransport'
 
 /**
  * The request options a transport accepts. Headers are a plain record so the signed-in transport
@@ -37,7 +37,7 @@ import { createAnonymousTransport } from '../publicPages/anonymousTransport'
 export type TransportInit = Omit<RequestInit, 'headers'> & { headers?: Record<string, string> }
 
 /** A request through the transport — the only way the widget tree reaches the backend. */
-export type TransportRead = (url: string, init?: TransportInit) => Promise<Response>
+export type TransportFetch = (url: string, init?: TransportInit) => Promise<Response>
 
 /**
  * What only a signed-in person has. Present on the signed-in transport, ABSENT on the anonymous
@@ -55,7 +55,19 @@ export interface WidgetTransport {
   /** Which transport this is. Diagnostic, and the cache partition (see PublicPage); never a gate. */
   readonly identity: 'signed-in' | 'anonymous'
   /** Every read the widget tree makes: GET /call, POST /call/read, POST /export, POST /jq. */
-  readonly read: TransportRead
+  readonly fetch: TransportFetch
+  /**
+   * Whether widgets may open live channels: the per-widget `/refreshes` stream, a List's event
+   * stream, an action's event wait. True signed in; false on a public page, which renders what one
+   * read returned and never connects a stream.
+   */
+  readonly live: boolean
+  /**
+   * Whether widgets may write: a snowplow `rest` action or action set, an upload, a provenance
+   * AuditRecord. True signed in; false on a public page, where each of them sends nothing and says
+   * "Sign in to do this" instead.
+   */
+  readonly writes: boolean
   /** A read answered 401. Signed in: the session resume. Anonymous: public serving is off here. */
   readonly onUnauthorized: (body: unknown) => void
   /** The signed-in session; absent on the anonymous transport. */

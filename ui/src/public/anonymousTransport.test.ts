@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AnonymousCredentialError, anonymousRead, checkPublicPost, createAnonymousTransport, parsePublicPostPaths, PublicPostRefused } from './anonymousTransport'
+import { AnonymousCredentialError, anonymousFetch, checkPublicPost, createAnonymousTransport, parsePublicPostPaths, PublicPostRefused } from './anonymousTransport'
 
 const fetchMock = vi.fn((_url: string, _init?: RequestInit) => Promise.resolve(new Response('{}')))
 
@@ -24,7 +24,7 @@ const headersOf = (call: number) => (fetchMock.mock.calls[call][1]?.headers ?? {
 
 describe('anonymous reads', () => {
   it('sends the caller\'s headers and no credential, with cookies omitted', async () => {
-    await anonymousRead('http://sp/call?x=1', { headers: { 'Content-Type': 'application/json' }, method: 'POST' })
+    await anonymousFetch('http://sp/call?x=1', { headers: { 'Content-Type': 'application/json' }, method: 'POST' })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [[url, init]] = fetchMock.mock.calls
@@ -35,19 +35,22 @@ describe('anonymous reads', () => {
 
   it('throws, sending nothing, when a caller hands it an Authorization header — in any case', () => {
     for (const name of ['Authorization', 'authorization', 'AUTHORIZATION']) {
-      expect(() => anonymousRead('http://sp/call', { headers: { [name]: 'Bearer x' } })).toThrow(AnonymousCredentialError)
+      expect(() => anonymousFetch('http://sp/call', { headers: { [name]: 'Bearer x' } })).toThrow(AnonymousCredentialError)
     }
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('a caller cannot turn cookies back on', async () => {
-    await anonymousRead('http://sp/call', { credentials: 'include' })
+    await anonymousFetch('http://sp/call', { credentials: 'include' })
     expect(fetchMock.mock.calls[0][1]?.credentials).toBe('omit')
   })
 
-  it('has no session, so nothing that needs one can run on it', () => {
-    expect(createAnonymousTransport().session).toBeUndefined()
-    expect(createAnonymousTransport().identity).toBe('anonymous')
+  it('has no session, opens no live channel and makes no writes', () => {
+    const transport = createAnonymousTransport()
+    expect(transport.session).toBeUndefined()
+    expect(transport.identity).toBe('anonymous')
+    expect(transport.live).toBe(false)
+    expect(transport.writes).toBe(false)
   })
 
   it('reports a 401 to whoever the page told it to', () => {
@@ -82,6 +85,11 @@ describe('the public POST allowlist', () => {
     ['a look-alike prefix', '/request-access/api/v1evil'],
     ['a relative path', 'request-access/api/v1/x'],
     ['an empty path', ''],
+    ['a tab-smuggled protocol-relative URL', '/\t/evil.example/request-access/api/v1/x'],
+    ['a tab inside an allowlisted path', '/request-access/api/v1/\tx'],
+    ['a newline inside an allowlisted path', '/request-access/api/v1/x\n'],
+    ['a space inside an allowlisted path', '/request-access/api/v1/a b'],
+    ['a NUL byte', '/request-access/api/v1/\u0000x'],
   ])('refuses %s, and sends nothing', async (_label, path) => {
     await expect(post(path)).rejects.toBeInstanceOf(PublicPostRefused)
     expect(fetchMock).not.toHaveBeenCalled()

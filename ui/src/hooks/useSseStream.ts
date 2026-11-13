@@ -10,8 +10,8 @@ import { useWidgetTransport } from '../transport/widgetTransport'
  * separate from presentation (ListView) and domain mapping (itemTemplate).
  *
  * The stream is a signed-in channel: the shared SSE client authenticates with the session's bearer,
- * and it is reached only through the session on the widget transport. A public page's anonymous
- * transport has no session, so there the stream is simply not opened and the list keeps `initial`.
+ * and it is reached only through the session on a `live` widget transport. A public page's anonymous
+ * transport is not live and has no session, so there the stream is simply not opened and the list keeps `initial`.
  */
 export const useSseStream = <T >({ endpoint, initial, max = 200, topic }: {
   endpoint?: string
@@ -20,7 +20,8 @@ export const useSseStream = <T >({ endpoint, initial, max = 200, topic }: {
   max?: number
 }): { connecting: boolean; items: T[] } => {
   const { config } = useConfigContext()
-  const subscribeSse = useWidgetTransport().session?.subscribeSse
+  const transport = useWidgetTransport()
+  const subscribeSse = transport.live ? transport.session?.subscribeSse : undefined
   const [items, setItems] = useState<T[]>(initial)
   const [connecting, setConnecting] = useState<boolean>(!!endpoint && !!topic)
 

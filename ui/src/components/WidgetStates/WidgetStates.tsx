@@ -130,7 +130,7 @@ export const WidgetDependencyMissing = ({ onRetry, subtitle }: { onRetry?: () =>
 )
 
 /**
- * The two PAGE-level states of a public page (publicPages/PublicPage.tsx), approved as drawn (mockup v3,
+ * The two PAGE-level states of a public page (public/PublicPage.tsx), approved as drawn (mockup v3,
  * "Public page states"): the WidgetStates frame around an info Result, no brand band, and a plain
  * "Sign in" link — a link, never a redirect, because a visitor without an account must be able to
  * stay on the explanation.
