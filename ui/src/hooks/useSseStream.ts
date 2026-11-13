@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 
 import { useConfigContext } from '../context/ConfigContext'
-
-import { subscribeSse } from './sseClient'
+import { useWidgetTransport } from '../transport/widgetTransport'
 
 /**
  * Generic Server-Sent-Events stream: subscribes to `topic` at `endpoint`
  * (resolved under `EVENTS_PUSH_API_BASE_URL`) and prepends each parsed message
  * to a capped buffer. Decoupled from any item shape — the data source concern,
  * separate from presentation (ListView) and domain mapping (itemTemplate).
+ *
+ * The stream is a signed-in channel: the shared SSE client authenticates with the session's bearer,
+ * and it is reached only through the session on a `live` widget transport. A public page's anonymous
+ * transport is not live and has no session, so there the stream is simply not opened and the list keeps `initial`.
  */
 export const useSseStream = <T >({ endpoint, initial, max = 200, topic }: {
   endpoint?: string
@@ -17,11 +20,13 @@ export const useSseStream = <T >({ endpoint, initial, max = 200, topic }: {
   max?: number
 }): { connecting: boolean; items: T[] } => {
   const { config } = useConfigContext()
+  const transport = useWidgetTransport()
+  const subscribeSse = transport.live ? transport.session?.subscribeSse : undefined
   const [items, setItems] = useState<T[]>(initial)
   const [connecting, setConnecting] = useState<boolean>(!!endpoint && !!topic)
 
   useEffect(() => {
-    if (!endpoint || !topic) {
+    if (!endpoint || !topic || !subscribeSse) {
       setConnecting(false)
       return
     }
@@ -48,7 +53,7 @@ export const useSseStream = <T >({ endpoint, initial, max = 200, topic }: {
       unsubscribe()
       clearTimeout(timeout)
     }
-  }, [config, endpoint, topic, max])
+  }, [config, endpoint, topic, max, subscribeSse])
 
   return { connecting, items }
 }

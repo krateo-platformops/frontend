@@ -12,13 +12,17 @@
  *    thing sse-proxy's `/events` route accepts (it has no query fallback at all).
  *
  * The transport itself — the Bearer header on the stream, connection sharing, frame
- * parsing — is sseClient.test.ts's subject, so sseClient is mocked at its seam here.
+ * parsing — is sseClient.test.ts's subject. Here the hook gets its bearer and its SSE client from
+ * the signed-in session on the widget transport, which the wrapper provides with a fake client.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { createElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { type WidgetTransport, WidgetTransportProvider } from '../transport/widgetTransport'
+
+import type { SseSubscriber } from './sseClient'
 import { useGetEvents } from './useGetEvents'
 import { LIVE_REFRESH_FIREHOSE_ENABLED, useLiveRefreshFirehose } from './useLiveRefresh'
 
@@ -28,13 +32,26 @@ const { sseSubscriptions } = vi.hoisted(() => ({
   sseSubscriptions: [] as ({ url: string; topic: string } & Subscriber)[],
 }))
 
-vi.mock('./sseClient', () => ({
-  subscribeSse: (url: string, topic: string, subscriber: Subscriber) => {
-    sseSubscriptions.push({ onMessage: subscriber.onMessage, onOpen: subscriber.onOpen, topic, url })
+/** A signed-in transport whose session carries a synthetic bearer and a recording SSE client. */
+const signedIn: WidgetTransport = {
+  fetch: () => Promise.reject(new Error('not used here')),
+  identity: 'signed-in',
+  live: true,
+  onUnauthorized: () => undefined,
+  session: {
+    getAccessToken: () => 'header.payload.signature',
+    isResumePending: () => false,
+    resume: () => Promise.resolve('resumed'),
+    signInAgain: () => undefined,
+    subscribeSse: (url: string, topic: string, subscriber: SseSubscriber) => {
+      // Recorded loosely: the tests below open a stream with only `reopened`, no scope.
+      sseSubscriptions.push({ onMessage: subscriber.onMessage, onOpen: subscriber.onOpen as Subscriber['onOpen'], topic, url })
 
-    return () => undefined
+      return () => undefined
+    },
   },
-}))
+  writes: true,
+}
 
 vi.mock('../context/ConfigContext', () => ({
   useConfigContext: () => ({
@@ -48,13 +65,14 @@ vi.mock('../context/ConfigContext', () => ({
   }),
 }))
 
-vi.mock('../utils/getAccessToken', () => ({ getAccessToken: () => 'header.payload.signature' }))
-
-const wrapper = ({ children }: { children: ReactNode }) => {
+const anonymousWrapper = ({ children }: { children: ReactNode }) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
   return QueryClientProvider({ children, client })
 }
+
+/** Inside the signed-in shell, as the bell always is. */
+const wrapper = ({ children }: { children: ReactNode }) => createElement(WidgetTransportProvider, { value: signedIn }, anonymousWrapper({ children }))
 
 describe('useGetEvents — installer#395: no credential in any url', () => {
   afterEach(() => {
@@ -92,6 +110,18 @@ describe('useGetEvents — installer#395: no credential in any url', () => {
     expect(url).toBe('https://portal.krateo.dev/events/events')
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.signature')
     expect(url).not.toContain('access_token')
+  })
+
+  it('outside the signed-in shell there is no session: nothing is fetched and no stream opens', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve({ json: () => Promise.resolve([]), ok: true } as unknown as Response))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { result } = renderHook(() => useGetEvents({ topic: 'krateo' }), { wrapper: anonymousWrapper })
+
+    await new Promise<void>((resolve) => { setTimeout(resolve, 20) })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(sseSubscriptions).toHaveLength(0)
+    expect(result.current.data).toBeUndefined()
   })
 
   it('does not subscribe when the caller opts out of the stream', async () => {

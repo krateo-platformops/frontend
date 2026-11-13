@@ -20,6 +20,8 @@ import { App } from 'antd'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { signedInTransport } from '../../transport/signedInTransport'
+import { WidgetTransportProvider } from '../../transport/widgetTransport'
 import type { Widget } from '../../types/Widget'
 import FormModule from '../../widgets/Form'
 import { registerWidget } from '../../widgets/registry'
@@ -148,12 +150,16 @@ const makeFormWidget = (opts: { clusterOptions?: string[]; freshness?: boolean; 
   }
 }
 
+// Inside the signed-in transport, as every widget in the shell is: live refresh (and with it the
+// freshness badge) is a signed-in channel, and the context default is the anonymous transport.
 const renderWidget = (ui?: React.ReactNode) => render(
-  <MemoryRouter>
-    <App>
-      {ui ?? <WidgetRenderer widgetEndpoint={ENDPOINT} />}
-    </App>
-  </MemoryRouter>
+  <WidgetTransportProvider value={signedInTransport}>
+    <MemoryRouter>
+      <App>
+        {ui ?? <WidgetRenderer widgetEndpoint={ENDPOINT} />}
+      </App>
+    </MemoryRouter>
+  </WidgetTransportProvider>
 )
 
 const getInput = (): HTMLInputElement => {

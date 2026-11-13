@@ -22,7 +22,9 @@ import {
 } from './refreshSse'
 
 vi.mock('../utils/sessionResume', () => ({ raiseSessionExpired: vi.fn(() => Promise.resolve('resumed')) }))
-vi.mock('../utils/getAccessToken', () => ({ getAccessToken: () => 'test-token' }))
+
+/** The signed-in session an arming widget hands the manager (its transport's `session`). */
+const CRED = { getAccessToken: () => 'test-token', resume: () => raiseSessionExpired() }
 
 afterEach(() => { __resetRefreshEntries() })
 
@@ -158,7 +160,7 @@ describe('#256 — re-validation on reconnect', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const mgr = new RefreshManager()
-    mgr.configure('http://snowplow')
+    mgr.configure('http://snowplow', CRED)
     let inFlight = 0
     let peak = 0
     const release: Array<() => void> = []
@@ -218,7 +220,7 @@ describe('#256 — re-validation on reconnect', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
     const mgr = new RefreshManager()
-    mgr.configure('http://snowplow')
+    mgr.configure('http://snowplow', CRED)
     const refetches = [vi.fn(), vi.fn(), vi.fn()]
     refetches.forEach((fn, i) => { mgr.arm(`w${i}`, coords(`n${i}`), `key-${i}`, fn) })
 
@@ -245,7 +247,7 @@ describe('#256 — re-validation on reconnect', () => {
     const fetchMock = vi.fn(() => Promise.resolve(openStream()))
     vi.stubGlobal('fetch', fetchMock)
     const mgr = new RefreshManager()
-    mgr.configure('http://snowplow')
+    mgr.configure('http://snowplow', CRED)
     const refetch = vi.fn()
     mgr.arm('w1', coords('a'), 'key-a', refetch)
     // connect #1 (first ever) — no re-validation
@@ -278,7 +280,7 @@ describe('#256 — re-validation on reconnect', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
     const mgr = new RefreshManager()
-    mgr.configure('http://snowplow')
+    mgr.configure('http://snowplow', CRED)
     mgr.arm('w1', coords('a'), 'key-a', vi.fn())
 
     await vi.advanceTimersByTimeAsync(250)
@@ -304,7 +306,7 @@ describe('#256 — re-validation on reconnect', () => {
     const fetchMock = vi.fn(() => Promise.resolve({ ok: false, status: 401, body: null } as unknown as Response))
     vi.stubGlobal('fetch', fetchMock)
     const mgr = new RefreshManager()
-    mgr.configure('http://snowplow')
+    mgr.configure('http://snowplow', CRED)
     mgr.arm('w1', coords('a'), 'key-a', vi.fn())
     await vi.advanceTimersByTimeAsync(250)
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -343,7 +345,7 @@ describe('#256 — the 16 KiB subscription cap is loud', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(openStream())))
     const mgr = new RefreshManager()
-    mgr.configure('http://snowplow')
+    mgr.configure('http://snowplow', CRED)
     for (let i = 0; i < 120; i += 1) {
       mgr.arm(`w${i}`, bulky(`widget-name-number-${i}`), `key-${i}`, vi.fn())
     }
@@ -367,7 +369,7 @@ describe('#256 — the 16 KiB subscription cap is loud', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(openStream())))
     const mgr = new RefreshManager()
-    mgr.configure('http://snowplow')
+    mgr.configure('http://snowplow', CRED)
     for (let i = 0; i < 5; i += 1) {
       mgr.arm(`w${i}`, bulky(`w${i}`), `key-${i}`, vi.fn())
     }

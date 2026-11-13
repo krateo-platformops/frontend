@@ -14,6 +14,20 @@ import type { ResourcesRefs, WidgetAction } from '../types/Widget'
 import { restAction, type RestAction } from './__fixtures__/restAction'
 import { dispatchAction, type ActionContext } from './useHandleActions'
 
+// The session's SSE client for the onEventNavigateTo tests below (see their header).
+const { fakeSubscribeSse, sseSubscriptions } = vi.hoisted(() => {
+  const subscriptions = [] as { url: string; topic: string; onMessage: (raw: string) => void; closed: boolean }[]
+  return {
+    // The session's shared SSE client, as the action context carries it (ctx.subscribeSse).
+    fakeSubscribeSse: (url: string, topic: string, subscriber: { onMessage: (raw: string) => void }) => {
+      const entry = { closed: false, onMessage: subscriber.onMessage, topic, url }
+      subscriptions.push(entry)
+      return () => { entry.closed = true }
+    },
+    sseSubscriptions: subscriptions,
+  }
+})
+
 // A fully-mocked ActionContext so the (formerly React-bound) dispatcher is unit-testable.
 const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   apiBaseUrl: 'http://sp',
@@ -32,6 +46,7 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
   reloadRoutes: vi.fn(),
   resolveJq: vi.fn((expr: string) => Promise.resolve(`jq:${expr}`)),
   setLoading: vi.fn(),
+  subscribeSse: fakeSubscribeSse,
   // An older snowplow (no `call.provenance`): the AuditRecord path these tests pin.
   supportsCallProvenance: () => Promise.resolve(false),
   ...over,
@@ -197,7 +212,7 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
 /**
  * Controllable subscription on the shared SSE client, for the onEventNavigateTo path.
  *
- * Mocked at the sseClient seam rather than at the global: the transport (fetch + Bearer,
+ * Handed in as the context's `subscribeSse` (the session's shared client) rather than stubbed at the global: the transport (fetch + Bearer,
  * connection sharing, frame parsing) is sseClient.test.ts's subject, and these tests are
  * about dispatchAction's event race and cleanup. Stubbing a global EventSource would also
  * no longer work — the client uses `fetch`, which these tests already stub for the REST
@@ -206,18 +221,6 @@ describe('dispatchAction — routing + non-SSE rest paths', () => {
  * `vi.hoisted` because a `vi.mock` factory runs before the file body, so a plain
  * module-level const would still be in its TDZ when the factory reads it.
  */
-const { sseSubscriptions } = vi.hoisted(() => ({
-  sseSubscriptions: [] as { url: string; topic: string; onMessage: (raw: string) => void; closed: boolean }[],
-}))
-
-vi.mock('./sseClient', () => ({
-  subscribeSse: (url: string, topic: string, subscriber: { onMessage: (raw: string) => void }) => {
-    const entry = { closed: false, onMessage: subscriber.onMessage, topic, url }
-    sseSubscriptions.push(entry)
-
-    return () => { entry.closed = true }
-  },
-}))
 
 /** Deliver one event on the most recent subscription, as the server would. */
 const emitSse = (data: unknown) => { sseSubscriptions.at(-1)?.onMessage(JSON.stringify(data)) }

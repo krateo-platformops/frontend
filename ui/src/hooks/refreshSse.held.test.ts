@@ -19,6 +19,8 @@
 import { renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { raiseSessionExpired } from '../utils/sessionResume'
+
 import {
   REFRESH_HEADER_CLASS,
   REFRESH_HEADER_DIGEST,
@@ -34,7 +36,9 @@ import {
 import { useWidgetLiveRefresh } from './useWidgetLiveRefresh'
 
 vi.mock('../utils/sessionResume', () => ({ raiseSessionExpired: vi.fn(() => Promise.resolve('resumed')) }))
-vi.mock('../utils/getAccessToken', () => ({ getAccessToken: () => 'test-token' }))
+
+/** The signed-in session an arming widget hands the manager (its transport's `session`). */
+const CRED = { getAccessToken: () => 'test-token', resume: () => raiseSessionExpired() }
 
 type FetchFn = (url: string, init?: RequestInit) => Promise<Response>
 
@@ -127,7 +131,7 @@ describe('snowplow#1324 — `held` on the subscription', () => {
     const fetchMock = vi.fn<FetchFn>(() => Promise.resolve(openStream()))
     vi.stubGlobal('fetch', fetchMock)
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
 
     recordRefreshHeaders('w0', params('dashboard'), callHeaders('k0', DIGEST_A))
     armFromEntry(mgr, 'w0')
@@ -165,7 +169,7 @@ describe('snowplow#1324 — `held` on the subscription', () => {
     vi.stubGlobal('fetch', fetchMock)
     vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
 
     recordRefreshHeaders('w0', params('dashboard'), callHeaders('k0', DIGEST_A))
     armFromEntry(mgr, 'w0')
@@ -182,7 +186,7 @@ describe('snowplow#1324 — `held` on the subscription', () => {
     const fetchMock = vi.fn<FetchFn>(() => Promise.resolve(openStream()))
     vi.stubGlobal('fetch', fetchMock)
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
 
     recordRefreshHeaders('w0', params('dashboard'), callHeaders('k0'))
     armFromEntry(mgr, 'w0')
@@ -199,7 +203,7 @@ describe('snowplow#1324 — `held` on the subscription', () => {
     const fetchMock = vi.fn<FetchFn>(() => Promise.resolve(openStream()))
     vi.stubGlobal('fetch', fetchMock)
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
 
     recordRefreshHeaders('w0', params('dashboard'), callHeaders('k0', DIGEST_A))
     armFromEntry(mgr, 'w0')
@@ -226,7 +230,7 @@ describe('snowplow#1324 — `held` stays out of the re-arm decision', () => {
 
     recordRefreshHeaders('w', params('dashboard'), callHeaders('k1', DIGEST_A))
     const { rerender, unmount } = renderHook(
-      () => { useWidgetLiveRefresh('w', getRefreshEntry('w'), refetch, 'https://portal.example/content', true) },
+      () => { useWidgetLiveRefresh('w', getRefreshEntry('w'), refetch, 'https://portal.example/content', true, CRED) },
     )
     await vi.advanceTimersByTimeAsync(500)
     expect(armSpy).toHaveBeenCalledTimes(1)
@@ -250,7 +254,7 @@ describe('snowplow#1324 — the catch-up frame', () => {
     const fetchMock = vi.fn<FetchFn>(() => Promise.resolve(streamWith('event: refresh\ndata: k0\n\n')))
     vi.stubGlobal('fetch', fetchMock)
     const mgr = new RefreshManager()
-    mgr.configure('https://portal.example/content')
+    mgr.configure('https://portal.example/content', CRED)
     const behind = vi.fn()
     const current = vi.fn()
 

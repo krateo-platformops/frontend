@@ -7,8 +7,8 @@ import { buildBlastRadius, isMutatingVerb } from '../components/BlastRadius/buil
 import { useConfigContext } from '../context/ConfigContext'
 import { useRoutesContext } from '../context/RoutesContext'
 import { formSubmitInteraction, startFormSubmit, type FormSubmitInteraction, type InteractionHeld } from '../otel/interactions'
+import { SIGN_IN_TO_ACT, useWidgetTransport } from '../transport/widgetTransport'
 import type { ResourceRef, ResourcesRefs, Widget, WidgetAction } from '../types/Widget'
-import { getAccessToken } from '../utils/getAccessToken'
 import { jqText, useResolveJqExpression } from '../utils/jq-expression'
 import { navigateOrExternal } from '../utils/navigation'
 import { omitSecretPaths, redactSecretValues, secretValuesOf, type SecretPath } from '../utils/secretFields'
@@ -29,7 +29,7 @@ import { runRestFanOut } from './runRestFanOut'
 import { runRestOps } from './runRestOps'
 import { runRestSet, type SetDispatchOptions, type WriteOp, type WriteOpResult } from './runRestSet'
 import { snowplowReadsCallProvenance } from './snowplowCapabilities'
-import { subscribeSse } from './sseClient'
+import type { SseSubscriber } from './sseClient'
 
 /**
  * How long a blast-radius confirm may sit unanswered before it DENIES.
@@ -142,6 +142,19 @@ export interface ActionContext {
   invalidateQueries: () => Promise<unknown>
   reloadRoutes: () => void | Promise<void>
   getAccessToken: () => string
+  /**
+   * The shared signed-in SSE client, for an action that waits on an event (`onEventNavigateTo`).
+   * The session's (transport/widgetTransport.ts), like `getAccessToken`: this module imports no SSE
+   * client, and without a session there is none — the action is refused before it would subscribe.
+   */
+  subscribeSse: (url: string, topic: string, subscriber: SseSubscriber) => () => void
+  /**
+   * False when the transport in scope makes no writes (`WidgetTransport.writes`) — a public page. A snowplow write
+   * (`rest`) is then refused before anything is sent: no capability probe, no /jq, no write, no
+   * audit record — the person is told to sign in. Absent means signed in, so a context built
+   * without it (every unit test) behaves exactly as before; the hook below always sets it.
+   */
+  writes?: boolean
   openDrawer: typeof openDrawer
   openModal: typeof openModal
   closeDrawer: typeof closeDrawer
@@ -319,7 +332,7 @@ const runRest = async (
     // Subscribed here, where the connection used to be opened. `processEvent` is assigned
     // further down and `resourceUid` is set by the POST response, but both are declared
     // above and only ever READ inside this callback, which fires later.
-    const unsubscribeEvents = subscribeSse(eventsEndpoint, 'krateo', {
+    const unsubscribeEvents = ctx.subscribeSse(eventsEndpoint, 'krateo', {
       onMessage: (raw) => {
         // Guarded like every other subscriber (useGetEvents, useLiveRefresh, useSseStream):
         // the stream is shared, so a malformed frame must be this subscriber's problem alone.
@@ -649,6 +662,18 @@ export const dispatchAction = async (action: WidgetAction, runtime: ActionRuntim
     return
   }
 
+  // A public page's transport makes no writes. Refused HERE, before runRest builds
+  // anything: building a write already reaches the network (the provenance capability probe, /jq
+  // for payload overrides), and none of that may run on an anonymous transport. Drawers and modals
+  // still open, and `navigate` was handled above.
+  if (action.type === 'rest' && ctx.writes === false) {
+    ctx.setLoading(false)
+    ctx.message.destroy()
+    ctx.notification.info({ description: SIGN_IN_TO_ACT, message: 'Sign in to do this', placement: 'bottomLeft' })
+
+    return
+  }
+
   const url = ctx.apiBaseUrl + resourceRef.path
 
   try {
@@ -682,8 +707,19 @@ export const dispatchAction = async (action: WidgetAction, runtime: ActionRuntim
   }
 }
 
+/** The token getter and SSE client of a transport without a session: there are none, and asking is a bug. */
+const noSession = (): never => {
+  throw new Error('No signed-in session: this page reads with the anonymous transport.')
+}
+
 export const useHandleAction = () => {
   const navigate = useNavigate()
+  // The transport owns the credential (transport/widgetTransport.ts). Signed in, its session's
+  // token getter is the same `getAccessToken` this hook used to import; anonymous, there is no
+  // session, writes are refused in dispatchAction, and the getter only throws.
+  const { session, writes } = useWidgetTransport()
+  const getAccessToken = session?.getAccessToken ?? noSession
+  const subscribeSse = session?.subscribeSse ?? noSession
   const queryClient = useQueryClient()
   const { message, modal, notification } = useApp()
   const { config } = useConfigContext()
@@ -761,7 +797,9 @@ export const useHandleAction = () => {
     reloadRoutes,
     resolveJq,
     setLoading: setIsActionLoading,
+    subscribeSse,
     supportsCallProvenance: () => snowplowReadsCallProvenance(config?.api.SNOWPLOW_API_BASE_URL ?? '', getAccessToken),
+    writes: writes && !!session,
   })
 
   const handleAction = async (
@@ -799,8 +837,14 @@ export const useHandleAction = () => {
    * sandbox relaxation (confirm-skip verified per-op against the named namespace,
    * silent toasts) — see SetDispatchOptions; every other caller omits it.
    */
-  const handleActionSet = async (ops: readonly WriteOp[], origin?: WriteOrigin, options?: SetDispatchOptions): Promise<WriteOpResult[] | null> =>
-    runRestSet(ops, buildCtx(), origin, options)
+  const handleActionSet = async (ops: readonly WriteOp[], origin?: WriteOrigin, options?: SetDispatchOptions): Promise<WriteOpResult[] | null> => {
+    // A write-set is writes; on a transport that makes none it is refused unsent, like a scalar `rest`.
+    if (!writes || !session) {
+      notification.info({ description: SIGN_IN_TO_ACT, message: 'Sign in to do this', placement: 'bottomLeft' })
+      return null
+    }
+    return runRestSet(ops, buildCtx(), origin, options)
+  }
 
   return { handleAction, handleActionSet, isActionLoading }
 }

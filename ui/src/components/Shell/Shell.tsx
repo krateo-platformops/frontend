@@ -6,7 +6,9 @@ import { ensureBuildersLoaded } from '../../builders/clusterBuilders'
 import { useConfigContext } from '../../context/ConfigContext'
 import { useRoutesContext } from '../../context/RoutesContext'
 import { WidgetScopeProvider } from '../../context/WidgetScopeContext'
+import { LiveRefreshFirehose } from '../../hooks/useLiveRefresh'
 import { useDocumentLoadSpan } from '../../otel/useDocumentLoadSpan'
+import { SignedInTransportProvider } from '../../transport/signedInTransport'
 import Drawer from '../../widgets/Drawer'
 import Modal from '../../widgets/Modal'
 import { AgentikoProvider, AgentikoShell, AgentikoToggle } from '../Agentiko'
@@ -118,39 +120,48 @@ export const ShellRoute = () => {
   }, [config])
 
   return (
-    <ShellSlotsProvider value={{
-      // The routed page owns the route's inputs again (see the 'chrome' scope on the shell below).
-      content: <><div className={styles.contentCrumb}><Breadcrumb /></div><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,
-      header: <HeaderChrome />,
-      routeKey: pathname,
-      siderFooter: <SiderFooter />,
-      // R1: below `md` the Sider is the navigation drawer, and the header-context moves to its top.
-      siderHeader: narrow ? <div className={styles.siderScope}><HeaderContext /></div> : undefined,
-    }}
-    >
-      <NotificationsProvider>
-        <AgentikoProvider>
-          <AgentikoShell>
-            {/* The INIT Layout and everything it draws around the page (sider, nav, theme, header)
-                is chrome, mounted at the root layout, which owns no route inputs (snowplow#777).
-                In the default 'page' scope its extras carried the page's params and query, so a
-                scope change (`?projects=`) or a navigation between routes with different params
-                re-keyed it: the whole shell dropped to <WidgetLoading/> and remounted, header,
-                picker and focus included. Only the routed content (the `content` slot above)
-                is page. */}
-            <WidgetScopeProvider scope='chrome'>
-              <WidgetRenderer key='shell' widgetEndpoint={config!.api.INIT} />
-            </WidgetScopeProvider>
-          </AgentikoShell>
-          <Drawer />
-          <Modal />
-          <SessionResumeModal />
-          {/* Rendered here (not in the header chrome) so the server-driven Layout widget's
-              remounts never tear it down — the header only carries the bell. */}
-          <NotificationsDrawer />
-        </AgentikoProvider>
-      </NotificationsProvider>
-    </ShellSlotsProvider>
+    // THE ONLY PLACE the signed-in transport is provided (transport/widgetTransport.ts). Every
+    // widget read, write and stream below carries the session's bearer because it is inside this;
+    // everything outside it — a public page, above all — falls through to the anonymous default
+    // and cannot reach the token. It also holds the telemetry credential while the shell is up.
+    <SignedInTransportProvider>
+      {/* The SSE firehose into the live-refresh registry (dormant: LIVE_REFRESH_FIREHOSE_ENABLED).
+          Here, below the provider, because it streams with the session's bearer. */}
+      <LiveRefreshFirehose />
+      <ShellSlotsProvider value={{
+        // The routed page owns the route's inputs again (see the 'chrome' scope on the shell below).
+        content: <><div className={styles.contentCrumb}><Breadcrumb /></div><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,
+        header: <HeaderChrome />,
+        routeKey: pathname,
+        siderFooter: <SiderFooter />,
+        // R1: below `md` the Sider is the navigation drawer, and the header-context moves to its top.
+        siderHeader: narrow ? <div className={styles.siderScope}><HeaderContext /></div> : undefined,
+      }}
+      >
+        <NotificationsProvider>
+          <AgentikoProvider>
+            <AgentikoShell>
+              {/* The INIT Layout and everything it draws around the page (sider, nav, theme, header)
+                  is chrome, mounted at the root layout, which owns no route inputs (snowplow#777).
+                  In the default 'page' scope its extras carried the page's params and query, so a
+                  scope change (`?projects=`) or a navigation between routes with different params
+                  re-keyed it: the whole shell dropped to <WidgetLoading/> and remounted, header,
+                  picker and focus included. Only the routed content (the `content` slot above)
+                  is page. */}
+              <WidgetScopeProvider scope='chrome'>
+                <WidgetRenderer key='shell' widgetEndpoint={config!.api.INIT} />
+              </WidgetScopeProvider>
+            </AgentikoShell>
+            <Drawer />
+            <Modal />
+            <SessionResumeModal />
+            {/* Rendered here (not in the header chrome) so the server-driven Layout widget's
+                remounts never tear it down — the header only carries the bell. */}
+            <NotificationsDrawer />
+          </AgentikoProvider>
+        </NotificationsProvider>
+      </ShellSlotsProvider>
+    </SignedInTransportProvider>
   )
 }
 

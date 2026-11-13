@@ -12,6 +12,7 @@
     "build": "vite build",
     "check-crd-strictness": "tsx scripts/check-crd-strictness.ts",
     "dev": "vite",
+    "e2e": "vite build --outDir dist-e2e && playwright test -c e2e/playwright.config.ts",
     "examples": "tsx scripts/run-examples.ts",
     "gen-antd-widgets": "tsx scripts/gen-antd-widgets.ts",
     "gen-widget-kinds": "tsx scripts/gen-widget-kinds.ts",

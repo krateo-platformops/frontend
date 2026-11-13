@@ -2,8 +2,8 @@
  * Running a Table export and handing the browser the file (snowplow#980, 1.12.62).
  *
  * Separate from `tableExport.ts` on purpose: that module is pure and says WHAT to ask for, this one
- * performs the request. It follows the widget fetch's own conventions — same base URL, the caller's
- * bearer token, and a 401 raising the in-place session-resume modal rather than failing the
+ * performs the request. It follows the widget fetch's own conventions — same base URL, the widget
+ * transport's credential (the bearer signed in, none on a public page), and a 401 raising the in-place session-resume modal rather than failing the
  * download, because an export is exactly the sort of thing a person starts after leaving a tab open.
  *
  * THE THREE FORMATS FAIL DIFFERENTLY at the 50,000-row bound, and that is the whole reason this is
@@ -15,7 +15,8 @@
  * Reporting either as a plain success would hand someone a silently incomplete export, which is the
  * failure this whole feature is meant to avoid.
  */
-import { getAccessToken } from '../../utils/getAccessToken'
+import { anonymousFetch } from '../../public/anonymousTransport'
+import type { TransportFetch } from '../../transport/widgetTransport'
 
 import type { ExportFormat } from './tableExport'
 
@@ -31,8 +32,12 @@ export type ExportOutcome =
   | { ok: false; sessionExpired: true; message: string }
 
 export interface ExportTransport {
-  /** Injected so the outcome logic is testable without a network or a DOM. */
-  fetch?: typeof fetch
+  /**
+   * The widget transport's `read`, which owns the credential (transport/widgetTransport.ts): this
+   * module never adds one. Defaults to anonymous, so a caller that passes none sends no credential.
+   * Injected in tests too, so the outcome logic runs without a network or a DOM.
+   */
+  fetch?: TransportFetch
   /** Called on a 401, mirroring the widget query's own handling. */
   onSessionExpired?: () => void
   /** Hands the file to the browser. Replaced in tests. */
@@ -69,7 +74,7 @@ const messageOf = async (response: Response): Promise<string> => {
  * `url` is the full widget URL with the export query already on it (`buildExportRequest`).
  */
 export const runExport = async (url: string, extras: string | null, format: ExportFormat, filename: string, transport: ExportTransport = {}): Promise<ExportOutcome> => {
-  const doFetch = transport.fetch ?? fetch
+  const doFetch = transport.fetch ?? anonymousFetch
   const deliver = transport.deliver ?? deliverDefault
 
   // POST, with `extras` in the body — snowplow's POST /export, the same envelope and decoder as
@@ -91,7 +96,7 @@ export const runExport = async (url: string, extras: string | null, format: Expo
   try {
     response = await doFetch(url, {
       body,
-      headers: { Authorization: `Bearer ${getAccessToken()}`, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       method: 'POST',
     })
   } catch (error) {

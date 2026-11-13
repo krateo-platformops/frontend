@@ -8,10 +8,9 @@ import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BatchSpanProcessor, WebTracerProvider } from '@opentelemetry/sdk-trace-web'
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 
-import { getAccessToken } from '../utils/getAccessToken'
-
 import { tracesEndpointOf } from './endpoint'
 import { ContractSpanProcessor, redactUrlAttributes } from './spanContract'
+import { telemetryAuthHeaders } from './telemetryCredential'
 
 /**
  * Minimal shape of the runtime config consumed by tracing init. We intentionally
@@ -137,18 +136,14 @@ export function initTracing(cfg: TracingConfig): void {
         new BatchSpanProcessor(new OTLPTraceExporter({
           // A FUNCTION, evaluated per request (otlp-exporter-base: `headers: await
           // this._parameters.headers()`), so a rotated token is picked up without rebuilding the
-          // exporter. snowplow's endpoint answers 401 without it. Wrapped because the SPA throws
-          // when no session is stored, and a telemetry export must never be the thing that throws.
-          headers: (): Promise<Record<string, string>> => {
-            try {
-              return Promise.resolve({ Authorization: `Bearer ${getAccessToken()}` })
-            } catch {
-              // No stored session: send nothing rather than a malformed header. snowplow answers
-              // 401 and the batch is dropped, which is the right outcome — telemetry must never
-              // be the thing that throws, and an export is not worth raising to the user.
-              return Promise.resolve({})
-            }
-          },
+          // exporter. snowplow's endpoint answers 401 without it.
+          //
+          // The credential comes from the holder the SIGNED-IN SHELL fills while it is mounted
+          // (telemetryCredential.ts), not from storage: a public page renders outside the shell
+          // and sends no credential, its span exports included, even when an earlier sign-in left
+          // a token behind. Nothing held, or no session stored: no header, snowplow answers 401 and
+          // the batch is dropped — telemetry must never be the thing that throws.
+          headers: (): Promise<Record<string, string>> => Promise.resolve(telemetryAuthHeaders()),
           url: tracesEndpoint,
         })),
         snowplowPrefix,

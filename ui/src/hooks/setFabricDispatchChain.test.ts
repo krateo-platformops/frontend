@@ -170,6 +170,7 @@ const makeCtx = (over: Partial<ActionContext> = {}): ActionContext => ({
     return Promise.resolve('')
   }),
   setLoading: vi.fn(),
+  subscribeSse: vi.fn(() => () => undefined),
   // An older snowplow (no `call.provenance`): the AuditRecord path these tests pin.
   supportsCallProvenance: () => Promise.resolve(false),
   ...over,

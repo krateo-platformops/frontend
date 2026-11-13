@@ -1,10 +1,13 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react'
 
 import { useConfigContext } from '../../context/ConfigContext'
+import { EMPTY_FRAGMENT_EXTRAS, fragmentKeysOf, pickFragment } from '../../context/pageFragment'
+import { FragmentExtrasProvider, PageRootReset, usePageRoot } from '../../context/PageRootContext'
 import { RenderChainProvider, inspectChain, useRenderChain } from '../../context/RenderChainContext'
+import { useErrorNotice } from '../../hooks/errorNotice'
 import { isWidgetArmed, isWidgetLiveRefreshEnabled } from '../../hooks/refreshSse'
-import useCatchError from '../../hooks/useCatchError'
 import { useWidgetQuery } from '../../hooks/useWidgetQuery'
+import { useWidgetTransport } from '../../transport/widgetTransport'
 import type { ServerPagination, Widget } from '../../types/Widget'
 import { getWidgetModule } from '../../widgets/registry'
 import { useFilter } from '../FiltesProvider/FiltersProvider'
@@ -102,8 +105,11 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   const chainVerdict = inspectChain(renderChain, widgetEndpoint)
 
   const { isWidgetFilteredByProps } = useFilter()
-  const { catchError } = useCatchError()
+  // Showing an error is shared; REACTING to one (a session resume, a trip to /login) is the signed-in
+  // transport's, so a public page cannot reach either (hooks/errorNotice.tsx).
+  const { showError } = useErrorNotice()
   const { config } = useConfigContext()
+  const transport = useWidgetTransport()
 
   if (!widgetEndpoint?.includes('widgets.templates.krateo.io')) {
     console.warn(`WidgetRenderer received widgetEndpoint=${widgetEndpoint}, which is probably invalid. An url is expected.`)
@@ -123,7 +129,8 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   // subscription open on the tab-wide stream (isWidgetArmed(widgetId)), so the green
   // "Live" dot means a push channel is genuinely open — not merely that the last fetch
   // succeeded. Replaces the earlier render-local `isSuccess && !isStale` proxy.
-  const liveRefreshEnabled = isWidgetLiveRefreshEnabled(config)
+  // Live refresh is a signed-in channel; a transport that is not `live` (a public page) never arms it.
+  const liveRefreshEnabled = isWidgetLiveRefreshEnabled(config) && transport.live
   const liveArmed = liveRefreshEnabled && isWidgetArmed(widgetId)
 
   useEffect(() => {
@@ -131,6 +138,48 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
       onLoadingChange(isLoading)
     }
   }, [isLoading, onLoadingChange])
+
+  // THE PAGE ROOT (context/PageRootContext.tsx). The page wraps its root renderer in a PageRoot whose
+  // endpoint is this one; only that renderer is the root, and it clears the context for everything
+  // below it. Outside a page (chrome, a drawer, a test) there is no PageRoot and none of this runs.
+  const pageRoot = usePageRoot()
+  const isPageRoot = !!pageRoot && pageRoot.endpoint === widgetEndpoint
+  const resolvedRoot = isPageRoot && widget && typeof widget.status === 'object' ? widget : undefined
+  // A Status-kind body (string status) is snowplow answering an error in the body; it carries the code.
+  const rootFailure = ((): { status: number | undefined } | undefined => {
+    if (!isPageRoot || isPending) { return undefined }
+    if (error) { return { status: (error as { status?: number } | null)?.status } }
+    if (widget && typeof widget.status === 'string') { return { status: widget.code } }
+    return undefined
+  })()
+  // The descendants' fragment extras, computed DURING render so a child's first read already has
+  // them — the root draws its children in this same render.
+  const fragmentExtras = useMemo(
+    () => (pageRoot && resolvedRoot ? pickFragment(pageRoot.fragment, fragmentKeysOf(resolvedRoot)) : undefined),
+    [pageRoot, resolvedRoot],
+  )
+  // A 401 snowplow answered IN THE BODY (a Status with code 401 on a 200). The transport decides what
+  // it means, exactly as for an HTTP 401 (hooks/useWidgetQuery.ts). Signed in: the in-place session
+  // resume, with the cause classified from this body (what useCatchError's 401 branch did here). On a
+  // public page: public serving is off — never a session resume, which with no resume surface
+  // mounted falls through to a real logout. An effect, not a call during render: on a public page it
+  // changes the page's own state.
+  const bodyUnauthorized = !!widget && typeof widget.status === 'string' && widget.kind === 'Status' && widget.code === 401
+  const bodyUnauthorizedMessage = bodyUnauthorized ? widget.message : undefined
+  useEffect(() => {
+    if (bodyUnauthorized) { transport.onUnauthorized({ message: bodyUnauthorizedMessage }) }
+  }, [bodyUnauthorized, bodyUnauthorizedMessage, transport])
+
+  // Layout effects, so a page that swaps itself for a state of its own on a failed root (the
+  // public page on a 403) does so before this renderer's own error card is ever painted.
+  useLayoutEffect(() => {
+    if (pageRoot && resolvedRoot) { pageRoot.resolved(resolvedRoot) }
+  }, [pageRoot, resolvedRoot])
+  const rootFailureStatus = rootFailure?.status
+  const rootFailed = !!rootFailure
+  useLayoutEffect(() => {
+    if (pageRoot && rootFailed) { pageRoot.failed(rootFailureStatus) }
+  }, [pageRoot, rootFailed, rootFailureStatus])
 
   // `isPending` (not `isLoading`) keeps the loading state visible across retry
   // backoff gaps, so a not-yet-ready backend shows a skeleton — not the error
@@ -193,28 +242,21 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
 
   if (typeof status === 'string') {
     if (kind === 'Status') {
-      if (code === 401) {
-        catchError(
-          {
-            data: { message },
-            message: `Authentication error (code: ${code})`,
-            status: code,
-          },
-          'notification'
-        )
-      }
-
-      if (code === 500 && status === 'Failure' && message?.includes('credentials')) {
-        catchError(
+      // A credentials failure sends a signed-in person back to sign in — through the session, which
+      // a public page does not have: there it shows the widget's error below instead.
+      const { session } = transport
+      if (session && code === 500 && status === 'Failure' && message?.includes('credentials')) {
+        showError(
           {
             data: { message },
             message: `Credentials error (code: ${code})`,
             status: code,
           },
-          'notification'
+          'notification',
+          { suppressed: session.isResumePending },
         )
 
-        window.location.replace('/login')
+        session.signInAgain()
       }
 
       const params = new URLSearchParams(widgetEndpoint)
@@ -313,8 +355,15 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
   }
 
   // Every descendant sees this endpoint in its chain, so the check above fires one level down.
+  // The page root also hands its descendants the page's fragment extras, and stops any of them
+  // from taking itself for the root. Decided by `isPageRoot`, which is fixed for this renderer's
+  // life, so the subtree's shape never flips (a flip would remount every widget below).
   const withChain = (content: React.ReactNode) => (
-    <RenderChainProvider endpoint={widgetEndpoint}>{content}</RenderChainProvider>
+    <RenderChainProvider endpoint={widgetEndpoint}>
+      {isPageRoot
+        ? <PageRootReset><FragmentExtrasProvider value={fragmentExtras ?? EMPTY_FRAGMENT_EXTRAS}>{content}</FragmentExtrasProvider></PageRootReset>
+        : content}
+    </RenderChainProvider>
   )
 
   if (wrapper) {

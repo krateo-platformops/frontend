@@ -5,8 +5,8 @@ import { Button, Upload as AntdUpload, type UploadProps } from 'antd'
 import useApp from 'antd/es/app/useApp'
 
 import { useConfigContext } from '../../context/ConfigContext'
+import { SIGN_IN_TO_ACT, useWidgetTransport } from '../../transport/widgetTransport'
 import type { WidgetProps } from '../../types/Widget'
-import { getAccessToken } from '../../utils/getAccessToken'
 import { getResourceRef } from '../../utils/utils'
 
 import type { Upload as WidgetType } from './Upload.type'
@@ -21,10 +21,20 @@ const Upload = ({ resourcesRefs, uid, widgetData }: WidgetProps<UploadWidgetData
   const { config } = useConfigContext()
   const { notification } = useApp()
   const queryClient = useQueryClient()
+  // An upload is a write, so it needs the signed-in session; a public page has none (the anonymous
+  // transport), and the upload is refused before any request is opened.
+  const { session, writes } = useWidgetTransport()
 
   const resourceRef = getResourceRef(resourceRefId, resourcesRefs)
 
   const customRequest: UploadProps['customRequest'] = ({ file, onError, onProgress, onSuccess }) => {
+    if (!writes || !session) {
+      const error = new Error(SIGN_IN_TO_ACT)
+      notification.info({ description: SIGN_IN_TO_ACT, message: 'Sign in to do this', placement: 'bottomLeft' })
+      onError?.(error)
+      return
+    }
+
     if (!resourceRef?.path) {
       const error = new Error(`Upload target not found (resourceRefId: ${resourceRefId})`)
       notification.error({ description: error.message, message: 'Upload failed', placement: 'bottomLeft' })
@@ -38,7 +48,7 @@ const Upload = ({ resourcesRefs, uid, widgetData }: WidgetProps<UploadWidgetData
 
     const xhr = new XMLHttpRequest()
     xhr.open(resourceRef.verb || 'POST', url)
-    xhr.setRequestHeader('Authorization', `Bearer ${getAccessToken()}`)
+    xhr.setRequestHeader('Authorization', `Bearer ${session.getAccessToken()}`)
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
