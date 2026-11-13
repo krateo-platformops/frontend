@@ -63,16 +63,17 @@ describe('a short public address on a config with no public-pages namespace', ()
     openAt('/public/demo', configWith({}))
 
     expect(await screen.findByText("This page isn't public")).toBeTruthy()
-    expect(screen.getByText(NO_PUBLIC_NAMESPACE)).toBeTruthy()
     // Nothing read at all, so nothing read from FRONTEND_NAMESPACE (krateo-system).
     expect(snowplowUrls()).toEqual([])
+    expect(screen.getByText(NO_PUBLIC_NAMESPACE)).toBeTruthy()
   })
 
   it('treats an empty PUBLIC_NAMESPACE the same way', async () => {
     openAt('/public/demo', configWith({ PUBLIC_NAMESPACE: '' }))
 
-    expect(await screen.findByText(NO_PUBLIC_NAMESPACE)).toBeTruthy()
+    expect(await screen.findByText("This page isn't public")).toBeTruthy()
     expect(snowplowUrls()).toEqual([])
+    expect(screen.getByText(NO_PUBLIC_NAMESPACE)).toBeTruthy()
   })
 
   it('leaves /public/:namespace/:slug as it is: it reads in the namespace the address names', async () => {
