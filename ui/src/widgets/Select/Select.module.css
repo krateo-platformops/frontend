@@ -222,3 +222,16 @@
   line-height: 1;
   padding: var(--spacing-xxs) var(--spacing-xsm);
 }
+
+/* ── facet count beside an option (single mode, Form control) ── */
+.countOption {
+  align-items: center;
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.countOptionLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

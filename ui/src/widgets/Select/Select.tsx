@@ -19,6 +19,38 @@ export type SelectWidgetData = WidgetType['spec']['widgetData']
  */
 const ALL_SCOPE = '*'
 
+type SelectOption = SelectWidgetData['options'][number]
+
+const hasCount = (option: SelectOption): option is SelectOption & { count: number } => typeof option.count === 'number'
+
+/**
+ * The options as antd receives them. Without counts this is the CR's own array, untouched, so a
+ * Select that sets none renders what it always did (Select.unchanged.test.tsx). With counts, each
+ * counted option gains an `aria-label` of "label, count": rc-select copies an option's aria-*
+ * attributes onto its `role=option` element, AFTER its own label-only name, so the count is part
+ * of what a screen reader announces and not only something drawn beside the label.
+ */
+const toAntdOptions = (options: SelectOption[] | undefined): SelectOption[] | undefined => {
+  if (!options?.some(hasCount)) { return options }
+  // `count` stays on the option: optionRender reads it back from `data`, and rc-select passes only
+  // aria-*, data-* and role attributes of an option to the DOM.
+  return options.map((option) => (hasCount(option)
+    ? { ...option, 'aria-label': `${option.label ?? option.value}, ${option.count}` }
+    : option))
+}
+
+/** A facet count beside its option's label (single mode and the Form control; the multi panel draws its own row). */
+const renderCountedOption = (option: { data: SelectOption; label?: ReactNode; value?: number | string }) => {
+  const { count } = option.data
+  if (typeof count !== 'number') { return option.label ?? String(option.value) }
+  return (
+    <span className={styles.countOption}>
+      <span className={styles.countOptionLabel}>{option.label ?? String(option.value)}</span>
+      <span className={styles.optionCount}>{count}</span>
+    </span>
+  )
+}
+
 /**
  * Faithful wrapper of antd `Select`. Two modes:
  *  • default — a `Form.Item` control bound by `name`, for use inside a `Form`.
@@ -30,7 +62,11 @@ const ALL_SCOPE = '*'
  *    → Clear / Apply → `?<queryParam>=` footer.
  */
 const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
-  const { allowClear, defaultValue, disabled, label, mode, name, options, placeholder, queryParam, required, size } = widgetData
+  const { allowClear, defaultValue, disabled, label, mode, name, options, panelFooter, placeholder, prefix, queryParam, required, size } = widgetData
+  const counted = options?.some(hasCount) ?? false
+  const antdOptions = toAntdOptions(options)
+  // Only a Select whose options carry counts gets an optionRender; the rest keep antd's own.
+  const countedOptionRender = counted ? renderCountedOption : undefined
   const [searchParams, setSearchParams] = useSearchParams()
   // The multi-mode switcher popup owns its own open-state. Previously the panel relied on a bare
   // click on "Apply"/"Clear" NATIVELY blurring the Select to close the popup — but rc-select's
@@ -152,8 +188,10 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
           disabled={disabled}
           key={uid}
           onChange={onChange}
-          options={options}
+          optionRender={countedOptionRender}
+          options={antdOptions}
           placeholder={placeholder}
+          prefix={prefix}
           // Let the dropdown grow to fit the longest option (e.g. a long composition Kind) rather
           // than truncate to the compact trigger width.
           popupMatchSelectWidth={false}
@@ -169,14 +207,16 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
     const longestLabelChars = Math.max(
       (placeholder ?? '').length,
       0,
-      ...(options ?? []).map((option) => String(option.label ?? option.value ?? '').length),
+      // A count adds its digits and the gap before it (none without counts, so the width is unchanged).
+      ...(options ?? []).map((option) => String(option.label ?? option.value ?? '').length + (hasCount(option) ? String(option.count).length + 2 : 0)),
     )
     const popupWidth = Math.min(460, Math.max(220, Math.ceil(longestLabelChars * 7.4) + 90))
 
     // each option → a checkbox row (left amber-fill box + mono name); antd's default right tick
     // is suppressed by `.checkPopup`. `optionRender` reads the live `staged` for on/off.
-    const renderCheckOption = (option: { label?: ReactNode; value?: number | string }) => {
+    const renderCheckOption = (option: { data: SelectOption; label?: ReactNode; value?: number | string }) => {
       const checked = staged.includes(String(option.value))
+      const { count } = option.data
       return (
         <span className={styles.checkOption}>
           <span className={`${styles.checkBox} ${checked ? styles.checkBoxOn : ''}`}>{checked ? '✓' : ''}</span>
@@ -184,9 +224,21 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
               ReactNode, so it is only usable as a title attribute when it is actually a string —
               String()-ing a node yields "[object Object]", which is worse than no tooltip. */}
           <span className={styles.checkOptionLabel} title={typeof option.label === 'string' ? option.label : String(option.value)}>{option.label ?? String(option.value)}</span>
+          {typeof count === 'number' && <span className={styles.optionCount}>{count}</span>}
         </span>
       )
     }
+
+    // The master row's figure. With counts it is how many items "all" covers, their sum; without,
+    // the project switcher's own "N ns" (how many namespaces there are to pick from).
+    const masterCount = counted
+      ? (options ?? []).reduce((sum, option) => sum + (hasCount(option) ? option.count : 0), 0)
+      : `${optionValues.length} ns`
+
+    // The footnote: the project switcher's own sentence unless the CR says otherwise, and none for
+    // an empty string.
+    let footnote: ReactNode = <>scope persists across pages via <b>?{queryParam}=</b></>
+    if (panelFooter !== undefined) { footnote = panelFooter || null }
 
     // the §02 switcher panel, rendered around antd's option `menu`. Its buttons act on click, so
     // Enter / Space work as for any button; their mousedown is prevented only so that a pointer
@@ -205,7 +257,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         >
           <span className={`${styles.checkBox} ${isAll ? styles.checkBoxOn : ''}`}>{isAll ? '✓' : ''}</span>
           <span className={styles.checkOptionLabel} title={allLabel}>{allLabel}</span>
-          <span className={styles.optionCount}>{optionValues.length} ns</span>
+          <span className={styles.optionCount}>{masterCount}</span>
         </button>
         <div className={styles.panelHr} />
         {menu}
@@ -227,7 +279,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
             {isAll ? 'Apply' : `Apply · ${staged.length}`}
           </Button>
         </div>
-        <div className={styles.panelFoot}>scope persists across pages via <b>?{queryParam}=</b></div>
+        {footnote && <div className={styles.panelFoot}>{footnote}</div>}
       </div>
     )
 
@@ -251,9 +303,10 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         onOpenChange={setOpen}
         open={open}
         optionRender={renderCheckOption}
-        options={options}
+        options={antdOptions}
         popupMatchSelectWidth={popupWidth}
         popupRender={renderPanel}
+        prefix={prefix}
         ref={selectRef}
         // #86 §0.1: the leading prefix dot was removed — it read as a stray indicator, and the
         // "All projects" value centres in the control (Select.module.css .allScope).
@@ -300,8 +353,10 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         allowClear={allowClear}
         disabled={disabled}
         mode={mode}
-        options={options}
+        optionRender={countedOptionRender}
+        options={antdOptions}
         placeholder={placeholder}
+        prefix={prefix}
         size={size}
         // #78 (reiteration 4): inside a Form.Item the antd Select defaults to its content width, so a
         // long option label (e.g. a "Chart version" like `1.2.3-rc.1`) pushed it past its grid column

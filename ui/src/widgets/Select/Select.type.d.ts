@@ -47,6 +47,10 @@ export interface Select {
          * antd option `disabled`
          */
         disabled?: boolean
+        /**
+         * how many items carry this value (a facet count), shown beside the label and read as part of the option's accessible name ("Alert, 47"). When options carry counts, the multi-select panel's master row shows their sum instead of the number of options.
+         */
+        count?: number
       }[]
       /**
        * antd Select `mode`
@@ -56,6 +60,10 @@ export interface Select {
        * antd Select `placeholder`
        */
       placeholder?: string
+      /**
+       * antd Select `prefix`: text drawn inside the trigger before the value, e.g. the facet name ("Kind"), so a row of filter Selects reads "Kind · All", "Repo · All".
+       */
+      prefix?: string
       /**
        * antd Select `size`
        */
@@ -72,6 +80,10 @@ export interface Select {
        * when set, the Select is STANDALONE and URL-query-bound (not a Form.Item control): its value reads from / writes to this URL search param (e.g. 'project'), flowing to server-side `extras` like RangePicker. Omit for the default Form control behavior.
        */
       queryParam?: string
+      /**
+       * the footnote under the multi-select panel's Clear / Apply (URL-bound `mode: multiple` only). Absent, the panel keeps the project switcher's own footnote, "scope persists across pages via ?<queryParam>="; an empty string draws no footnote.
+       */
+      panelFooter?: string
     }
     /**
      * Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static.
