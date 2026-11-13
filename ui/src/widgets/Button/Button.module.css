@@ -3,14 +3,13 @@
    5.39:1 on the violet end, 10.18:1 on the blue end). Every other primary is antd's own solid fill;
    these selectors out-rank antd's solid-primary rules, and the hover, focus and pressed states step
    the brightness instead of switching colours, so the gradient stays the brand's. Disabled keeps
-   antd's disabled look.
-
-   `background-origin: border-box` (#702): the button keeps antd's 1px border, made transparent. A
-   background is SIZED to the padding box but PAINTED under the border too, so the gradient tiled
-   into it — a 1px blue strip on the left edge (the end of the next tile) and a violet one on the
-   right. Sized to the border box, one tile covers the whole button. */
+   antd's disabled look. */
 .agentiko:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-solid):not(:disabled, :global(.ant-btn-disabled)) {
   background: linear-gradient(90deg, var(--krateo-color-agentiko-fill-start), var(--krateo-color-agentiko-fill-end));
+
+  /* Under the 1px transparent border: the gradient spans it rather than repeating into it (the
+     tile's violet end showed on the left edge, its blue start on the right). `background` resets
+     the origin, so it follows. */
   background-origin: border-box;
   border-color: transparent;
   box-shadow: none;

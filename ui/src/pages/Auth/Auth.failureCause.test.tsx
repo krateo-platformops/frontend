@@ -169,6 +169,33 @@ describe('Auth callback failures', () => {
     expect(screen.getByRole('link', { name: /return to the login page/i })).toBeTruthy()
   })
 
+  /*
+   * authn's name guard on the callback. Unmapped, these 403s fell through to the redirect flow's
+   * unknown-4xx reading: "a fault on the platform's side" — an outage, for one account that cannot be
+   * admitted. authn's guidance for all three is "Tell an administrator".
+   */
+  it.each([
+    'UsernameUnavailable',
+    'SystemGroupNotAllowed',
+    'PlatformGroupNotAllowed',
+  ])('%s says the sign-in worked and this account needs an administrator — no retry, no restart', async (reason) => {
+    installFetchMock(403, statusBody(reason))
+    renderCallback()
+
+    await waitFor(() => expect(screen.getByText('Sign-in unavailable')).toBeTruthy())
+    expect(screen.getByText(/your sign-in worked, but this account cannot be admitted as it is set up/i)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/fault on the platform|retry shortly|check them/i)
+    // Starting over returns the same refusal, so it is not offered.
+    expect(screen.queryByRole('link', { name: /start the sign-in again/i })).toBeNull()
+    expect(screen.getByRole('link', { name: /return to the login page/i })).toBeTruthy()
+    // Not a restart, so the notification is raised — and it carries the cause.
+    expect(catchError).toHaveBeenCalledTimes(1)
+    const [{ description, message }] = catchError.mock.calls[0] as [{ description: string; message: string }]
+    expect(message).toBe('Sign-in unavailable')
+    expect(description).toMatch(/^Your sign-in worked/)
+    expect(description.endsWith(`(${reason})`)).toBe(true)
+  })
+
   it('an UNKNOWN 4xx cause does not become "check your password" — this is what proves the redirect flow is passed', async () => {
     // A cause newer than our classifier, on a 403. Read as a password form this falls through to
     // retype; read as a redirect it escalates. Auth.tsx must produce the second.

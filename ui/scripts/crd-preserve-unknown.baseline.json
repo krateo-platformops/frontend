@@ -135,6 +135,8 @@
   "Switch.crd.yaml: spec.versions[0].schema.openAPIV3Schema.properties.status",
   "Table.crd.yaml: spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.resourcesRefs.properties.items.items.properties.payload",
   "Table.crd.yaml: spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.resourcesRefsTemplate.items.properties.template.properties.payload",
+  "Table.crd.yaml: spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.widgetData.properties.actions.properties.rest.items.properties.ops.items.properties.payload",
+  "Table.crd.yaml: spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.widgetData.properties.actions.properties.rest.items.properties.payload",
   "Table.crd.yaml: spec.versions[0].schema.openAPIV3Schema.properties.status",
   "Tabs.crd.yaml: spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.resourcesRefs.properties.items.items.properties.payload",
   "Tabs.crd.yaml: spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.resourcesRefsTemplate.items.properties.template.properties.payload",

@@ -1,3 +1,4 @@
+import type { RowAction } from '../../components/RowActions'
 import { formatISODate, formatRelativeTime } from '../../utils/utils'
 
 /**
@@ -10,18 +11,12 @@ import { formatISODate, formatRelativeTime } from '../../utils/utils'
 export type RowSlot = 'primaryText' | 'secondaryText' | 'subPrimaryText' | 'subSecondaryText'
 
 /**
- * A per-row action menu entry (kebab `⋯`). `actionId` references an action defined in
+ * A per-row action entry (kebab `⋯` item or button). `actionId` references an action defined in
  * the List's `widgetData.actions` (the canonical action map); firing it passes the row's
- * data as the action payload, so one shared action definition serves every row.
+ * data as the action payload, so one shared action definition serves every row. Shared with
+ * Table's `rowActions` (components/RowActions).
  */
-export interface RowAction {
-  actionId: string
-  label: string
-  /** Optional Font Awesome icon name for the menu item. */
-  icon?: string
-  /** Render the menu item in a destructive (red) style. */
-  danger?: boolean
-}
+export type { RowAction }
 
 export interface ColorSpec {
   /** Literal palette color, or a `{path}` resolved against the item. */

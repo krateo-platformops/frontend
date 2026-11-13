@@ -237,6 +237,404 @@
               "description": "optional route path to navigate to on row click; `{valueKey}` placeholders are filled from that row's cells (e.g. /compositions/{ns}/{name})",
               "type": "string"
             },
+            "rowActions": {
+              "type": "array",
+              "description": "per-row action controls, rendered in a trailing column of each row as a kebab (⋯) menu or as buttons (see rowActionsDisplay) — the same field List takes as itemTemplate.rowActions. Each entry references an action id from widgetData.actions and is fired with the row's values as the action payload (customPayload): an object of each cell's valueKey to its value, so a navigate path of /x/${name} goes to that row's `name` cell. A click or key on a control never fires the row's rowNavigateTo, which keeps working everywhere else on the row.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "actionId",
+                  "label"
+                ],
+                "properties": {
+                  "actionId": {
+                    "type": "string",
+                    "description": "id of an action defined in widgetData.actions to fire when this menu item is clicked"
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "menu item label"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "description": "optional Font Awesome icon name for the menu item"
+                  },
+                  "danger": {
+                    "type": "boolean",
+                    "description": "render the menu item in a destructive (red) style"
+                  }
+                }
+              }
+            },
+            "rowActionsDisplay": {
+              "type": "string",
+              "enum": [
+                "menu",
+                "buttons"
+              ],
+              "description": "how rowActions are presented: menu (a kebab (⋯) in the row's last cell, default) | buttons (antd Buttons in the row's last cell, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (rowNavigateTo) is unchanged either way. Same field and values as List's itemTemplate.rowActionsDisplay."
+            },
+            "actions": {
+              "description": "the actions of the widget (canonical map; see src/schemas/actions.schema.json). Referenced per-row by rowActions.",
+              "type": "object",
+              "properties": {
+                "rest": {
+                  "type": "array",
+                  "description": "rest api call actions triggered by the widget",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "unique identifier for the action"
+                      },
+                      "resourceRefId": {
+                        "type": "string",
+                        "description": "the identifier of the k8s custom resource that should be represented"
+                      },
+                      "requireConfirmation": {
+                        "type": "boolean",
+                        "description": "whether user confirmation is required before triggering the action"
+                      },
+                      "errorMessage": {
+                        "type": "string",
+                        "description": "a message that will be displayed inside a toast in case of error"
+                      },
+                      "fanOutPath": {
+                        "type": "string",
+                        "description": "name of an ARRAY field in the submitted values: the action fans out into ONE ordered write per element (for each write, that field is replaced by the single element before payload/payloadToOverride interpolation). The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics); onEventNavigateTo is not supported on a fan-out action"
+                      },
+                      "ops": {
+                        "type": "array",
+                        "description": "ordered list of DISTINCT writes applied as ONE gated set (e.g. one Form submit creating a Role AND its RoleBinding): each op resolves its OWN resourceRefId (verb + path + payload base) and builds its OWN payload/payloadToOverride against the SAME submitted values. The whole set is gated behind ONE aggregated blast-radius confirm and dispatched sequentially with stop-on-first-error and per-item results (W0-4 applySet semantics). Mutually exclusive with fanOutPath; onEventNavigateTo is not supported on a multi-op action. The action's own top-level payload/payloadToOverride are IGNORED when ops is present and its top-level resourceRefId is ignored for dispatch (it must still name a valid resource ref — point it at the first op's)",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "resourceRefId"
+                          ],
+                          "properties": {
+                            "resourceRefId": {
+                              "type": "string",
+                              "description": "the identifier of the resource ref this op targets: its verb (must be mutating), path and payload base"
+                            },
+                            "payload": {
+                              "type": "object",
+                              "additionalProperties": true,
+                              "description": "static payload sent with this op's request"
+                            },
+                            "payloadToOverride": {
+                              "type": "array",
+                              "description": "list of this op's payload fields to override dynamically (values interpolate against the same submitted values as every other op)",
+                              "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "name",
+                                  "value"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "description": "name of the field to override"
+                                  },
+                                  "value": {
+                                    "type": "string",
+                                    "description": "value to use for overriding the field"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "successMessage": {
+                        "type": "string",
+                        "description": "a message that will be displayed inside a toast in case of success"
+                      },
+                      "onSuccessNavigateTo": {
+                        "type": "string",
+                        "description": "url to navigate to after successful execution"
+                      },
+                      "onEventNavigateTo": {
+                        "type": "object",
+                        "required": [
+                          "eventReason",
+                          "url"
+                        ],
+                        "additionalProperties": false,
+                        "description": "conditional navigation triggered by a specific event",
+                        "properties": {
+                          "eventReason": {
+                            "type": "string",
+                            "description": "identifier of the awaited event reason"
+                          },
+                          "url": {
+                            "type": "string",
+                            "description": "url to navigate to when the event is received"
+                          },
+                          "timeout": {
+                            "type": "integer",
+                            "description": "the timeout in seconds to wait for the event",
+                            "default": 50
+                          },
+                          "reloadRoutes": {
+                            "type": "boolean",
+                            "description": "Re-fetch the route table before navigating. Set it when the action creates its own destination — publishing a new page, for example — so the route exists by the time the navigation happens."
+                          },
+                          "loadingMessage": {
+                            "type": "string",
+                            "description": "message to display while waiting for the event"
+                          }
+                        }
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "rest"
+                        ],
+                        "description": "type of action to execute"
+                      },
+                      "headers": {
+                        "description": "array of headers as strings, format 'key: value'",
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "description": "key and value as a single, example: 'x-custom-header: value'"
+                        }
+                      },
+                      "payload": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "description": "static payload sent with the request"
+                      },
+                      "payloadToOverride": {
+                        "type": "array",
+                        "description": "list of payload fields to override dynamically",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "name",
+                            "value"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "description": "name of the field to override"
+                            },
+                            "value": {
+                              "type": "string",
+                              "description": "value to use for overriding the field"
+                            }
+                          }
+                        }
+                      },
+                      "loading": {
+                        "type": "object",
+                        "properties": {
+                          "display": {
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
+                          }
+                        },
+                        "required": [
+                          "display"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
+                      }
+                    },
+                    "required": [
+                      "headers",
+                      "id",
+                      "type",
+                      "resourceRefId"
+                    ]
+                  }
+                },
+                "navigate": {
+                  "type": "array",
+                  "description": "client-side navigation actions",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "unique identifier for the action"
+                      },
+                      "loading": {
+                        "type": "object",
+                        "properties": {
+                          "display": {
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
+                          }
+                        },
+                        "required": [
+                          "display"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
+                      },
+                      "path": {
+                        "description": "the identifier of the route to navigate to",
+                        "type": "string"
+                      },
+                      "resourceRefId": {
+                        "type": "string",
+                        "description": "the identifier of the k8s custom resource that should be represented"
+                      },
+                      "requireConfirmation": {
+                        "type": "boolean",
+                        "description": "whether user confirmation is required before navigating"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "navigate"
+                        ],
+                        "description": "type of navigation action"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                },
+                "openDrawer": {
+                  "type": "array",
+                  "description": "actions to open side drawer components",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "unique identifier for the drawer action"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "openDrawer"
+                        ],
+                        "description": "type of drawer action"
+                      },
+                      "resourceRefId": {
+                        "type": "string",
+                        "description": "the identifier of the k8s custom resource that should be represented"
+                      },
+                      "requireConfirmation": {
+                        "type": "boolean",
+                        "description": "whether user confirmation is required before opening"
+                      },
+                      "size": {
+                        "type": "string",
+                        "enum": [
+                          "default",
+                          "large"
+                        ],
+                        "description": "drawer size to be displayed"
+                      },
+                      "title": {
+                        "type": "string",
+                        "description": "title shown in the drawer header"
+                      },
+                      "loading": {
+                        "type": "object",
+                        "properties": {
+                          "display": {
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
+                          }
+                        },
+                        "required": [
+                          "display"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type",
+                      "resourceRefId"
+                    ]
+                  }
+                },
+                "openModal": {
+                  "type": "array",
+                  "description": "actions to open modal dialog components",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "unique identifier for the modal action"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "openModal"
+                        ],
+                        "description": "type of modal action"
+                      },
+                      "resourceRefId": {
+                        "type": "string",
+                        "description": "the identifier of the k8s custom resource that should be represented"
+                      },
+                      "requireConfirmation": {
+                        "type": "boolean",
+                        "description": "whether user confirmation is required before opening"
+                      },
+                      "title": {
+                        "type": "string",
+                        "description": "title shown in the modal header"
+                      },
+                      "loading": {
+                        "type": "object",
+                        "properties": {
+                          "display": {
+                            "type": "boolean",
+                            "description": "Show the in-flight indicator. Set false to run the action without one."
+                          }
+                        },
+                        "required": [
+                          "display"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Whether this action shows an in-flight indicator while it runs."
+                      },
+                      "customWidth": {
+                        "description": "the custom width of the value, which should be used by setting the 'custom' value inside the 'size' property",
+                        "type": "string"
+                      },
+                      "size": {
+                        "description": "sets the Modal size, 'default' is 520px, 'large' is 80% of the screen width, 'fullscreen' is 100% of the screen width, 'custom' should be used with the 'customWidth' property",
+                        "type": "string",
+                        "enum": [
+                          "default",
+                          "large",
+                          "fullscreen",
+                          "custom"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type",
+                      "resourceRefId"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
             "watch": {
               "description": "live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.",
               "type": "array",
