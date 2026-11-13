@@ -134,6 +134,39 @@ The mirror of that rule is the dangerous one: an `ERROR` status on a span that S
 every success as a failure. Each producer therefore has a must-not-fire test asserting that a
 successful operation leaves the status unset (`otel/interactions.instrumentation.test.ts`).
 
+### Requests that got no response
+
+The two request spans, `krateo.widget.fetch` and `krateo.agentiko.a2a`, come from the
+auto-instrumentation, and its record of a request that got no response used to break both rules
+above: instrumentation-fetch 0.223 writes `http.response.status_code` **0** and leaves the status
+UNSET. That is the shape the SLI reads as a success, and snowplow accepts a status code only in
+100–599, so it dropped the 0 and counted a contract violation. Decided with the SLI owner:
+
+| outcome | exported as |
+|---|---|
+| a response was read (200, 503, …) | **unchanged**: its status code, and the library's own `ERROR` for 4xx/5xx |
+| the page **aborted** the request (an `AbortController`, e.g. a request cancelled on navigation) | `krateo.widget.fetch`: **not exported**, since an abort is not a request outcome. `krateo.agentiko.a2a`: `ERROR`, no status code (above) |
+| any other failure: the network, a timeout, a body that broke mid-read | `ERROR`, and **no** `http.response.status_code` |
+
+**An abort is told apart by the library's own record of it, never by the 0**, which both cases
+share:
+
+- **fetch** — the rejection. On its error path instrumentation-fetch passes the rejection to
+  `applyCustomAttributesOnSpan`, and an aborted fetch rejects with a DOMException named
+  `AbortError`, its signal's default abort reason. `markAbortedFetch` (in that hook) records
+  it on the span as an internal attribute, which is never exported.
+- **XHR** — the `abort` span event instrumentation-xml-http-request adds from the XHR's own `abort`
+  event. Snowplow uploads (`widgets/Upload`) still go over XHR. On its error and timeout paths XHR
+  already records `ERROR` with no status code; it never writes the 0.
+
+**A timeout is a failure, not an abort**, even when an `AbortController` delivers it.
+`AbortSignal.timeout()` rejects with `TimeoutError`, and the portal's own abort-based timeouts,
+`fetchWithTimeout` (action writes, capabilities) and `readCrd`, abort with a `TimeoutError` reason
+for that reason. A bare `abort()` there would make a 30s write timeout look like a cancellation,
+and it would vanish from the error rate. An abort-based timeout added later must do the same.
+
+Pinned against the installed libraries in `ui/src/otel/spanContract.fetch.test.ts`.
+
 ### Linking
 
 The `krateo.widget.fetch` spans an interaction causes are its **children**, in the same trace, and
@@ -193,7 +226,7 @@ an SSE reply keeps the span open until its last byte. Two consequences:
   failure, not as a success with no status.
 - A tab closed mid-stream never ends the span, so nothing is exported for that request.
 
-Both are pinned against the installed library in `ui/src/otel/spanContract.a2a.test.ts`: a bump
+Both are pinned against the installed library in `ui/src/otel/spanContract.fetch.test.ts`: a bump
 that moves where the span ends fails there, because a moved boundary silently changes what the
 duration claims.
 
@@ -201,18 +234,14 @@ duration claims.
 |---|---|
 | `http.request.method` | `POST` — the only method that becomes this span |
 | `http.response.status_code` | the response's status, only when it is 100–599; **absent** when no complete response was read |
-
-**Errors.** A recorded 4xx/5xx keeps its status code, and the library's own `ERROR`. When no
-complete response was read — a network failure, or a body that errored or was aborted
-mid-stream — instrumentation-fetch writes `http.response.status_code` 0 and leaves the status
-UNSET. snowplow accepts 100–599 only, and 0 is the absence of a status rather than one, so the
-export omits it and sets `ERROR`: the "`ERROR` with no status code" shape the consumer already
-reads as a failure. The user stopping a turn lands here too, since the request did not complete,
-whoever stopped it. This applies to `krateo.agentiko.a2a` only. `krateo.widget.fetch` carries the
-same 0 from the same library path and is unchanged, because reclassifying it would move the SLI
-error rate.
 | `http.route` | always the literal template `/api/a2a/{namespace}/{agent}` — never the concrete path, which snowplow refuses |
 | `krateo.a2a.method` | the JSON-RPC method, only when it is `message/stream`, `message/send`, `tasks/get` or `tasks/resubscribe`; **absent** otherwise |
+
+**Errors.** A recorded 4xx/5xx keeps its status code, and the library's own `ERROR`. When no
+complete response was read, the span is exported as `ERROR` with no status code (see
+[Requests that got no response](#requests-that-got-no-response)). Unlike `krateo.widget.fetch`,
+an A2A request the user ABORTED (stopping a turn) is still exported, as `ERROR`: that was agreed
+for this span first, on the reading that the request did not complete, whoever stopped it.
 
 Those four and nothing else — an allowlist (`a2aAttributesOf`), so an attribute a future
 instrumentation adds is not exported by default. `url.full` goes (it names the namespace and the

@@ -56,7 +56,9 @@ export const SPAN_NAMES = {
    *  the provider's answer rendered (the change-request link, or the refusal). */
   pagePublish: 'krateo.page.publish',
   /** One portal → snowplow request. The carrier of W3C traceparent, and the child that links an
-   *  interaction to snowplow's own Server span. */
+   *  interaction to snowplow's own Server span. Ends with its response. A request the page
+   *  ABORTED is not exported; one that got no response otherwise (network failure, timeout) is
+   *  `ERROR` with no status code — see `widgetFetchExportOf`. */
   widgetFetch: 'krateo.widget.fetch',
 } as const
 
@@ -91,7 +93,7 @@ export type SpanName = typeof SPAN_NAMES[keyof typeof SPAN_NAMES]
  * `http.response.status_code` 0 even though a 200 had arrived (the export turns that into ERROR
  * with no status code: `a2aStatusOf`). A tab closed mid-stream never ends it, so nothing is
  * exported.
- * spanContract.a2a.test.ts pins this against the installed library: a bump that changes where the
+ * spanContract.fetch.test.ts pins this against the installed library: a bump that changes where the
  * span ends fails there, because moving a boundary silently changes what the duration claims.
  */
 export const COUNTED_SPAN_NAMES = {
@@ -181,7 +183,7 @@ const isAutoHttpSpan = (span: Span): boolean =>
  * Order is read-preference and is NOT load-bearing — a span carries one or the other.
  *
  * WHY THIS IS PINNED BY A TEST AND NOT ONLY BY A COMMENT: if a bump moves the URL to a THIRD key,
- * `urlOf` returns null, `isExportable` returns false, and every `krateo.widget.fetch` span is
+ * `urlOf` returns null, `spanUnder` returns false, and every `krateo.widget.fetch` span is
  * dropped before export — invisibly, with a green suite. spanContract.instrumentation.test.ts
  * asserts the installed instrumentation's URL key is a member of this array, so that bump fails a
  * test instead.
@@ -383,22 +385,86 @@ export const a2aAttributesOf = (attributes: Attributes): Attributes => {
   return kept
 }
 
+/** True when the span recorded an HTTP status: a response was read to its end. */
+const gotResponse = (span: Pick<ReadableSpan, 'attributes'>): boolean =>
+  isHttpStatus(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE])
+
 /**
- * The span status a `krateo.agentiko.a2a` span exports: `ERROR` when no HTTP status was recorded
- * (the 0 above, whose attribute `a2aAttributesOf` omits), otherwise the instrumentation's own.
- *
- * WHY THIS IS SET HERE AND NOT LEFT TO THE LIBRARY: instrumentation-fetch 0.223 sets `ERROR` only for
- * `status >= 400`, so its 0 arrives with the status UNSET — a turn that never completed would read
- * as a success with no status code. That is the shape the consumer reads as success. `ERROR` with no
- * status code is the shape it reads as a failure ("5xx, or ERROR with no status code",
- * docs/observability.md), which is what an unfinished request is. The user aborting the turn lands
- * here too: the request did not complete, whoever stopped it.
- *
- * Only for this span. widget.fetch carries the same 0 from the same library path, but it is in the
- * SLI set, and turning its 0s into ERROR would move the error rate — a separate decision.
+ * Set on a fetch span whose request was ABORTED — by `markAbortedFetch`, from the instrumentation's
+ * `applyCustomAttributesOnSpan` — and read by the processor at `onEnd`. INTERNAL: it never leaves
+ * the browser. An aborted `krateo.widget.fetch` is dropped whole, and `a2aAttributesOf` is an
+ * allowlist that does not name it.
  */
-const a2aStatusOf = (span: ReadableSpan): SpanStatus =>
-  isHttpStatus(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]) ? span.status : { code: SpanStatusCode.ERROR }
+const ATTR_ABORTED_INTERNAL = 'krateo.internal.fetch.aborted'
+
+/**
+ * The span event instrumentation-xml-http-request adds when an XHR is aborted (its `EventNames.
+ * EVENT_ABORT`, which the package does not export). XHR records the abort ITSELF, so for an XHR span
+ * this event is the signal; spanContract.fetch.test.ts aborts a real XHR and fails if the name moves.
+ */
+const XHR_ABORT_EVENT = 'abort'
+
+/**
+ * Was this request ABORTED by the page (an AbortController, e.g. a request cancelled because the
+ * user navigated away), as opposed to failing on the network?
+ *
+ * NOT DECIDED FROM THE STATUS CODE. instrumentation-fetch writes 0 for both, so a 0 cannot tell
+ * them apart. Each library's own record of the abort is used instead:
+ *
+ *   - fetch: the REJECTION. The instrumentation hands it to `applyCustomAttributesOnSpan` as
+ *     `result` on its error path, and an aborted fetch rejects with a DOMException named
+ *     `AbortError` (its signal's default abort reason). `markAbortedFetch` records that.
+ *   - XHR: the `abort` span event the instrumentation adds from the XHR's own `abort` event.
+ *
+ * A TIMEOUT IS NOT AN ABORT, even when it is implemented with an AbortController: it is an outcome
+ * (the server did not answer in time). `AbortSignal.timeout()` rejects with `TimeoutError`, and the
+ * portal's own abort-based timeouts (`fetchWithTimeout`, `readCrd`) abort with a `TimeoutError`
+ * reason for the same reason, so a timeout is exported as a failure rather than vanishing.
+ */
+const wasAborted = (span: ReadableSpan): boolean =>
+  span.attributes[ATTR_ABORTED_INTERNAL] === true || span.events.some(({ name }) => name === XHR_ABORT_EVENT)
+
+/**
+ * Record, on a fetch span still mutable in `applyCustomAttributesOnSpan`, that its request was
+ * aborted. `result` is what the instrumentation passes: the `Response`, or the rejection on its
+ * error path (a rejected fetch, or a body that errored mid-read).
+ */
+export const markAbortedFetch = (span: ApiSpan, result: unknown): void => {
+  if (typeof result === 'object' && result !== null && (result as { name?: unknown }).name === 'AbortError') {
+    span.setAttribute(ATTR_ABORTED_INTERNAL, true)
+  }
+}
+
+/**
+ * The fetch instrumentation's `applyCustomAttributesOnSpan`, as tracing.ts installs it: route
+ * template in and raw URL out (`redactUrlAttributes`), and the abort recorded (`markAbortedFetch`).
+ * One function, so the tests drive the hook production runs rather than a copy of it.
+ */
+export const fetchSpanHook = (snowplowPrefix: string | null) =>
+  (span: ApiSpan, _request: unknown, result: unknown): void => {
+    redactUrlAttributes(span, snowplowPrefix)
+    markAbortedFetch(span, result)
+  }
+
+/**
+ * The status a span exports when NO response was read: `ERROR`, with no status code.
+ *
+ * instrumentation-fetch 0.223 writes `http.response.status_code` 0 on its error path and sets
+ * `ERROR` only for `status >= 400`, so a request that never got an answer arrives UNSET — the shape
+ * the consumer reads as a success. And snowplow accepts a status code only in 100–599, so it drops
+ * that 0 and counts a contract violation. `ERROR` with no status code is the shape the SLI already
+ * counts as a failure (`krateo.sli.error`: "5xx, or ERROR with no status code",
+ * docs/observability.md), which is what an unanswered request is. The library's own `ERROR` is kept
+ * where it set one (XHR's error and timeout paths, with their message).
+ */
+const noResponseStatus = (span: ReadableSpan): SpanStatus =>
+  span.status.code === SpanStatusCode.ERROR ? span.status : { code: SpanStatusCode.ERROR }
+
+/** The span's attributes without a status code that is not an HTTP status (the 0 above). */
+const withoutNonHttpStatus = (attributes: Attributes): Attributes => {
+  const { [ATTR_HTTP_RESPONSE_STATUS_CODE]: status, ...rest } = attributes
+  return isHttpStatus(status) ? attributes : rest
+}
 
 /**
  * The same ended span with only `attributes` and `status` replaced. Everything else — above all
@@ -410,14 +476,14 @@ const a2aStatusOf = (span: ReadableSpan): SpanStatus =>
  * Every `ReadableSpan` field is written out, so if the SDK adds one this stops COMPILING rather than
  * exporting a span with the new field silently missing.
  */
-const a2aExportOf = (span: ReadableSpan): ReadableSpan => ({
-  attributes: a2aAttributesOf(span.attributes),
+const exportedAs = (span: ReadableSpan, attributes: Attributes, status: SpanStatus): ReadableSpan => ({
+  attributes,
   droppedAttributesCount: span.droppedAttributesCount,
   droppedEventsCount: span.droppedEventsCount,
   droppedLinksCount: span.droppedLinksCount,
   duration: span.duration,
-  ended: span.ended,
   endTime: span.endTime,
+  ended: span.ended,
   events: span.events,
   instrumentationScope: span.instrumentationScope,
   kind: span.kind,
@@ -427,12 +493,41 @@ const a2aExportOf = (span: ReadableSpan): ReadableSpan => ({
   resource: span.resource,
   spanContext: () => span.spanContext(),
   startTime: span.startTime,
-  status: a2aStatusOf(span),
+  status,
 })
 
 /**
+ * A `krateo.agentiko.a2a` span as exported: the allowlisted attributes, and `ERROR` when no response
+ * was read. An ABORTED A2A request (the user stopping a turn) is still exported, as `ERROR`: the
+ * request did not complete, whoever stopped it (agreed for this span before widget.fetch's abort
+ * rule; see the PR).
+ */
+const a2aExportOf = (span: ReadableSpan): ReadableSpan =>
+  exportedAs(span, a2aAttributesOf(span.attributes), gotResponse(span) ? span.status : noResponseStatus(span))
+
+/**
+ * A `krateo.widget.fetch` span as exported, or null when it must not be (decided with the SLI owner):
+ *
+ *   - a response was read (any status, 200 or 503) → UNCHANGED, the very same span object;
+ *   - ABORTED → null: an abort is the page withdrawing the question, not a request outcome, and an
+ *     UNSET span with no status would otherwise count as a success;
+ *   - any other failure (network, timeout) → `ERROR` with no status code.
+ */
+const widgetFetchExportOf = (span: ReadableSpan): ReadableSpan | null => {
+  if (gotResponse(span)) {
+    return span
+  }
+  if (wasAborted(span)) {
+    return null
+  }
+  return exportedAs(span, withoutNonHttpStatus(span.attributes), noResponseStatus(span))
+}
+
+/**
  * Renames auto-instrumented portal → snowplow requests to `krateo.widget.fetch`, and DROPS every
- * other span the contract does not name.
+ * other span the contract does not name. A `krateo.widget.fetch` that got no response is dropped
+ * when the page aborted it, and otherwise exported as `ERROR` with no status code
+ * (`widgetFetchExportOf`).
  *
  * Dropping client-side rather than letting snowplow drop it is deliberate: the ingestion has a
  * size cap and a per-user rate limit, so an unexportable span still costs budget a real one needs.
@@ -497,7 +592,14 @@ export class ContractSpanProcessor implements SpanProcessor {
     }
     // A renamed fetch span is only ours if it went to a backend we export for. A fetch to a static
     // asset or a third party carries no traceparent and must not be exported either.
-    if (span.name === SPAN_NAMES.widgetFetch && !spanUnder(span, this.snowplowPrefix)) {
+    if (span.name === SPAN_NAMES.widgetFetch) {
+      if (!spanUnder(span, this.snowplowPrefix)) {
+        return
+      }
+      const exported = widgetFetchExportOf(span)
+      if (exported !== null) {
+        this.inner.onEnd(exported)
+      }
       return
     }
     if (span.name === COUNTED_SPAN_NAMES.agentikoA2a) {

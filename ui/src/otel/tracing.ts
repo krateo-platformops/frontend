@@ -11,7 +11,7 @@ import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 import { agentikoConfig } from '../context/agentikoConfig'
 
 import { tracesEndpointOf } from './endpoint'
-import { ContractSpanProcessor, redactUrlAttributes } from './spanContract'
+import { ContractSpanProcessor, fetchSpanHook, redactUrlAttributes } from './spanContract'
 import { telemetryAuthHeaders } from './telemetryCredential'
 
 /**
@@ -201,9 +201,12 @@ export function initTracing(cfg: TracingConfig): void {
         // string, which is exactly what must not leave the browser: `?extras={...}` can hold a
         // filter, and a page name is not ours to ship. snowplow allowlists attributes
         // independently, but a value it would reject is a value we should not have sent.
-        applyCustomAttributesOnSpan: (span) => {
-          redactUrlAttributes(span, snowplowPrefix)
-        },
+        //
+        // On the error path the third argument is the REJECTION, and it is the only record of
+        // whether the request was aborted (the instrumentation writes status 0 either way), so it
+        // is read here, while the span is still mutable. XHR needs no equivalent: it records an
+        // abort itself, as an `abort` span event (see `wasAborted` in spanContract.ts).
+        applyCustomAttributesOnSpan: fetchSpanHook(snowplowPrefix),
         clearTimingResources: true,
         ignoreUrls,
         propagateTraceHeaderCorsUrls,
