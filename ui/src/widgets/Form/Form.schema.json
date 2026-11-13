@@ -548,8 +548,8 @@
                       },
                       "href": {
                         "type": "string",
-                        "description": "an http(s) or mailto URL, or a path on the portal (`/…`); any other is not drawn as a link",
-                        "pattern": "^(https?://|mailto:|/[^/\\\\])"
+                        "description": "an http(s) or mailto URL, or a path on the portal (`/…`), with no whitespace or control characters; any other is not drawn as a link",
+                        "pattern": "^(https?://|mailto:|/([^/\\\\\\s\\x00-\\x1f\\x7f]|$))[^\\s\\x00-\\x1f\\x7f]*$"
                       }
                     }
                   },

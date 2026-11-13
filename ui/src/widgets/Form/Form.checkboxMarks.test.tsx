@@ -193,11 +193,23 @@ describe('checkboxes — the link in a label', () => {
   })
 
   // eslint-disable-next-line no-script-url -- the hostile hrefs the label must refuse to draw
-  it.each(['javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,<script>alert(1)</script>', '//evil.example.com', 'vbscript:x'])('draws no link to %s, and keeps the phrase as text', (href) => {
+  it.each(['javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,<script>alert(1)</script>', '//evil.example.com', 'vbscript:x', '/\t/evil.example', '/\n//evil.example'])('draws no link to %j, and keeps the phrase as text', (href) => {
     const { container } = renderForm(widgetData({ checkboxes: [{ link: { href, text: 'privacy policy' }, name: 'consent' }] }))
     const label = itemOf(container, 'consent').querySelector('.ant-checkbox-wrapper') as HTMLElement
     expect(label.querySelector('a')).toBeNull()
     expect(label.textContent).toContain('See the privacy policy.')
+  })
+
+  it('resolves a path the way the browser will: a tab or newline it strips cannot make it leave the portal', () => {
+    // The URL parser drops ASCII tab and newline, so "/\t/evil.example" is navigated as "//evil.example".
+    expect(safeHref('/\t/evil.example')).toBeUndefined()
+    expect(safeHref('/\n//evil.example')).toBeUndefined()
+    expect(safeHref('/\r/evil.example')).toBeUndefined()
+    expect(safeHref('/legal/\u0000privacy')).toBeUndefined()
+    expect(safeHref('https://example.com/a b')).toBeUndefined()
+    expect(safeHref(' /x')).toBe('/x')
+    expect(safeHref('/x')).toBe('/x')
+    expect(safeHref('/x?y=1#z')).toBe('/x?y=1#z')
   })
 
   it('accepts http(s), mailto and a path on the portal', () => {

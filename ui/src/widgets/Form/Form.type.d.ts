@@ -379,7 +379,7 @@ export interface Form {
            */
           text: string
           /**
-           * an http(s) or mailto URL, or a path on the portal (`/…`); any other is not drawn as a link
+           * an http(s) or mailto URL, or a path on the portal (`/…`), with no whitespace or control characters; any other is not drawn as a link
            */
           href: string
         }

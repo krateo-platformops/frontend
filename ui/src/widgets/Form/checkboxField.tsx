@@ -38,12 +38,23 @@ export const getCheckboxSpec = (node: JSONSchema4): CheckboxSpec | undefined => 
 
 const LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 
-/** The href, if it is one a label may link to; undefined for anything else (`javascript:`, `data:`, …). */
+/** Whitespace or a control character. The URL parser silently drops some (tab, newline), so the
+ * href it navigates to is not the one that was checked. */
+const UNSAFE_CHAR = /[\s\p{Cc}]/u
+
+/**
+ * The href a label may link to, as the browser will navigate to it; undefined for anything else
+ * (`javascript:`, `data:`, an off-site `//host`, …). A path is resolved against the portal and kept
+ * only if it stays on it.
+ */
 export const safeHref = (href: string): string | undefined => {
   const trimmed = href.trim()
-  // a path on this origin, not a protocol-relative `//host`
-  if (/^\/(?![/\\])/.test(trimmed)) { return trimmed }
+  if (!trimmed || UNSAFE_CHAR.test(trimmed)) { return undefined }
   try {
+    if (trimmed.startsWith('/')) {
+      const url = new URL(trimmed, window.location.origin)
+      return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : undefined
+    }
     const url = new URL(trimmed)
     return LINK_PROTOCOLS.has(url.protocol) ? url.href : undefined
   } catch {
