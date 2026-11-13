@@ -334,3 +334,22 @@ describe('Table rowActions — an id the action map does not define', () => {
     expect(navigateSpy).not.toHaveBeenCalled()
   })
 })
+
+describe('Table — rowActions in a table whose columns were resized (#556)', () => {
+  it('the actions column carries no resize handle, keeps its width and counts in the table width', () => {
+    window.localStorage.clear()
+    const { container } = renderTable({ rowActionsDisplay: 'buttons' })
+    const handles = () => [...container.querySelectorAll<HTMLElement>('.ant-table-thead [role="separator"]')]
+    expect(handles()).toHaveLength(2)
+
+    fireEvent.keyDown(handles()[0], { key: 'ArrowRight' })
+
+    const cols = [...(container.querySelector('colgroup')?.querySelectorAll('col') ?? [])].map((col) => parseFloat(col.style.width))
+    expect(cols).toHaveLength(3)
+    expect(cols.every((width) => width > 0)).toBe(true)
+    const table = container.querySelector<HTMLElement>('.ant-table-content table')
+    expect(table?.style.tableLayout).toBe('fixed')
+    expect(parseFloat(table?.style.width ?? '')).toBe(cols.reduce((sum, width) => sum + width, 0))
+    expect(buttonNamed(rows(container)[0], 'Restart')).toBeTruthy()
+  })
+})

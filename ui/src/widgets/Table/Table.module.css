@@ -118,6 +118,46 @@
   vertical-align: middle;
 }
 
+/* Column resize handle (TableResizableHeaderCell, #556): a grab strip along the header cell's right
+   edge, over antd's own column split line. It sits INSIDE the th, not straddling its border: an
+   ellipsis column's th clips its overflow, so a handle hanging past the edge would be cut in half.
+   The strip is invisible at rest, so a table nobody resizes looks as it did; on hover, while
+   dragged and when focused it draws a line where the new edge will be. */
+.resizeHandle {
+  cursor: col-resize;
+  inset-block: 0;
+  inset-inline-end: 0;
+  position: absolute;
+
+  /* A pointer drag must not scroll the page on touch screens. */
+  touch-action: none;
+  width: 8px;
+  z-index: 1;
+}
+
+.resizeHandle::after {
+  background: var(--primary-color);
+  content: '';
+  inset-block: 25%;
+  inset-inline-end: 0;
+  opacity: 0;
+  position: absolute;
+  transition: opacity var(--motion-fast) ease-in-out;
+  width: 2px;
+}
+
+.resizeHandle:hover::after,
+.resizeHandle:active::after,
+.resizeHandle:focus-visible::after {
+  opacity: 1;
+}
+
+/* The portal's focus ring (index.css `*:focus-visible`), drawn inward: outside the strip it would be
+   clipped by the th, and the next column's header would cover its right side. */
+.resizeHandle:focus-visible {
+  outline-offset: -2px;
+}
+
 /* The `rowActions` column header (#700): named for assistive tech, invisible on screen, as the
    controls below it name themselves. */
 .srOnly {

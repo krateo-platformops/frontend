@@ -24,7 +24,7 @@ import { AgentDraftProvider } from './agentDraft'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
 import { createApprovalGovernor, summarizeApprovalTools } from './approval'
 import { useAskDeepLink } from './askDeepLink'
-import { useAgentikoAvailability } from './availability'
+import { askAccessOf, useAgentikoAvailability } from './availability'
 import type { BlueprintDraftHeld } from './blueprintDraftStore'
 import { createBlueprintGate } from './blueprintGate'
 import { trackPublishStatus } from './builderClaimPublish'
@@ -875,8 +875,9 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   const closeTour = useCallback(() => setTourOpen(false), [])
   useAgentikoShortcut(reachable, toggle)
 
-  // The `?ask=` deep-link (Diagnose / Troubleshoot buttons): enabled → open the rail
-  // and seed one turn; disabled → honest UX-19 notice. All in useAskDeepLink.
+  // The `?ask=` deep-link (Diagnose / Troubleshoot buttons): licensed and reachable → open the rail
+  // and seed one turn; unlicensed or unreachable → open the rail, which says why, and leave the
+  // conversation alone (UX-19, #653). All in useAskDeepLink.
   //
   // A FRESH THREAD, and it is not cosmetic. The seed is a self-contained investigation of ONE
   // object ("Diagnose composition X: is it healthy?"), so appending it to whatever conversation
@@ -890,7 +891,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // nothing the user had is lost — the previous conversation stays browsable in the rail's
   // history. Both calls are synchronous store writes, and `send` reads the store rather than
   // React state, so the turn lands in the new thread and not the old one.
-  useAskDeepLink(licensed, useCallback((ask: string) => {
+  useAskDeepLink(askAccessOf({ checking, licensed, reachable }), useCallback((ask: string) => {
     setOpen(true)
     newThread()
     send(ask)

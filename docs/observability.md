@@ -79,7 +79,9 @@ Three consequences that are easy to get wrong, each of which would have *flatter
 | `krateo.widget.fetch` | auto-instrumentation, renamed by `ContractSpanProcessor` |
 
 The emitters are `otel/interactions.ts`. One other place in the SPA creates a span — see
-[The counted span](#the-counted-span-krateoagentikoclaimunbacked) below.
+[The counted span](#the-counted-span-krateoagentikoclaimunbacked) below — and one more
+auto-instrumented request is exported outside the SLI: see
+[The A2A span](#the-a2a-span-krateoagentikoa2a).
 
 **Not instrumented, deliberately** — each would be measured wrongly rather than not at all:
 
@@ -132,6 +134,39 @@ The mirror of that rule is the dangerous one: an `ERROR` status on a span that S
 every success as a failure. Each producer therefore has a must-not-fire test asserting that a
 successful operation leaves the status unset (`otel/interactions.instrumentation.test.ts`).
 
+### Requests that got no response
+
+The two request spans, `krateo.widget.fetch` and `krateo.agentiko.a2a`, come from the
+auto-instrumentation, and its record of a request that got no response used to break both rules
+above: instrumentation-fetch 0.223 writes `http.response.status_code` **0** and leaves the status
+UNSET. That is the shape the SLI reads as a success, and snowplow accepts a status code only in
+100–599, so it dropped the 0 and counted a contract violation. Decided with the SLI owner:
+
+| outcome | exported as |
+|---|---|
+| a response was read (200, 503, …) | **unchanged**: its status code, and the library's own `ERROR` for 4xx/5xx |
+| the page **aborted** the request (an `AbortController`, e.g. a request cancelled on navigation) | `krateo.widget.fetch`: **not exported**, since an abort is not a request outcome. `krateo.agentiko.a2a`: exported **UNSET**, no status code, because a user's Stop is not an agent error and the span still carries the trace join (below) |
+| any other failure: the network, a timeout, a body that broke mid-read | `ERROR`, and **no** `http.response.status_code` |
+
+**An abort is told apart by the library's own record of it, never by the 0**, which both cases
+share:
+
+- **fetch** — the rejection. On its error path instrumentation-fetch passes the rejection to
+  `applyCustomAttributesOnSpan`, and an aborted fetch rejects with a DOMException named
+  `AbortError`, its signal's default abort reason. `markAbortedFetch` (in that hook) records
+  it on the span as an internal attribute, which is never exported.
+- **XHR** — the `abort` span event instrumentation-xml-http-request adds from the XHR's own `abort`
+  event. Snowplow uploads (`widgets/Upload`) still go over XHR. On its error and timeout paths XHR
+  already records `ERROR` with no status code; it never writes the 0.
+
+**A timeout is a failure, not an abort**, even when an `AbortController` delivers it.
+`AbortSignal.timeout()` rejects with `TimeoutError`, and the portal's own abort-based timeouts,
+`fetchWithTimeout` (action writes, capabilities) and `readCrd`, abort with a `TimeoutError` reason
+for that reason. A bare `abort()` there would make a 30s write timeout look like a cancellation,
+and it would vanish from the error rate. An abort-based timeout added later must do the same.
+
+Pinned against the installed libraries in `ui/src/otel/spanContract.fetch.test.ts`.
+
 ### Linking
 
 The `krateo.widget.fetch` spans an interaction causes are its **children**, in the same trace, and
@@ -165,6 +200,75 @@ SpanName = 'krateo.agentiko.claim.unbacked'
 GROUP BY SpanAttributes['krateo.agentiko.claim.family'], SpanAttributes['krateo.agentiko.claim.outcome']
 ```
 
+## The A2A span: `krateo.agentiko.a2a`
+
+Outside the SLI. One span per JSON-RPC call the portal makes to Agentiko's A2A endpoint
+(`AGENTIKO_API_BASE_URL`, e.g. `https://portal.krateo.dev/api/a2a/krateo-system/agentiko`): a
+`POST` under that base. The rail's availability probe — a `GET` of the same base on every page
+load and window focus — is not an agent call, and stays dropped exactly as before. It is
+**the fetch instrumentation's own span**, renamed by `ContractSpanProcessor` — not a second span.
+So its context is the `traceparent` the request carried, and the gateway's `POST /api/a2a/*` span,
+whose parent it already was, now has that parent stored: one trace shows the portal's request →
+gateway → agent. Agreed with snowplow (snowplow#1398), whose ingest allowlists the same name.
+
+| starts | ends |
+|---|---|
+| `fetch` is called | the response **body** has been read to its end |
+
+**For `message/stream` that is the whole streamed turn, not the time to stream start.**
+instrumentation-fetch 0.223 clones the response and drains the clone before it ends the span, so
+an SSE reply keeps the span open until its last byte. Two consequences:
+
+- A body that errors mid-way — the rail aborting the turn, a dropped connection — ends the span
+  at that moment, through the library's error path. The library records
+  `http.response.status_code` **0** there, even though a 200 had arrived, and leaves the status
+  UNSET. The export **omits that 0**. A dropped connection is exported as `ERROR`; a turn the user
+  stopped stays UNSET (below).
+- A tab closed mid-stream never ends the span, so nothing is exported for that request.
+
+Both are pinned against the installed library in `ui/src/otel/spanContract.fetch.test.ts`: a bump
+that moves where the span ends fails there, because a moved boundary silently changes what the
+duration claims.
+
+| attribute | value |
+|---|---|
+| `http.request.method` | `POST` — the only method that becomes this span |
+| `http.response.status_code` | the response's status, only when it is 100–599; **absent** when no complete response was read |
+| `http.route` | always the literal template `/api/a2a/{namespace}/{agent}` — never the concrete path, which snowplow refuses |
+| `krateo.a2a.method` | the JSON-RPC method, only when it is `message/stream`, `message/send`, `tasks/get` or `tasks/resubscribe`; **absent** otherwise |
+
+**Errors.** A recorded 4xx/5xx keeps its status code, and the library's own `ERROR`. When no
+complete response was read because the network or the stream failed, or the request timed out,
+the span is exported as `ERROR` with no status code (see
+[Requests that got no response](#requests-that-got-no-response)).
+
+**A turn the user stopped is not an error.** Stop, a new thread and navigating away all abort the
+request, and that abort is recognised the same way as for `krateo.widget.fetch`. Such a request is
+exported **UNSET, with no status code**. The collector derives `krateo.sli.error` as "5xx, or
+`ERROR` with no status code" for every span its RUM filter forwards, so an `ERROR` here would
+count each Stop as an agent error. Unlike `krateo.widget.fetch`, an aborted A2A request is still
+**exported**: it carries the join to the agent's trace, and the turn it started may well have run.
+
+Those four and nothing else — an allowlist (`a2aAttributesOf`), so an attribute a future
+instrumentation adds is not exported by default. `url.full` goes (it names the namespace and the
+agent), as do `server.address`, `server.port`, `error.type` and `http.request.method_original`.
+Headers and the body never become attributes.
+
+`krateo.a2a.method` is a **closed enum** on snowplow's side, which drops and counts any other
+value, so the browser omits it rather than sending one: a call whose method is outside the four
+is still exported, without it. `tasks/resubscribe` is in the enum because the transport really
+sends it, to resume a dropped stream. Today every call the transport makes carries one of the
+four, but the key is optional by contract, so do not make it a `span_metrics` dimension that
+assumes it is always present. The transport sets it on the active context around its `fetch`
+(`withA2aMethod`), and `onStart` reads it from the parent context the SDK passes; the request
+body, which is the user's message, is never read for it.
+
+**Only for a same-origin base.** When `AGENTIKO_API_BASE_URL` is absent, empty or on another
+origin, A2A requests are handled exactly as before this span existed: renamed
+`krateo.widget.fetch` and dropped at export for not being under the snowplow base. Cross-origin,
+the request carries no `traceparent` (the propagation allowlist names snowplow only), so its span
+would be an orphan root that joins nothing.
+
 ## How the names are enforced
 
 snowplow accepts **only** the names it allowlists and drops anything else server-side. Auto-instrumented fetch
@@ -173,10 +277,14 @@ would be dropped — and dropped **invisibly**, since the browser sees a 2xx and
 
 `ui/src/otel/spanContract.ts` therefore:
 
-1. **renames** auto-instrumented HTTP spans to `krateo.widget.fetch`, on `onStart` (a
-   `ReadableSpan`'s name is read-only by `onEnd`, so renaming there silently does nothing);
-2. **drops**, client-side, any span the contract does not name, and any `krateo.widget.fetch`
-   whose URL is not on an origin we export for — snowplow would drop it anyway, but an
+1. **renames** auto-instrumented HTTP spans to `krateo.widget.fetch` — or to
+   `krateo.agentiko.a2a` when the URL is under the same-origin A2A base — on `onStart` (a
+   `ReadableSpan`'s name is read-only by `onEnd`, so renaming there silently does nothing). The
+   span is recognised by its `http.request.method` attribute, not by the library's name for it
+   (#588);
+2. **drops**, client-side, any span the contract does not name, any `krateo.widget.fetch`
+   whose URL is not under the snowplow base, and any `krateo.agentiko.a2a` whose URL is not under
+   the A2A base — snowplow would drop it anyway, but an
    unexportable span still spends the size and rate budget a real one needs;
 3. matches on the **`SNOWPLOW_API_BASE_URL` prefix**, not an origin, and at a path boundary.
 
@@ -197,7 +305,9 @@ Route templates, never raw URLs. No tokens, no query strings, no user names or d
 Enforced **in the browser**, in each instrumentation's `applyCustomAttributesOnSpan` — the only
 point where a span is still mutable, since by `onEnd` the attributes are frozen behind a
 `ReadableSpan`. `redactUrlAttributes` strips the query from `http.url` / `url.full` and records
-`http.route` relative to the snowplow base.
+`http.route` relative to the snowplow base. `krateo.agentiko.a2a` goes further, at `onEnd`: it is
+exported with a copy of the span carrying only its four allowlisted attributes, the span context
+read through unchanged.
 
 The query is the part that matters: `?extras={…}` carries whatever the user filtered or searched
 for, and a page name is not ours to ship. snowplow allowlists attributes independently, but a value

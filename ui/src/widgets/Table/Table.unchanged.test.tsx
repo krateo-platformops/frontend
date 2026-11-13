@@ -7,6 +7,11 @@
  * Two fixtures cover the two row contracts an existing CR can have: a navigable row
  * (`rowNavigateTo`: role=button, tabIndex, pointer cursor) over string, number and tag cells, and a
  * plain table with no row interaction at all.
+ *
+ * The fixtures set `resizableColumns: false`: since #556 every header carries a resize handle by
+ * default, which is a deliberate change to that DOM (Table.columnResize.test.tsx covers it). With the
+ * opt-out the table must still render byte for byte what it rendered before #700, so this snapshot
+ * also pins that `resizableColumns: false` gives back the old table.
  */
 import { cleanup, render } from '@testing-library/react'
 import { App } from 'antd'
@@ -69,7 +74,7 @@ const renderTable = (widgetData: Partial<TableWidgetData>) => render(
       <Table
         resourcesRefs={{ items: [] }}
         uid='unchanged'
-        widgetData={{ allowedResources: [], columns, dataSource, ...widgetData } as unknown as TableWidgetData}
+        widgetData={{ allowedResources: [], columns, dataSource, resizableColumns: false, ...widgetData } as unknown as TableWidgetData}
       />
     </App>
   </MemoryRouter>,

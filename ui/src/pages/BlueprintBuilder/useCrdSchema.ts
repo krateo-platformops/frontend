@@ -46,7 +46,9 @@ export const readCrd = async (base: string | undefined, name: string): Promise<C
     return { error: 'this portal has no snowplow URL configured' }
   }
   const abort = new AbortController()
-  const timer = setTimeout(() => abort.abort(), CRD_READ_MS)
+  // A `TimeoutError` reason, not a bare abort: a timeout is an outcome, and browser telemetry
+  // drops an aborted request but exports a timed-out one (see fetchWithTimeout).
+  const timer = setTimeout(() => { abort.abort(new DOMException('The CRD read timed out', 'TimeoutError')) }, CRD_READ_MS)
   try {
     const url = new URL(`${base.replace(/\/+$/, '')}/call`)
     url.searchParams.set('resource', 'customresourcedefinitions')

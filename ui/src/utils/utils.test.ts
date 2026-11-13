@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { countNoun, getResourceEndpoint, randomId } from './utils'
+import { countNoun, getCallReadQuery, getExportEndpoint, getResourceEndpoint, randomId } from './utils'
 
 describe('countNoun', () => {
   it('keeps the singular for exactly one', () => {
@@ -72,5 +72,43 @@ describe('getResourceEndpoint — a cluster-scoped target omits namespace (#528)
   it('still sends it for a namespaced target', () => {
     expect(getResourceEndpoint({ apiVersion: 'v1', name: 'cm', namespace: 'krateo-system', resource: 'configmaps' }))
       .toBe('/call?resource=configmaps&apiVersion=v1&name=cm&namespace=krateo-system')
+  })
+})
+
+/**
+ * snowplow's export is `POST /export`, a sibling of `/call` — a POST to `/call` is the write
+ * passthrough. The export carries the read's own query untouched, then the export query.
+ */
+describe('getExportEndpoint — a /call read exported on /export', () => {
+  const read = getResourceEndpoint({ apiVersion: 'widgets.templates.krateo.io/v1beta1', name: 'pods', namespace: 'krateo-system', resource: 'tables' })
+
+  it('takes the query of a /call read, verbatim', () => {
+    expect(getCallReadQuery(read)).toBe('resource=tables&apiVersion=widgets.templates.krateo.io/v1beta1&name=pods&namespace=krateo-system')
+  })
+
+  it('has no read query for anything that is not a /call read', () => {
+    expect(getCallReadQuery('/call/read?resource=tables')).toBeNull()
+    expect(getCallReadQuery('/api-info/names?category=widgets')).toBeNull()
+    expect(getCallReadQuery('/callx?resource=tables')).toBeNull()
+  })
+
+  it('reads a bare /call as an empty query', () => {
+    expect(getCallReadQuery('/call')).toBe('')
+  })
+
+  it('puts the read query, then the export query, on /export', () => {
+    expect(getExportEndpoint(getCallReadQuery(read)!, 'format=csv&fields=name'))
+      .toBe('/export?resource=tables&apiVersion=widgets.templates.krateo.io/v1beta1&name=pods&namespace=krateo-system&format=csv&fields=name')
+  })
+
+  it('drops the read\'s page window and keeps every other param byte-for-byte', () => {
+    expect(getExportEndpoint('resource=tables&page=2&apiVersion=a%2Fb&perPage=5&name=pods&pageSize=9&namespace=ns', 'format=csv'))
+      .toBe('/export?resource=tables&apiVersion=a%2Fb&name=pods&pageSize=9&namespace=ns&format=csv')
+  })
+
+  it('joins no stray separator when either side is empty', () => {
+    expect(getExportEndpoint('', 'format=csv')).toBe('/export?format=csv')
+    expect(getExportEndpoint('resource=tables', '')).toBe('/export?resource=tables')
+    expect(getExportEndpoint('', '')).toBe('/export')
   })
 })

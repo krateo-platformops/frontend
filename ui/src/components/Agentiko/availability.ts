@@ -84,3 +84,19 @@ export const useAgentikoAvailability = ({ enabled, endpoint, flagAvailable, useE
     reachable: enabled && flagAvailable && (useEcho || probeOk === true),
   }
 }
+
+/**
+ * Whether an `?ask=` deep-link (askDeepLink.ts) can start a turn now: `ready` (licensed and
+ * reachable), `checking` (licensed, the probe has not answered yet), `unavailable` (licensed, not
+ * reachable) or `locked` (no licence).
+ *
+ * Here rather than in askDeepLink.ts because eight provider tests replace that module wholesale,
+ * and the provider calls this.
+ */
+export type AskAccess = 'checking' | 'locked' | 'ready' | 'unavailable'
+
+export const askAccessOf = ({ checking, licensed, reachable }: { checking: boolean; licensed: boolean; reachable: boolean }): AskAccess => {
+  if (!licensed) { return 'locked' }
+  if (reachable) { return 'ready' }
+  return checking ? 'checking' : 'unavailable'
+}

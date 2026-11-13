@@ -49,7 +49,7 @@ const TWO_COLUMNS = [{ title: 'Name', valueKey: 'name' }, { title: 'Phase', valu
  * What the hook returns: the URL with every param EXCEPT extras, and the widget's extras
  * separately — because POST /export takes extras in the body.
  */
-const exportRequestFor = (query: string) => ({ extras: '{"q":"nginx"}', url: `http://sp/call?resource=tables&${query}` })
+const exportRequestFor = (query: string) => ({ extras: '{"q":"nginx"}', url: `http://sp/export?resource=tables&${query}` })
 
 let requested: string[] = []
 let requestedInit: { method?: string; body: string }[] = []

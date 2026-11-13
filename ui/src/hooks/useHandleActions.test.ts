@@ -205,21 +205,21 @@ describe('fetchWithTimeout', () => {
     let signal: AbortSignal | undefined
     const fetchMock = vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
       signal = init.signal ?? undefined
-      init.signal?.addEventListener('abort', () => {
-        const err = new Error('aborted')
-        err.name = 'AbortError'
-        reject(err)
-      })
+      // As fetch does: it rejects with the signal's abort REASON.
+      init.signal?.addEventListener('abort', () => { reject(init.signal?.reason as Error) })
     }))
     vi.stubGlobal('fetch', fetchMock)
 
     const pending = fetchWithTimeout('/x', {}, 5000)
-    const rejection = expect(pending).rejects.toThrow('aborted')
+    const rejection = expect(pending).rejects.toThrow('timed out')
 
     expect(signal?.aborted).toBe(false)
     await vi.advanceTimersByTimeAsync(5000)
 
     await rejection
     expect(signal?.aborted).toBe(true)
+    // A TimeoutError, not the default AbortError: browser telemetry drops an aborted request but
+    // exports a timed-out one as a failure (otel/spanContract.ts), so the two must be told apart.
+    expect((signal?.reason as DOMException | undefined)?.name).toBe('TimeoutError')
   })
 })
