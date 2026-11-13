@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Table as AntdTable, Progress, Result, Tag, theme, Typography } from 'antd'
 import type { TablePaginationConfig } from 'antd'
 import type { TableRef } from 'antd/es/table'
-import { useCallback, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 
 import { useFilter } from '../../components/FiltesProvider/FiltersProvider'
@@ -19,10 +19,12 @@ import { formatISODate, formatRelativeTime } from '../../utils/utils'
 import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
 import TableCellTooltip from './TableCellTooltip'
+import { type ColumnWidths, DEFAULT_COLUMN_WIDTH, readColumnWidths, writeColumnWidths } from './tableColumnResize'
 import { columnLayout, rowActionsColumnWidth } from './tableColumnWidths'
 import { buildExportRequest } from './tableExport'
 import TableExportControl from './TableExportControl'
 import { computeTablePagination, shouldVirtualize, VIRTUAL_SCROLL_Y } from './tablePagination'
+import TableResizableHeaderCell, { type ColumnResize } from './TableResizableHeaderCell'
 import { tableRowValues } from './tableRowValues'
 import { getColumnSortProps } from './tableSorting'
 
@@ -36,6 +38,19 @@ const explicitTooltip = (cell: TableCell | undefined): string | undefined => (ce
 
 /** --krateo-text-label-sm, px: the header's font size. */
 const HEADER_FONT_SIZE = 11
+
+/** Every header cell carries a resize handle (#556). Module-level, so antd sees the same components each render. */
+const TABLE_COMPONENTS = { header: { cell: TableResizableHeaderCell } }
+
+/** Each header cell's rendered width, px, by the column key TableResizableHeaderCell sets on its th. */
+const measureHeaderWidths = (table: HTMLElement | null): ColumnWidths => {
+  const widths: ColumnWidths = {}
+  table?.querySelectorAll<HTMLElement>('th[data-column-key]').forEach((th) => {
+    const key = th.dataset.columnKey
+    if (key && widths[key] === undefined) { widths[key] = Math.round(th.getBoundingClientRect().width) }
+  })
+  return widths
+}
 
 /**
  * The `valueKey` of the stand-in column `rowActions` adds to the layout (columnLayout), so the text
@@ -59,14 +74,23 @@ const fromRowActions = new WeakSet<Event>()
 const markFromRowActions = (event: { nativeEvent: Event }) => { fromRowActions.add(event.nativeEvent) }
 
 const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData> & { fireRowAction?: FireRowAction }) => {
-  const { bordered, columns, dataSource, fitContent, pagination, prefix, rowActions, rowActionsDisplay, rowNavigateTo, size } = widgetData
+  const { bordered, columns, dataSource, fitContent, pagination, prefix, resizableColumns, rowActions, rowActionsDisplay, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
   const navigate = useNavigate()
   const { token } = theme.useToken()
   // The table's own width, which the text columns of a truncating table share (columnLayout).
   const { ref: measureRef, width: containerWidth } = useMeasuredWidth<HTMLDivElement>()
-  const tableRef = useCallback((table: TableRef | null) => { measureRef(table?.nativeElement ?? null) }, [measureRef])
+  const tableElement = useRef<HTMLDivElement | null>(null)
+  const tableRef = useCallback((table: TableRef | null) => {
+    tableElement.current = table?.nativeElement ?? null
+    measureRef(tableElement.current)
+  }, [measureRef])
+  // Widths the reader set by dragging a column's edge (#556), by valueKey, seeded from what this
+  // viewer left on this table last time. The ref mirrors the state for the resize handlers, which
+  // pin and change widths several times before React re-renders.
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(() => readColumnWidths(uid))
+  const columnWidthsRef = useRef(columnWidths)
 
   // Optional row → route navigation. `rowNavigateTo` is a path with `{valueKey}`
   // placeholders filled from that row's cells (e.g. "/compositions/{ns}/{name}").
@@ -196,9 +220,63 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
   // Only a truncating table takes the computed widths; a max-content table sizes every column to
   // its content already. Alignment applies to every table.
   const widths = truncating ? layout.widths : []
+
+  // Column resize (#556). Until a reader drags an edge the table is laid out exactly as above. The
+  // first resize pins EVERY column to the width it has on screen and the table turns fixed-layout,
+  // with a numeric scroll.x that is the sum of the columns: in an auto-layout table a column's
+  // `width` is only a hint its content overrides, so a column could be widened but never narrowed,
+  // and the other columns would reflow under the pointer as one moved. Fixed, each column is exactly
+  // as wide as it was left; a table made wider than its container scrolls sideways (a fitContent
+  // table too: the reader asked for the width), and one made narrower still fills it, antd spreading
+  // the difference across the columns. A cell that does not fit its resized column wraps, or, in a
+  // table that truncates, ellipsizes with the full text on hover, as before.
+  //
+  // A column with no width kept for it (one added since the widths were stored) starts from the
+  // width the layout or its author gave it, else DEFAULT_COLUMN_WIDTH.
+  const startWidth = (index: number): number => {
+    const { minWidth, width } = columns[index]
+    return widths[index] ?? (typeof width === 'number' ? width : undefined) ?? Math.max(minWidth ?? 0, DEFAULT_COLUMN_WIDTH)
+  }
+  // `resizableColumns: false` (the author's opt-out) removes the handles and ignores widths a reader
+  // stored while the table was resizable, so the table lays out exactly as it did before #556.
+  const resizable = resizableColumns !== false
+  const resized = resizable && columns.some(({ valueKey }) => columnWidths[valueKey] !== undefined)
+  const resizedWidth = (index: number): number => columnWidths[columns[index].valueKey] ?? startWidth(index)
+  const resizedScrollX = resized ? columns.reduce((sum, _, index) => sum + resizedWidth(index), actionControls ? actionsWidth ?? 0 : 0) : 0
+
+  const commitColumnWidths = (next: ColumnWidths, persist: boolean) => {
+    columnWidthsRef.current = next
+    setColumnWidths(next)
+    if (persist) { writeColumnWidths(uid, next) }
+  }
+  // A resize is starting: every column gets a width it keeps, read off the page so nothing moves
+  // when the table turns fixed. Already pinned columns keep theirs; a column the page has not laid
+  // out (0px: jsdom, a hidden tab) takes its start width.
+  const pinColumnWidths = (): ColumnWidths => {
+    const { current } = columnWidthsRef
+    if (columns.every(({ valueKey }) => current[valueKey] !== undefined)) { return current }
+    const measured = measureHeaderWidths(tableElement.current)
+    const pinned = Object.fromEntries(columns.map(({ valueKey }, index) => [valueKey, current[valueKey] ?? (measured[valueKey] || startWidth(index))]))
+    commitColumnWidths(pinned, false)
+    return pinned
+  }
+  const columnResize = (index: number): ColumnResize => {
+    const { minWidth, title, valueKey } = columns[index]
+    return {
+      begin: () => pinColumnWidths()[valueKey],
+      change: (width, commit) => { commitColumnWidths({ ...columnWidthsRef.current, [valueKey]: width }, commit) },
+      columnKey: valueKey,
+      label: title,
+      minWidth,
+      reset: () => { commitColumnWidths({}, true) },
+      width: resized ? resizedWidth(index) : widths[index],
+    }
+  }
+
   const horizontalScroll = fitContent ? undefined : { x: 'max-content' as const }
   const truncatingScroll = truncating && layout.scrollX ? { x: layout.scrollX } : horizontalScroll
-  const scroll = virtual ? { x: 'max-content' as const, y: VIRTUAL_SCROLL_Y } : truncatingScroll
+  const layoutScroll = virtual ? { x: 'max-content' as const, y: VIRTUAL_SCROLL_Y } : truncatingScroll
+  const scroll = resized ? { ...layoutScroll, x: resizedScrollX } : layoutScroll
 
   // Pagination: controlled server-side classic pager when the widget opts in
   // (serverPagination), else the CR's own pagination config (or none). See
@@ -238,7 +316,9 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
       // A header cell with no name reads as an unlabelled column; the label is for assistive tech,
       // since the controls name themselves on sight.
       title: <span className={styles.srOnly}>Actions</span>,
-      width: truncating ? actionsWidth : undefined,
+      // A resized table is fixed-layout (#556): a column without a width there shares what the others
+      // leave, so the actions take their measured width, counted in its scroll.x.
+      width: truncating || resized ? actionsWidth : undefined,
     }]
     : []
 
@@ -275,6 +355,10 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
         // so a fixed `width` on every column just re-creates the overflow it was meant to fix, while
         // a floor keeps one column readable and lets the rest flex around it.
         minWidth,
+        // The resize handle's wiring, read by TableResizableHeaderCell; antd merges it with the
+        // sorter's own th props. Cast: onHeaderCell is typed as plain th attributes. Without it
+        // (resizableColumns: false) the cell renders a plain th, with no handle.
+        onHeaderCell: resizable ? () => ({ resize: columnResize(index) }) as HTMLAttributes<HTMLElement> : undefined,
         render: withCellTooltip(valueKey, (_: unknown, row: TableRow) => {
           const cell = row.find((cell) => cell.valueKey === valueKey)
 
@@ -407,8 +491,9 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
               </Typography.Text>
             </div>
           ),
-        width: widths[index] ?? width,
+        width: resized ? resizedWidth(index) : widths[index] ?? width,
       })), ...actionsColumn]}
+      components={TABLE_COMPONENTS}
       dataSource={dataTable}
       key={uid}
       // C14/C15: Table had NO empty-state handling — a possibly-empty dataSource went straight to
@@ -453,6 +538,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
       ref={tableRef}
       scroll={scroll}
       size={size ?? 'middle'}
+      tableLayout={resized ? 'fixed' : undefined}
       virtual={virtual}
     />
   )
