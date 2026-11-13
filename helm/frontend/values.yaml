@@ -156,6 +156,15 @@ affinity: {}
 agentgateway:
   enabled: false
 
+# The namespace a short public address (`/public/<slug>`) reads its page from: config.json
+# `params.PUBLIC_NAMESPACE`. A public page is served to snowplow's public identity
+# (`krateo:public`, snowplow#1334), and its grant is a Role bound to that identity, so the pages
+# live in a namespace of their own, isolated, whose only Role is that one, rather than as
+# resourceNames grants in this release's namespace. `/public/<namespace>/<slug>` reads in the
+# namespace the address names, and is unaffected. The chart does not create the namespace: the
+# page set that ships a public page ships its namespace and Role too.
+publicNamespace: krateo-public
+
 config:
   SNOWPLOW_API_BASE_URL: http://localhost:8081
   AUTHN_API_BASE_URL: http://localhost:8082

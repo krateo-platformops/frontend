@@ -130,14 +130,20 @@ export const WidgetDependencyMissing = ({ onRetry, subtitle }: { onRetry?: () =>
 )
 
 /**
- * The two PAGE-level states of a public page (public/PublicPage.tsx), approved as drawn (mockup v3,
- * "Public page states"): the WidgetStates frame around an info Result, no brand band, and a plain
- * "Sign in" link — a link, never a redirect, because a visitor without an account must be able to
- * stay on the explanation.
+ * The PAGE-level states of a public page (public/PublicPage.tsx). P1 and P2 are approved as drawn
+ * (mockup v3, "Public page states"): the WidgetStates frame around an info Result, no brand band,
+ * and a plain "Sign in" link — a link, never a redirect, because a visitor without an account must
+ * be able to stay on the explanation.
  *
  * P1 is snowplow's 401 on an anonymous read: this installation does not serve the public identity
  * at all. P2 is a 403 (or a 404 — an anonymous visitor is told no more than that the page is not
- * shared): it may serve public pages, but not this one.
+ * shared): it may serve public pages, but not this one. P2 also covers a short address
+ * (`/public/<slug>`) on an installation whose config names no public-pages namespace; the caller
+ * then passes a `subtitle` that says so.
+ *
+ * P3 (`PublicPageUnavailable`) is snowplow's 503 on the page root: the public identity is
+ * temporarily unavailable (for example mid-roll). The same frame, with a Retry where the others
+ * have the Sign in link: it is not a sign-in problem, so it never mentions signing in.
  */
 const SignInLink = () => <Typography.Link href='/login'>Sign in</Typography.Link>
 
@@ -152,13 +158,24 @@ export const PublicServingOff = () => (
   </div>
 )
 
-export const PublicPageNotShared = () => (
+export const PublicPageNotShared = ({ subtitle }: { subtitle?: string }) => (
   <div className={styles.timeout} data-testid='public-page-not-shared'>
     <Result
       extra={<SignInLink />}
       status='info'
-      subTitle="It isn't shared with visitors who aren't signed in. If you have an account, sign in to open it."
+      subTitle={subtitle ?? "It isn't shared with visitors who aren't signed in. If you have an account, sign in to open it."}
       title="This page isn't public"
+    />
+  </div>
+)
+
+export const PublicPageUnavailable = ({ onRetry }: { onRetry: () => void }) => (
+  <div className={styles.timeout} data-testid='public-page-unavailable'>
+    <Result
+      extra={<Button onClick={onRetry} type='primary'>Retry</Button>}
+      status='info'
+      subTitle='Try again in a moment.'
+      title='This page is temporarily unavailable'
     />
   </div>
 )

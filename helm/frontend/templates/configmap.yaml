@@ -67,7 +67,10 @@ data:
     },
     "params":{
       "FRONTEND_NAMESPACE": "{{ .Release.Namespace }}",
-      "DELAY_SAVE_NOTIFICATION": "10000"
+      "DELAY_SAVE_NOTIFICATION": "10000",
+{{- /* The public-pages namespace (`publicNamespace`, values.yaml). `default ""` before quote: sprig's
+       quote renders nothing at all for a nil value, which would leave invalid JSON. */}}
+      "PUBLIC_NAMESPACE": {{ .Values.publicNamespace | default "" | quote }}
       }
 {{- /* Login-screen branding (ui/src/context/ConfigContext.tsx `login`). Each key is optional and
        off when unset: config.json carries a "login" object only when values set at least one key,

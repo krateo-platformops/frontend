@@ -218,6 +218,12 @@ export interface Config {
   params: {
     FRONTEND_NAMESPACE: string
     DELAY_SAVE_NOTIFICATION: string
+    /** The namespace a short public address (`/public/<slug>`) reads `flexes/page-<slug>` from
+     * (public/PublicPage.tsx). The chart renders it from its `publicNamespace` value, by
+     * convention `krateo-public`: an isolated namespace whose only grants are the public
+     * identity's. Optional because a chart older than this key does not render it; absent or
+     * empty, a short address opens nothing (and never falls back to FRONTEND_NAMESPACE). */
+    PUBLIC_NAMESPACE?: string
   }
   /** Optional login-screen branding. Fetched pre-auth (before any backend
    * identity), so it lives in the static config (ConfigMap-mountable per install)

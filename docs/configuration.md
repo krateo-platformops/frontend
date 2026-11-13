@@ -92,6 +92,28 @@ The SPA additionally understands optional keys not in the chart defaults —
 `params.FRONTEND_NAMESPACE` is rendered from the release namespace, and is the namespace
 convention pages (`flexes/page-<slug>`) resolve in.
 
+### The public-pages namespace (`.Values.publicNamespace`)
+
+A public page (`ui/src/public/PublicPage.tsx`) is rendered outside the signed-in shell, with no
+credential, and snowplow serves it as its public identity `krateo:public` (snowplow#1334). Which
+namespace it reads from depends on the address:
+
+- `/public/<slug>` reads `flexes/page-<slug>` in `params.PUBLIC_NAMESPACE`, which the chart renders
+  from the top-level `publicNamespace` value, `krateo-public` by default. It is an isolated
+  namespace whose only Role is the one that grants `krateo:public` its pages, so those grants
+  never live in the release namespace as `resourceNames` grants. The chart does not create the
+  namespace; the page set that ships a public page ships it.
+- `/public/<namespace>/<slug>` reads in the namespace the address names.
+
+`publicNamespace` must be a namespace name (the schema checks it) and has no schema default, so an
+unset key falls through to `values.yaml`. **If `config.json` has no `PUBLIC_NAMESPACE`** (an older
+chart under a newer image), or it is empty, a short address opens nothing and says the
+installation has no namespace set for public pages. It never falls back to `FRONTEND_NAMESPACE`:
+that would read public pages from the release namespace, `krateo-system`. The installer's
+`componentValues` schemas are closed: an install can override `publicNamespace` only once the
+installer declares it under `componentValues['frontend']`. `scripts/test_chart_params.py` (the
+`chart-render` job) renders the chart and checks the result.
+
 ### The login screen (`.Values.login`)
 
 The top-level `login` value is rendered as the `login` object of `config.json`, beside `api` and
