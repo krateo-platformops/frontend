@@ -249,7 +249,7 @@ export interface AgentikoIdentity {
 export interface PageContextEnvelope {
   /** Current route pathname. */
   route: string
-  /** Whitelisted URL params describing the current scope (status / range / q). */
+  /** The page's URL params, which the on-screen data was resolved from (filters, view, scope); see useAgentikoContext `collectExtras`. */
   extras?: Record<string, string>
   identity?: AgentikoIdentity
   /** The live on-screen widget inventory. */
