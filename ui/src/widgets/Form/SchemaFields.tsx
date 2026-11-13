@@ -19,8 +19,9 @@ import styles from './Form.module.css'
 import { FreeObjectListInput } from './FreeObjectListInput'
 import { JsonValueInput } from './JsonValueInput'
 import { OptionsInput } from './OptionsInput'
+import { presentationControlFor } from './presentationControls'
 import { type SchemaRoot, SchemaRootContext } from './schemaRoot'
-import { fieldLabel, hasValue, itemCountRules, requiredInGroup, rulesFor } from './schemaRules'
+import { fieldLabel, hasValue, itemCountRules, requiredInGroup, requiredMessageFor, rulesFor } from './schemaRules'
 import { FormRefsContext } from './useFieldOptions'
 import { useHiddenKeys } from './useHiddenKeys'
 import type { SuggestionGroup } from './utils'
@@ -248,6 +249,10 @@ const controlFor = (node: JSONSchema4, fieldPath: FieldPath = []): React.ReactNo
       />
     )
   }
+
+  // Labelled `oneOf` options (they win over a plain `enum`) and `textareas` — opt-in presentations.
+  const presented = presentationControlFor(node)
+  if (presented) { return presented }
 
   if (Array.isArray(node.enum)) {
     // `showSearch` because an enum is not always short — a server-side filter can hand this
@@ -491,7 +496,7 @@ interface SchemaFieldsProps {
 const fieldRules = (key: string, node: JSONSchema4, isRequired: boolean, fieldPath: FieldPath, group: FieldPath | undefined, registry?: OptionRegistry) => {
   const rules = rulesFor(key, node, isRequired && !group) ?? []
   if (isRequired && group) {
-    rules.unshift(requiredInGroup(fieldLabel(key, node), group))
+    rules.unshift(requiredInGroup(requiredMessageFor(key, node), group))
   }
   if (getFieldOptionsSpec(node)?.closed) {
     rules.push(closedOptionRule(fieldLabel(key, node), fieldPath, registry))

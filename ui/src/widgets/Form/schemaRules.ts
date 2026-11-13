@@ -1,9 +1,20 @@
 import type { Rule } from 'antd/es/form'
 import type { JSONSchema4 } from 'json-schema'
 
+import { REQUIRED_MESSAGE_KEY } from './fieldKeys'
+
 /** The name a person reads for a property: its `title`, falling back to the schema key. */
 export const fieldLabel = (key: string, node: JSONSchema4): string =>
   (typeof node.title === 'string' && node.title.trim() ? node.title : key)
+
+/**
+ * What a required field says when it is left empty: its `validationMessages` entry's
+ * `requiredMessage` (written on the node by fieldConfig.ts), else "<Label> is required".
+ */
+export const requiredMessageFor = (key: string, node: JSONSchema4): string => {
+  const custom: unknown = node[REQUIRED_MESSAGE_KEY]
+  return typeof custom === 'string' && custom ? custom : `${fieldLabel(key, node)} is required`
+}
 
 const isEmpty = (value: unknown): boolean =>
   value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)
@@ -20,10 +31,10 @@ export const hasValue = (value: unknown): boolean => {
  * object exists, so the field is owed once the object holds something and not before. Without
  * this, an optional object with a required field could not be left out of a form at all.
  */
-export const requiredInGroup = (label: string, group: Array<string | number>): Rule =>
+export const requiredInGroup = (message: string, group: Array<string | number>): Rule =>
   ({ getFieldValue }) => ({
     validator: (_rule, value: unknown) => (isEmpty(value) && hasValue(getFieldValue(group))
-      ? Promise.reject(new Error(`${label} is required`))
+      ? Promise.reject(new Error(message))
       : Promise.resolve()),
   })
 
@@ -93,7 +104,7 @@ export const rulesFor = (key: string, node: JSONSchema4, isRequired: boolean): R
   const rules: Rule[] = []
 
   if (isRequired) {
-    rules.push({ message: `${label} is required`, required: true })
+    rules.push({ message: requiredMessageFor(key, node), required: true })
   }
 
   if (node.type === 'string' || (node.type === undefined && typeof node.pattern === 'string')) {

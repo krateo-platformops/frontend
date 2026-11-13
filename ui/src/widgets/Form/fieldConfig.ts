@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 
 import { ROW } from './fieldDependencies'
-import { CHECK_KEY, CHECKBOX_KEY, HELP_KEY, INTERNAL_KEYS, OPTIONS_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
+import { CHECK_KEY, CHECKBOX_KEY, HELP_KEY, INTERNAL_KEYS, OPTIONS_KEY, REQUIRED_MESSAGE_KEY, ROW_TITLE_KEY, SUGGESTIONS_KEY, TEXTAREA_KEY, VISIBLE_WHEN_KEY } from './fieldKeys'
 
 /**
  * The field configuration of a schema form, as `widgetData` carries it — the format of the
@@ -25,6 +25,10 @@ import { CHECK_KEY, CHECKBOX_KEY, HELP_KEY, INTERNAL_KEYS, OPTIONS_KEY, ROW_TITL
  *   - { name: phone, text: Start with + and your country code. }
  * fieldChecks:             # a check against an allow-listed endpoint while typing (fieldCheck.tsx)
  *   - { name: username, path: /intake/checks, answers: [...], otherwise: {...} }
+ * textareas:               # a string drawn as a multi-line TextArea
+ *   - { name: description, rows: 4 }
+ * validationMessages:      # the message a required field shows when left empty
+ *   - { name: email, requiredMessage: Enter your email address. }
  * ```
  *
  * `name`, `path` and `dependsOn.name` are dotted paths from the root of the form. A path goes
@@ -214,6 +218,20 @@ export const applyFieldConfig = (schema: JSONSchema4 | undefined, config: Raw): 
     if (typeof entry.timeoutMs === 'number') { spec.timeoutMs = entry.timeoutMs }
     if (isRecord(entry.otherwise)) { spec.otherwise = entry.otherwise }
     node[CHECK_KEY] = spec
+  }
+
+  // A textarea is a way to draw free text: a string with no list of values. Any other is skipped.
+  for (const entry of entries(config.textareas)) {
+    const node = at(entry.name)
+    if (node?.type !== 'string' || Array.isArray(node.enum) || Array.isArray(node.oneOf)) { continue }
+    node[TEXTAREA_KEY] = typeof entry.rows === 'number' ? { rows: entry.rows } : {}
+  }
+
+  // The message a required field shows when it is left empty, in place of "<Label> is required".
+  for (const entry of entries(config.validationMessages)) {
+    const node = at(entry.name)
+    const requiredMessage = text(entry.requiredMessage)
+    if (node && requiredMessage) { node[REQUIRED_MESSAGE_KEY] = requiredMessage }
   }
 
   return root
