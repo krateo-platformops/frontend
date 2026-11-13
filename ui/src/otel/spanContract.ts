@@ -289,8 +289,10 @@ const spanUnder = (span: Pick<ReadableSpan, 'attributes'>, prefix: string | null
 
 /**
  * `http.route` on every `krateo.agentiko.a2a` span: ALWAYS this literal template, never the
- * concrete path. snowplow refuses a concrete route (snowplow#1398), and every distinct value would
- * be its own metric series. The concrete path also names the namespace and the agent, which the
+ * concrete path. THIS constant is the guarantee: snowplow's ingest (snowplow#1398/#1403) checks the
+ * route's SYNTAX only — no query string, no %-escapes, no token-shaped segment, absolute path — so it
+ * would accept a concrete `/api/a2a/<ns>/<agent>`; it does not enforce the template. And every
+ * distinct value would be its own metric series. The concrete path also names the namespace and the agent, which the
  * template deliberately does not. The same value whether the configured base is the gateway's
  * `…/api/a2a/<ns>/<agent>` or the same-origin nginx location `/<agent>`, because nginx rewrites the
  * latter to the former and the template describes the request the gateway serves.
