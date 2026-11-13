@@ -35,7 +35,7 @@ import { ListView } from './ListView'
 
 const items = [
   { active: true, count: 4, desc: 'First', name: 'alpha', state: 'Ready', to: '/a' },
-  { count: 0, desc: 'Second', name: 'beta', removable: true, state: 'Failed', to: '/b' },
+  { count: 0, desc: 'Second', name: 'beta', state: 'Failed', to: '/b' },
   { name: 'gamma', state: 'Unknown' },
 ]
 
@@ -67,7 +67,7 @@ describe('ListView variants render as they did before statistic / removable', ()
     expect(container.innerHTML).toMatchSnapshot()
   })
 
-  it('chip row (an item carrying `removable` is still a plain chip today)', () => {
+  it('chip row', () => {
     const { container } = renderList({ navigateTo: '{to}', primaryText: '{name}', rowVariant: 'chip' })
     expect(container.innerHTML).toMatchSnapshot()
   })
