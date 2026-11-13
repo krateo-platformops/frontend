@@ -13,6 +13,7 @@ import { useWidgetScope } from '../context/WidgetScopeContext'
 import { type TransportFetch, useWidgetTransport } from '../transport/widgetTransport'
 import type { Widget } from '../types/Widget'
 import { getUserInfo } from '../utils/getUserInfo'
+import { getCallReadQuery, getExportEndpoint } from '../utils/utils'
 
 import type { WatchMatcher } from './liveRefresh'
 import { getRefreshEntry, isWidgetLiveRefreshEnabled, recordRefreshHeaders, wasRefetchEventTriggered } from './refreshSse'
@@ -317,6 +318,8 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, callerExtras, fragmentExtras)
 
   const widgetFullUrl = `${config!.api.SNOWPLOW_API_BASE_URL}${widgetEndpoint}`
+  // The widget's `/call` query, for its export (`exportRequestFor`); null when it is not a /call read.
+  const exportReadQuery = getCallReadQuery(widgetEndpoint)
   const requestUrl = new URL(widgetFullUrl)
 
   // Per-widget live-refresh (snowplow `/refreshes` SSE). The `widgetId` is the
@@ -579,27 +582,25 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
      *    as an export that stops at a row bound without saying so.
      *  - `page`/`perPage` are NOT carried. snowplow re-dispatches the read with its own
      *    `page=N&perPage=500` walk and concatenates the pages, so the export covers every row
-     *    rather than the slice on screen. Sending a page would fight that walk.
+     *    rather than the slice on screen. Sending a page would fight that walk. That includes a
+     *    window the widget endpoint itself carries (a ref's `slice`): getExportEndpoint drops it.
      */
-    exportRequestFor: (exportQuery: string): { url: string; extras: string | null } => {
-      // A FRESH URL: `requestUrl` is mutated by fetchWidget (page/perPage/extras), so reusing it
-      // here would inherit whichever page was fetched last.
-      const url = new URL(widgetFullUrl)
-      // `extras` is NOT put on the URL. snowplow's POST /export takes it in the body
-      // (`{"extras": …}`, the same envelope and decoder as POST /call/read), which removes the URL
-      // length ceiling a large filter would otherwise hit — a Marketplace facet selection with
-      // many chips is the realistic case. A stray `?extras=` on a POST is ignored by snowplow, so
-      // sending it in both places would be silently redundant rather than harmlessly belt-and-braces.
-      //
-      // Everything else stays on the query: the widget's own identifying params from
-      // `widgetFullUrl`, plus the export's (`format`, `path`, `fields`, repeated `header`, `title`).
-      // `page`/`perPage` are still omitted — snowplow re-dispatches with its own perPage=500 walk
-      // and concatenates, so the export covers every row rather than the slice on screen.
-      const query = url.searchParams.toString()
-      return {
+    exportRequestFor: exportReadQuery === null
+      ? undefined
+      : (exportQuery: string): { url: string; extras: string | null } => ({
+        // `extras` is NOT put on the URL. snowplow's POST /export takes it in the body
+        // (`{"extras": …}`, the same envelope and decoder as POST /call/read), which removes the URL
+        // length ceiling a large filter would otherwise hit — a Marketplace facet selection with
+        // many chips is the realistic case. A stray `?extras=` on a POST is ignored by snowplow, so
+        // sending it in both places would be silently redundant rather than harmlessly belt-and-braces.
         extras: extrasParam || null,
-        url: `${url.origin}${url.pathname}?${query ? `${query}&` : ''}${exportQuery}`,
-      }
-    },
+        // The PATH is snowplow's /export, not the widget's /call: a POST to /call is snowplow's write
+        // passthrough (a create on the widget's resource, answered 400 by the apiserver). Everything
+        // else stays on the query: the widget's own identifying params, verbatim from its endpoint
+        // (NOT from `requestUrl`, which fetchWidget mutates with page/perPage/extras) less any
+        // page/perPage window the endpoint itself carries (getExportEndpoint), plus the export's
+        // (`format`, `path`, `fields`, repeated `header`, `title`).
+        url: `${config!.api.SNOWPLOW_API_BASE_URL}${getExportEndpoint(exportReadQuery, exportQuery)}`,
+      }),
   }
 }

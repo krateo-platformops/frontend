@@ -551,6 +551,9 @@ spec:
                     prefix:
                       description: it's the filters prefix to get right values
                       type: string
+                    resizableColumns:
+                      description: Whether the reader can resize the columns by dragging the right edge of a header (or with the arrow keys on its handle). On when omitted; set false to keep the columns at the widths the table lays out. Widths a reader set are remembered per viewer in the browser, and ignored while this is false.
+                      type: boolean
                     rowActions:
                       description: 'per-row action controls, rendered in a trailing column of each row as a kebab (⋯) menu or as buttons (see rowActionsDisplay) — the same field List takes as itemTemplate.rowActions. Each entry references an action id from widgetData.actions and is fired with the row''s values as the action payload (customPayload): an object of each cell''s valueKey to its value, so a navigate path of /x/${name} goes to that row''s `name` cell. A click or key on a control never fires the row''s rowNavigateTo, which keeps working everywhere else on the row.'
                       items:

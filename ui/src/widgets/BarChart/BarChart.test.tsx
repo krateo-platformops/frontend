@@ -18,6 +18,14 @@ vi.mock('@ant-design/plots', () => ({
     return null
   },
 }))
+/**
+ * The chart's container is observed (`useAutoFitChart` → `useMeasuredWidth` → ResizeObserver, the
+ * #603 re-fit) and jsdom provides no ResizeObserver, so the observer would throw on mount. Nothing
+ * here is about sizing — that is pinned in useAutoFitChart.test — so the measurement is stubbed.
+ */
+vi.mock('../../hooks/useMeasuredWidth', () => ({
+  useMeasuredWidth: () => ({ ref: () => undefined, width: 600 }),
+}))
 
 import BarChart from './BarChart'
 import type { BarChartWidgetData } from './BarChart'
