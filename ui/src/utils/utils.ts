@@ -23,6 +23,14 @@ export const getEndpointUrl = (resourceRefId: string, resourcesRefs: ResourcesRe
   return backendEndpoint?.path
 }
 
+/** snowplow's read route: a widget's endpoint is a `GET /call` read (getResourceEndpoint, or a
+ * resourcesRefs `path` snowplow emitted), relative to `SNOWPLOW_API_BASE_URL`. */
+export const SNOWPLOW_CALL_PATH = '/call'
+
+/** snowplow's export route (`POST /export`, snowplow#970), mounted on the same mux as `/call`, so a
+ * sibling of it under `SNOWPLOW_API_BASE_URL`. A POST to `/call` itself is the WRITE passthrough. */
+export const SNOWPLOW_EXPORT_PATH = '/export'
+
 export const getResourceEndpoint = ({
   apiVersion,
   name,
@@ -38,7 +46,32 @@ export const getResourceEndpoint = ({
 }): string => {
   const ns = namespace ? `&namespace=${namespace}` : ''
 
-  return `/call?resource=${resource}&apiVersion=${apiVersion}&name=${name}${ns}`
+  return `${SNOWPLOW_CALL_PATH}?resource=${resource}&apiVersion=${apiVersion}&name=${name}${ns}`
+}
+
+/**
+ * The query of a `/call` read endpoint (`resource`, `apiVersion`, `name`, `namespace`, and whatever
+ * else it carries), verbatim — or null when `endpoint` is not a `/call` read.
+ */
+export const getCallReadQuery = (endpoint: string): string | null => {
+  const queryStart = endpoint.indexOf('?')
+  const path = queryStart === -1 ? endpoint : endpoint.slice(0, queryStart)
+
+  return path === SNOWPLOW_CALL_PATH ? endpoint.slice(path.length + 1) : null
+}
+
+/**
+ * The endpoint that exports a `/call` read: the read's own query (`getCallReadQuery`), untouched,
+ * on snowplow's export route, followed by `exportQuery` (widgets/Table/tableExport.ts).
+ *
+ * snowplow's export strips its own parameters and re-dispatches the request through the `/call`
+ * read lane with every other one, so the read's identifying parameters must arrive exactly as the
+ * read sends them.
+ */
+export const getExportEndpoint = (readQuery: string, exportQuery: string): string => {
+  const query = [readQuery, exportQuery].filter((part) => part.length > 0).join('&')
+
+  return `${SNOWPLOW_EXPORT_PATH}${query ? `?${query}` : ''}`
 }
 
 export const formatISODate = (value: string, showTime: boolean = false) => {

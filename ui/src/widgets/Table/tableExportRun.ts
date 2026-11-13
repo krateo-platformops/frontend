@@ -71,7 +71,8 @@ const messageOf = async (response: Response): Promise<string> => {
 /**
  * Fetch an export and deliver it, returning what the caller must tell the person.
  *
- * `url` is the full widget URL with the export query already on it (`buildExportRequest`).
+ * `url` is the full snowplow `/export` URL — the widget's `/call` query with the export query
+ * (`buildExportRequest`) after it — as `exportRequestFor` builds it (hooks/useWidgetQuery.ts).
  */
 export const runExport = async (url: string, extras: string | null, format: ExportFormat, filename: string, transport: ExportTransport = {}): Promise<ExportOutcome> => {
   const doFetch = transport.fetch ?? anonymousFetch

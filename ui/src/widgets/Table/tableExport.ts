@@ -1,11 +1,15 @@
 /**
  * The export request a Table makes, and the contract it has to satisfy (snowplow#980, 1.12.62).
  *
- * The export targets the WIDGET endpoint, not a route of its own: snowplow re-dispatches the
- * widget's own read with its own `page=N&perPage=500` walk and concatenates the pages, so the
- * export sees every row rather than the slice on screen. The frontend's job is to say WHICH cells
- * to take and WHAT to call them, and both come from the Table's `columns` — the widget is the only
- * thing that knows them.
+ * The export targets the WIDGET, not a resource list of its own: the request is snowplow's
+ * `POST /export` (a sibling of `/call` under the snowplow base URL, never `/call` itself — a POST
+ * there is the write passthrough) carrying the widget's own `/call` query (`resource`,
+ * `apiVersion`, `name`, `namespace`) plus this module's export query, with `extras` in the body
+ * (utils/utils.ts `getExportEndpoint`, hooks/useWidgetQuery.ts `exportRequestFor`). snowplow
+ * re-dispatches the widget's own read with its own `page=N&perPage=500` walk and concatenates the
+ * pages, so the export sees every row rather than the slice on screen. The frontend's job is to say
+ * WHICH cells to take and WHAT to call them, and both come from the Table's `columns` — the widget
+ * is the only thing that knows them.
  *
  * WHAT SNOWPLOW REFUSES, so this never sends it:
  *   - `header` without `fields` — a 400;
