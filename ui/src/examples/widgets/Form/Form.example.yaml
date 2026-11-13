@@ -306,7 +306,8 @@ spec:
 ---
 # Schema-driven Form with the input options: `noticeVariant: text` draws the notice as a muted line
 # (it goes with the form when a Result replaces it), `fieldInputs` gives fields a placeholder, an
-# HTML input type and an autocomplete token (one of the HTML autofill field names), and
+# HTML input type, an autocomplete token (one of the HTML autofill field names), and whether the
+# browser spell-checks and capitalises it (`spellCheck`, `autoCapitalize`), and
 # `hasFeedback: none` turns off the feedback icons. With an input `type`, the form sets novalidate,
 # so its own rules report under the fields.
 kind: Form
@@ -326,7 +327,7 @@ spec:
       primary: { label: Join, block: true, size: large }
       secondary: { hidden: true }
     fieldInputs:
-      - { name: fullName, autoComplete: name }
+      - { name: fullName, autoComplete: name, spellCheck: false, autoCapitalize: words }
       - { name: email, type: email, autoComplete: email, placeholder: jane@example.com }
       - { name: phone, type: tel, autoComplete: tel, placeholder: "+39 …" }
       - { name: country, placeholder: Search for your country }

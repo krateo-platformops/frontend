@@ -432,7 +432,8 @@ spec:
 # top (logo and alt from the frontend's config.login, never from the CR) and the sign-in card's
 # radius, elevation and padding. A Form inside draws its `title` as the page heading with
 # "to Krateo PlatformOps · <login.installationName>" under it, and both go when a Result replaces
-# the form.
+# the form. At 480px and under the centred, capped card fills the width with no border, radius or
+# shadow (on a public page, which drops its gutter there, edge to edge).
 kind: Card
 apiVersion: widgets.templates.krateo.io/v1beta1
 metadata:

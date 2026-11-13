@@ -157,10 +157,11 @@ spec:
       ---
       Fine documento.
 ---
-# Centred line
-# Target: a short line aligned under a narrow, centred card.
-# Expected behavior: the text and its link are centred; without `align` the text keeps the
-# alignment it inherits.
+# Centred, muted line
+# Target: a short line under a narrow, centred card.
+# Expected behavior: the text and its link are centred (`align`), in the secondary text colour at
+# the small size (`tone: secondary`). "Sign in" is a path of this app, so it opens in the same
+# tab through the router; a link to another origin or a mailto: opens in a new tab.
 kind: Markdown
 apiVersion: widgets.templates.krateo.io/v1beta1
 metadata:
@@ -170,3 +171,4 @@ spec:
   widgetData:
     markdown: "Already have an account? [Sign in](/login)"
     align: center
+    tone: secondary
