@@ -169,8 +169,10 @@ GROUP BY SpanAttributes['krateo.agentiko.claim.family'], SpanAttributes['krateo.
 
 ## The A2A span: `krateo.agentiko.a2a`
 
-Outside the SLI. One span per request the portal makes to Agentiko's A2A endpoint
-(`AGENTIKO_API_BASE_URL`, e.g. `https://portal.krateo.dev/api/a2a/krateo-system/agentiko`). It is
+Outside the SLI. One span per JSON-RPC call the portal makes to Agentiko's A2A endpoint
+(`AGENTIKO_API_BASE_URL`, e.g. `https://portal.krateo.dev/api/a2a/krateo-system/agentiko`): a
+`POST` under that base. The rail's availability probe — a `GET` of the same base on every page
+load and window focus — is not an agent call, and stays dropped exactly as before. It is
 **the fetch instrumentation's own span**, renamed by `ContractSpanProcessor` — not a second span.
 So its context is the `traceparent` the request carried, and the gateway's `POST /api/a2a/*` span,
 whose parent it already was, now has that parent stored: one trace shows the portal's request →
@@ -195,10 +197,10 @@ duration claims.
 
 | attribute | value |
 |---|---|
-| `http.request.method` | as recorded: `POST` for JSON-RPC calls (`GET` for the rail's availability probe) |
+| `http.request.method` | `POST` — the only method that becomes this span |
 | `http.response.status_code` | as recorded; `0` when the request or its body failed (above) |
 | `http.route` | always the literal template `/api/a2a/{namespace}/{agent}` — never the concrete path, which snowplow refuses |
-| `krateo.a2a.method` | the JSON-RPC method, only when it is `message/stream`, `message/send` or `tasks/get`; **absent** otherwise |
+| `krateo.a2a.method` | the JSON-RPC method, only when it is `message/stream`, `message/send`, `tasks/get` or `tasks/resubscribe`; **absent** otherwise |
 
 Those four and nothing else — an allowlist (`a2aAttributesOf`), so an attribute a future
 instrumentation adds is not exported by default. `url.full` goes (it names the namespace and the
@@ -206,10 +208,11 @@ agent), as do `server.address`, `server.port`, `error.type` and `http.request.me
 Headers and the body never become attributes.
 
 `krateo.a2a.method` is a **closed enum** on snowplow's side, which drops and counts any other
-value, so the browser omits it rather than sending one: `tasks/resubscribe` (the transport's
-resume of a dropped stream) and the availability probe's GET export the span without it. It is
-therefore present on some spans of this name and absent on others — do not make it a
-`span_metrics` dimension. The transport sets it on the active context around its `fetch`
+value, so the browser omits it rather than sending one: a call whose method is outside the four
+is still exported, without it. `tasks/resubscribe` is in the enum because the transport really
+sends it, to resume a dropped stream. Today every call the transport makes carries one of the
+four, but the key is optional by contract, so do not make it a `span_metrics` dimension that
+assumes it is always present. The transport sets it on the active context around its `fetch`
 (`withA2aMethod`), and `onStart` reads it from the parent context the SDK passes; the request
 body, which is the user's message, is never read for it.
 

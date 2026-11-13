@@ -16,7 +16,7 @@
  * No session, token or credential is involved: the transport's Bearer helper finds no stored
  * session and sends no Authorization header.
  */
-import { context, propagation, trace } from '@opentelemetry/api'
+import { context, propagation, SpanStatusCode, trace } from '@opentelemetry/api'
 import { W3CTraceContextPropagator } from '@opentelemetry/core'
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch'
 import { WebTracerProvider, type ReadableSpan, type SpanProcessor } from '@opentelemetry/sdk-trace-web'
@@ -79,7 +79,8 @@ const recorder = (): SpanProcessor => ({
 const install = (a2aPrefix: string | null) => {
   globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     sent.push({ headers: new Headers(init?.headers), url: String(input) })
-    return Promise.resolve(respond())
+    // Through `.then`, so a `respond` that throws is a REJECTED fetch, as a network failure is.
+    return Promise.resolve().then(respond)
   }) as typeof fetch
   const provider = new WebTracerProvider({
     spanProcessors: [new ContractSpanProcessor(recorder(), SNOWPLOW, a2aPrefix)],
@@ -174,22 +175,24 @@ describe('the A2A span is exported as krateo.agentiko.a2a', () => {
 })
 
 describe('krateo.a2a.method is a CLOSED enum: set only for an agreed value, else omitted', () => {
-  it('names exactly the three values snowplow accepts', () => {
-    expect([...A2A_METHODS].sort()).toEqual(['message/send', 'message/stream', 'tasks/get'])
+  it('names exactly the four values snowplow accepts', () => {
+    expect([...A2A_METHODS].sort()).toEqual(['message/send', 'message/stream', 'tasks/get', 'tasks/resubscribe'])
   })
 
-  it('records message/send and tasks/get, which the context carries to the span', async () => {
+  it('records each of them — the context carries the method to the span', async () => {
     install(A2A_BASE)
-    await withA2aMethod('message/send', () => fetch(`${A2A_BASE}/`, { method: 'POST' }))
-    await withA2aMethod('tasks/get', () => fetch(`${A2A_BASE}/`, { method: 'POST' }))
-    await vi.waitFor(() => { expect(recorded).toHaveLength(2) }, { timeout: 3000 })
+    for (const method of ['message/send', 'tasks/get', 'tasks/resubscribe']) {
+      // eslint-disable-next-line no-await-in-loop -- one request at a time, so the spans keep their order
+      await withA2aMethod(method, () => fetch(`${A2A_BASE}/`, { method: 'POST' }))
+    }
+    await vi.waitFor(() => { expect(recorded).toHaveLength(3) }, { timeout: 3000 })
 
-    expect(recorded.map((span) => span.attributes[ATTR_A2A_METHOD])).toEqual(['message/send', 'tasks/get'])
+    expect(recorded.map((span) => span.attributes[ATTR_A2A_METHOD])).toEqual(['message/send', 'tasks/get', 'tasks/resubscribe'])
   })
 
-  it('OMITS any other method — tasks/resubscribe, which the transport really sends — and still exports the span', async () => {
+  it('OMITS any other method, and still exports the span', async () => {
     install(A2A_BASE)
-    await withA2aMethod('tasks/resubscribe', () => fetch(`${A2A_BASE}/`, { method: 'POST' }))
+    await withA2aMethod('tasks/cancel', () => fetch(`${A2A_BASE}/`, { method: 'POST' }))
     await settled()
 
     expect(recorded).toHaveLength(1)
@@ -198,17 +201,33 @@ describe('krateo.a2a.method is a CLOSED enum: set only for an agreed value, else
     expect(recorded[0].attributes[ATTR_HTTP_ROUTE]).toBe(A2A_ROUTE)
   })
 
-  it('omits it when no method is on the context (the availability probe GET)', async () => {
+  it('omits it when no method is on the context at all', async () => {
     install(A2A_BASE)
-    await fetch(`${A2A_BASE}/`, { method: 'GET' })
+    await fetch(`${A2A_BASE}/`, { method: 'POST' })
     await settled()
 
     expect(recorded[0].name).toBe(COUNTED_SPAN_NAMES.agentikoA2a)
     expect(recorded[0].attributes).toEqual({
-      [ATTR_HTTP_REQUEST_METHOD]: 'GET',
+      [ATTR_HTTP_REQUEST_METHOD]: 'POST',
       [ATTR_HTTP_RESPONSE_STATUS_CODE]: 200,
       [ATTR_HTTP_ROUTE]: A2A_ROUTE,
     })
+  })
+})
+
+describe('only the agent\'s JSON-RPC calls — POSTs — become the A2A span', () => {
+  it('the rail\'s availability probe, a GET of the same base, is NOT exported', async () => {
+    install(A2A_BASE)
+    // The probe's own call shape (availability.ts): a GET of `<base>/`, no method on the context.
+    await fetch(`${A2A_BASE}/`, { method: 'GET' })
+    // Then a real turn in the same harness, so "nothing recorded" cannot be a dead recorder.
+    await sendTurn()
+    await settled()
+    await new Promise((resolve) => { setTimeout(resolve, 400) })
+
+    expect(sent.map(({ url }) => url)).toEqual([`${A2A_BASE}/`, `${A2A_BASE}/`])
+    expect(recorded).toHaveLength(1)
+    expect(recorded[0].attributes[ATTR_HTTP_REQUEST_METHOD]).toBe('POST')
   })
 })
 
@@ -238,9 +257,12 @@ describe('where the span ENDS, pinned against the installed library', () => {
     stream.close()
     await settled()
     expect(recorded[0].name).toBe(COUNTED_SPAN_NAMES.agentikoA2a)
+    // The must-NOT-fire case: a turn that completed is not an error.
+    expect(recorded[0].status.code).toBe(SpanStatusCode.UNSET)
+    expect(recorded[0].attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBe(200)
   })
 
-  it('a stream that errors mid-way ends the span then, with status code 0 although a 200 arrived', async () => {
+  it('a stream that errors mid-way ends the span then — ERROR, and NO status code although a 200 arrived', async () => {
     install(A2A_BASE)
     const stream = openStream()
     respond = stream.response
@@ -248,7 +270,31 @@ describe('where the span ENDS, pinned against the installed library', () => {
     stream.error()
     await settled()
 
-    expect(recorded[0].attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBe(0)
+    // instrumentation-fetch records 0 here and leaves the status UNSET; snowplow accepts 100–599 only,
+    // and 0 is the absence of a status, so the export carries the failure as ERROR instead.
+    expect(ATTR_HTTP_RESPONSE_STATUS_CODE in recorded[0].attributes).toBe(false)
+    expect(recorded[0].status.code).toBe(SpanStatusCode.ERROR)
+    expect(recorded[0].attributes[ATTR_A2A_METHOD]).toBe('message/stream')
+  })
+
+  it('a request that never got a response (network failure) is the same: ERROR, no status code', async () => {
+    install(A2A_BASE)
+    respond = () => { throw new TypeError('Failed to fetch') }
+    await expect(withA2aMethod('message/stream', () => fetch(`${A2A_BASE}/`, { method: 'POST' }))).rejects.toThrow()
+    await settled()
+
+    expect(ATTR_HTTP_RESPONSE_STATUS_CODE in recorded[0].attributes).toBe(false)
+    expect(recorded[0].status.code).toBe(SpanStatusCode.ERROR)
+  })
+
+  it('a real HTTP failure keeps its status code, and the library\'s own ERROR', async () => {
+    install(A2A_BASE)
+    respond = () => new Response('upstream down', { status: 503 })
+    await withA2aMethod('message/stream', () => fetch(`${A2A_BASE}/`, { method: 'POST' }))
+    await settled()
+
+    expect(recorded[0].attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBe(503)
+    expect(recorded[0].status.code).toBe(SpanStatusCode.ERROR)
   })
 })
 

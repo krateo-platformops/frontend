@@ -26,7 +26,15 @@
  * and is what actually means "this is an HTTP client span". Matching the attribute cannot drift
  * with a naming change, which is why the next bump will not repeat this.
  */
-import { context, createContextKey, type Attributes, type Context, type Span as ApiSpan } from '@opentelemetry/api'
+import {
+  context,
+  createContextKey,
+  SpanStatusCode,
+  type Attributes,
+  type Context,
+  type Span as ApiSpan,
+  type SpanStatus,
+} from '@opentelemetry/api'
 import type { ReadableSpan, Span, SpanProcessor } from '@opentelemetry/sdk-trace-web'
 import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_RESPONSE_STATUS_CODE, ATTR_HTTP_ROUTE, ATTR_URL_FULL } from '@opentelemetry/semantic-conventions'
 // `http.url` is deprecated AND experimental on semconv's own surface, hence the `/incubating`
@@ -66,9 +74,9 @@ export type SpanName = typeof SPAN_NAMES[keyof typeof SPAN_NAMES]
  * names it, and drops it until then (per span, as `dropped_name`: the rest of the batch is
  * unaffected).
  *
- * `krateo.agentiko.a2a` — one portal → Agentiko A2A request: the auto fetch span ITSELF, renamed by
- * `ContractSpanProcessor` when its URL sits under the configured A2A base (`AGENTIKO_API_BASE_URL`,
- * same-origin only — see `agentikoA2aPrefixOf` in tracing.ts). Because it is the same span, its
+ * `krateo.agentiko.a2a` — one portal → Agentiko JSON-RPC call: the auto fetch span ITSELF, renamed
+ * by `ContractSpanProcessor` when it is a POST whose URL sits under the configured A2A base
+ * (`AGENTIKO_API_BASE_URL`, same-origin only — see `agentikoA2aPrefixOf` in tracing.ts). Because it is the same span, its
  * context IS the `traceparent` the request carried, so the gateway's `POST /api/a2a/*` span finds
  * its parent stored instead of dangling. No separate span is started. Its attributes are exactly
  * the ones `a2aAttributesOf` keeps. Name, attributes and values agreed with snowplow 2026-11
@@ -290,11 +298,20 @@ export const ATTR_A2A_METHOD = 'krateo.a2a.method'
 
 /**
  * The values `krateo.a2a.method` may carry: a CLOSED enum agreed with snowplow (snowplow#1398),
- * which drops and counts any other value. So any other method — `tasks/resubscribe`, which the
- * transport sends to resume a dropped stream, or a method a future transport adds — is OMITTED
- * rather than sent, and the span is still exported without it.
+ * which drops and counts any other value. `tasks/resubscribe` is in it because the transport really
+ * sends it, to resume a dropped stream (#106). Any other method — one a future transport adds — is
+ * OMITTED rather than sent, and the span is still exported without it. Adding a value here without
+ * snowplow adding it too sends a value the ingest drops and counts.
  */
-export const A2A_METHODS: ReadonlySet<string> = new Set(['message/send', 'message/stream', 'tasks/get'])
+export const A2A_METHODS: ReadonlySet<string> = new Set(['message/send', 'message/stream', 'tasks/get', 'tasks/resubscribe'])
+
+/**
+ * Only the agent's JSON-RPC calls are A2A spans, and every one of them is a POST. Anything else
+ * under the A2A base — the rail's availability probe, a GET on every page load and window focus —
+ * is not an agent turn, and is left exactly as before: renamed `krateo.widget.fetch` and dropped at
+ * `onEnd` for not being under the snowplow base.
+ */
+const A2A_HTTP_METHOD = 'POST'
 
 /**
  * Where the transport's JSON-RPC method travels to the processor: the ACTIVE CONTEXT at the moment
@@ -322,12 +339,22 @@ const a2aMethodOf = (ctx: Context): string | null => {
 }
 
 /** The attributes copied from the span as the instrumentation recorded them. */
-const A2A_COPIED = [ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_RESPONSE_STATUS_CODE] as const
+const A2A_COPIED = [ATTR_HTTP_REQUEST_METHOD] as const
+
+/**
+ * A status code an HTTP response can carry: 100–599, which is also what snowplow's ingest accepts.
+ *
+ * What it rules out in practice is the 0 instrumentation-fetch writes when NO complete response was
+ * read: a network failure, or a body that errored or was aborted mid-stream (its error path calls
+ * `_endSpan` with `status: error.status || 0`). That 0 is not a status, it is the absence of one.
+ */
+const isHttpStatus = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 100 && value <= 599
 
 /**
  * The ONLY attributes a `krateo.agentiko.a2a` span exports: `http.request.method`,
- * `http.response.status_code`, `http.route` (the template) and, when it is an agreed value,
- * `krateo.a2a.method`.
+ * `http.response.status_code` (only when it is an HTTP status — see `a2aStatusOf`), `http.route`
+ * (the template) and, when it is an agreed value, `krateo.a2a.method`.
  *
  * An ALLOWLIST, built fresh, rather than a list of things to strip. Everything else the
  * instrumentation recorded goes: `url.full` (it names the namespace and agent; `redactUrlAttributes`
@@ -343,6 +370,10 @@ export const a2aAttributesOf = (attributes: Attributes): Attributes => {
       kept[key] = attributes[key]
     }
   }
+  const status = attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]
+  if (isHttpStatus(status)) {
+    kept[ATTR_HTTP_RESPONSE_STATUS_CODE] = status
+  }
   const method = attributes[ATTR_A2A_METHOD]
   if (typeof method === 'string' && A2A_METHODS.has(method)) {
     kept[ATTR_A2A_METHOD] = method
@@ -351,14 +382,34 @@ export const a2aAttributesOf = (attributes: Attributes): Attributes => {
 }
 
 /**
- * The same ended span with only `attributes` replaced. Everything else — above all `spanContext`,
- * which is the traceparent the request carried, and the parent — is the original's, read through.
+ * The span status a `krateo.agentiko.a2a` span exports: `ERROR` when no HTTP status was recorded
+ * (the 0 above, whose attribute `a2aAttributesOf` omits), otherwise the instrumentation's own.
+ *
+ * WHY THIS IS SET HERE AND NOT LEFT TO THE LIBRARY: instrumentation-fetch 0.223 sets `ERROR` only for
+ * `status >= 400`, so its 0 arrives with the status UNSET — a turn that never completed would read
+ * as a success with no status code. That is the shape the consumer reads as success. `ERROR` with no
+ * status code is the shape it reads as a failure ("5xx, or ERROR with no status code",
+ * docs/observability.md), which is what an unfinished request is. The user aborting the turn lands
+ * here too: the request did not complete, whoever stopped it.
+ *
+ * Only for this span. widget.fetch carries the same 0 from the same library path, but it is in the
+ * SLI set, and turning its 0s into ERROR would move the error rate — a separate decision.
+ */
+const a2aStatusOf = (span: ReadableSpan): SpanStatus =>
+  isHttpStatus(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]) ? span.status : { code: SpanStatusCode.ERROR }
+
+/**
+ * The same ended span with only `attributes` and `status` replaced. Everything else — above all
+ * `spanContext`, which is the traceparent the request carried, and the parent — is the original's,
+ * read through. This copy is the only way to change either: by `onEnd` the span is a read-only
+ * `ReadableSpan`, and the 0 is written after the last hook that could still mutate it
+ * (`applyCustomAttributesOnSpan` runs before `_endSpan` adds the final attributes).
  *
  * Every `ReadableSpan` field is written out, so if the SDK adds one this stops COMPILING rather than
  * exporting a span with the new field silently missing.
  */
-const withAttributes = (span: ReadableSpan, attributes: Attributes): ReadableSpan => ({
-  attributes,
+const a2aExportOf = (span: ReadableSpan): ReadableSpan => ({
+  attributes: a2aAttributesOf(span.attributes),
   droppedAttributesCount: span.droppedAttributesCount,
   droppedEventsCount: span.droppedEventsCount,
   droppedLinksCount: span.droppedLinksCount,
@@ -374,7 +425,7 @@ const withAttributes = (span: ReadableSpan, attributes: Attributes): ReadableSpa
   resource: span.resource,
   spanContext: () => span.spanContext(),
   startTime: span.startTime,
-  status: span.status,
+  status: a2aStatusOf(span),
 })
 
 /**
@@ -391,8 +442,9 @@ const withAttributes = (span: ReadableSpan, attributes: Attributes): ReadableSpa
  * prefix `https://portal.krateo.dev/content` is what identifies a snowplow call. It is the same
  * derivation the propagator uses, so "we propagate here" and "we export from here" cannot drift.
  *
- * AND renames auto-instrumented portal → Agentiko A2A requests to `krateo.agentiko.a2a`: the same
- * attribute test, a URL under `agentikoA2aPrefix` instead. That prefix is null — and A2A requests
+ * AND renames auto-instrumented portal → Agentiko JSON-RPC calls to `krateo.agentiko.a2a`: the
+ * same attribute test, a POST to a URL under `agentikoA2aPrefix` instead (a GET there, the rail's
+ * availability probe, is not a call and stays dropped). That prefix is null — and A2A requests
  * stay exactly as before, renamed `krateo.widget.fetch` and dropped at `onEnd` for not being under
  * the snowplow base — when no A2A base is configured or it is on another origin (tracing.ts).
  */
@@ -424,7 +476,7 @@ export class ContractSpanProcessor implements SpanProcessor {
    */
   onStart(span: Span, parentContext: Context): void {
     if (isAutoHttpSpan(span)) {
-      if (spanUnder(span, this.agentikoA2aPrefix)) {
+      if (span.attributes[ATTR_HTTP_REQUEST_METHOD] === A2A_HTTP_METHOD && spanUnder(span, this.agentikoA2aPrefix)) {
         span.updateName(COUNTED_SPAN_NAMES.agentikoA2a)
         const method = a2aMethodOf(parentContext)
         if (method !== null) {
@@ -451,7 +503,7 @@ export class ContractSpanProcessor implements SpanProcessor {
       if (!spanUnder(span, this.agentikoA2aPrefix)) {
         return
       }
-      this.inner.onEnd(withAttributes(span, a2aAttributesOf(span.attributes)))
+      this.inner.onEnd(a2aExportOf(span))
       return
     }
     this.inner.onEnd(span)
