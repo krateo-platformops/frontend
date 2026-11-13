@@ -22,6 +22,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type WidgetTransport, WidgetTransportProvider } from '../transport/widgetTransport'
 
+import type { SseSubscriber } from './sseClient'
 import { useGetEvents } from './useGetEvents'
 import { LIVE_REFRESH_FIREHOSE_ENABLED, useLiveRefreshFirehose } from './useLiveRefresh'
 
@@ -40,8 +41,9 @@ const signedIn: WidgetTransport = {
   session: {
     getAccessToken: () => 'header.payload.signature',
     resume: () => Promise.resolve('resumed'),
-    subscribeSse: (url: string, topic: string, subscriber: Subscriber) => {
-      sseSubscriptions.push({ onMessage: subscriber.onMessage, onOpen: subscriber.onOpen, topic, url })
+    subscribeSse: (url: string, topic: string, subscriber: SseSubscriber) => {
+      // Recorded loosely: the tests below open a stream with only `reopened`, no scope.
+      sseSubscriptions.push({ onMessage: subscriber.onMessage, onOpen: subscriber.onOpen as Subscriber['onOpen'], topic, url })
 
       return () => undefined
     },
