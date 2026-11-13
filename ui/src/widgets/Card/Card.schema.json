@@ -18,6 +18,23 @@
         "widgetData": {
           "type": "object",
           "properties": {
+            "afterCard": {
+              "type": "array",
+              "description": "children of the card (by `resourceRefId`, among `items`) that render just after the card instead of in its body, in `items` order — one placement, so the reading order is the body, then these. The card and these form a column that takes `centered` and `maxWidth`. On a `brand` + `centered` + `maxWidth` card, at 480px and under the column is one surface the screen's height and these are its last row (inside the card's surface, as the sign-in card's \"Need access?\" line); on any other card they render after the card at every width. An entry naming no item is ignored",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "resourceRefId"
+                ],
+                "properties": {
+                  "resourceRefId": {
+                    "type": "string",
+                    "description": "the resourceRefId of one of the card's `items`"
+                  }
+                }
+              }
+            },
             "allowedResources": {
               "description": "the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry.",
               "items": {
