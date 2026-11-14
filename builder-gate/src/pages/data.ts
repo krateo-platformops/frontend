@@ -26,7 +26,8 @@ import { HttpError } from '../http'
 import type { GateContext } from '../plan'
 import {
   CAPABILITY_RESOLVE, type SnowplowReply, STAGE_ABORTED_REASON, STAGE_DESTINATION_REFUSED_REASON, STAGE_INVALID_PATH_REASON, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON,
-  STAGE_NOT_RUN_REASON, STAGE_NOT_SENT_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, STAGE_TEMPLATE_ERROR_REASON, STAGE_TIMEOUT_REASON, stageOutcomesOf,
+  STAGE_NOT_RUN_REASON, STAGE_NOT_SENT_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, STAGE_TEMPLATE_ERROR_REASON, STAGE_TIMEOUT_REASON, STAGE_UAF_NON_READ_REASON,
+  STAGE_WRITE_REFUSED_REASON, stageOutcomesOf,
 } from '../snowplow'
 
 import { isRestAction, labelOf, nameOf, rec, type Rec, str } from './drafts'
@@ -136,6 +137,15 @@ const bodyStageMessages = (ra: Rec, output: unknown): string[] => {
 const DRAFT_DEFECTS: ReadonlyMap<string, string> = new Map([
   [STAGE_INVALID_PATH_REASON, 'snowplow refused the rendered path (a segment rendered empty, or it is not a valid object path): fix the stage\'s path template, or the value it reads'],
   [STAGE_TEMPLATE_ERROR_REASON, 'its path, payload or a header did not render (a jq error, or a placeholder left unrendered): fix that template'],
+  [STAGE_UAF_NON_READ_REASON, 'userAccessFilter applies only to GET and HEAD, and on this verb the request would have gone out as snowplow\'s ServiceAccount: remove userAccessFilter from this stage'],
+])
+
+/**
+ * Reasons snowplow must never send for a draft resolve: red whatever the draft declares, because
+ * they say snowplow broke its side of the contract, not that the draft is wrong.
+ */
+const CONTRACT_BREAKS: ReadonlyMap<string, string> = new Map([
+  [STAGE_WRITE_REFUSED_REASON, 'snowplow refused the write as an export\'s or background work\'s, but a draft resolve is the caller\'s own request: a snowplow contract break, so report it to snowplow'],
 ])
 
 /**
@@ -163,8 +173,10 @@ const detailFor = (messages: readonly string[], stage: string): string | undefin
  *   - a reason outside the closed set (or none): red, "unknown reason";
  *   - StageNotExecuted, or — the documented fallback — the body message `dry-run: stage "<name>"
  *     verb <V> is not executed`: a NOTE, refused by design, checked at the driven Preview;
- *   - InvalidPath, TemplateError (DRAFT_DEFECTS): red, with what to fix — snowplow refused to
+ *   - InvalidPath, TemplateError, UserAccessFilterOnNonReadVerb (DRAFT_DEFECTS): red, with what to fix — snowplow refused to
  *     build the request from the draft's own template, so continueOnError does not excuse it;
+ *   - WriteRefused (CONTRACT_BREAKS): red, even under continueOnError — snowplow treated the
+ *     caller's own resolve as non-customer work, which a draft resolve never is;
  *   - a stage the draft marks continueOnError (by name): a NOTE — its author declared the
  *     tolerance, and the driven Preview judges what renders;
  *   - Timeout, NotSent (NOT_JUDGED): red as `notChecked`, worded "not judged" — the run could not
@@ -273,14 +285,15 @@ export const stageVerdicts = (ra: Rec, reply: { headers?: SnowplowReply['headers
       }
       continue
     }
-    const defect = DRAFT_DEFECTS.get(reason)
+    const defect = DRAFT_DEFECTS.get(reason) ?? CONTRACT_BREAKS.get(reason)
     if (reason === STAGE_NOT_EXECUTED_REASON || (detail !== undefined && STAGE_NOT_EXECUTED_MESSAGE.test(detail))) {
       byDesign.push(`stage ${stage.name}: not executed by design (a write-verb stage): checked at the driven Preview${suffix}`)
       stopper = { name: stage.name, note: 'was not executed by design', reason }
       judged.set(stage.name, 'was not executed by design')
     } else if (defect) {
       // Before continueOnError, on purpose: that flag tolerates what an endpoint ANSWERS, and here
-      // snowplow refused to build the request, so no endpoint was asked anything.
+      // snowplow refused to send the request (a draft defect or a contract break), so no endpoint
+      // was asked anything.
       const excuse = tolerant.has(stage.name) ? '; continueOnError does not excuse it, because no request was sent' : ''
       failures.push(`stage ${stage.name}: not sent (${reason}) — ${defect}${excuse}${suffix}`)
       stopper = { name: stage.name, note: null, reason }

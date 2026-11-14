@@ -87,6 +87,21 @@ export const STAGE_TIMEOUT_REASON = 'Timeout'
 export const STAGE_DESTINATION_REFUSED_REASON = 'DestinationRefused'
 
 /**
+ * snowplow#1281 (`StageReasonUAFOnNonReadVerb`): the stage carries userAccessFilter on a verb other
+ * than GET or HEAD, which the CRD rejects. It would have been sent as snowplow's ServiceAccount, so
+ * nothing was sent. An authoring error on the draft, never a runtime condition.
+ */
+export const STAGE_UAF_NON_READ_REASON = 'UserAccessFilterOnNonReadVerb'
+/**
+ * snowplow#1288 (`StageReasonWriteRefused`): a write refused because the request was not a
+ * customer's own write (an export, or background work). Recorded only when the request carries a
+ * non-customer write origin (snowplow cache.NonCustomerWriteOrigin), and a draft resolve is the
+ * caller's own POST /call/read, so it cannot arise here. If it does, snowplow classified the
+ * caller's resolve as non-customer, which is a contract break.
+ */
+export const STAGE_WRITE_REFUSED_REASON = 'WriteRefused'
+
+/**
  * The CLOSED set of stage reason codes: snowplow's `StageReason*` constants (stage_outcomes.go).
  * Anything else is unknown, and red. `test/drift/` holds it equal to snowplow's set at the version
  * the installer pins, so a code snowplow adds fails CI here before a cluster reports it as unknown.
@@ -94,6 +109,7 @@ export const STAGE_DESTINATION_REFUSED_REASON = 'DestinationRefused'
 export const STAGE_REASONS: ReadonlySet<string> = new Set([
   STAGE_NOT_EXECUTED_REASON, 'Forbidden', 'NotFound', 'Unauthorized', STAGE_NOT_RUN_REASON, STAGE_SKIPPED_REASON, STAGE_ABORTED_REASON, 'Error',
   STAGE_INVALID_PATH_REASON, STAGE_TEMPLATE_ERROR_REASON, STAGE_NOT_SENT_REASON, STAGE_TIMEOUT_REASON, STAGE_DESTINATION_REFUSED_REASON,
+  STAGE_UAF_NON_READ_REASON, STAGE_WRITE_REFUSED_REASON,
 ])
 export const STAGE_NOT_EXECUTED_MESSAGE = /^dry-run: stage .* is not executed$/
 

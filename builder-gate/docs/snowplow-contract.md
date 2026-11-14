@@ -134,6 +134,8 @@ Authorization: Bearer <caller JWT>
     | `Aborted` | the resolve-level row (name `""`): no stage ran (#904 F3) | red, one line |
     | `InvalidPath` | the #288 guard refused the rendered path; nothing sent (#1112, #1116) | red, a draft defect: fix the path template. `continueOnError` does not excuse it |
     | `TemplateError` | the path, payload or a header did not render (#302, #293); nothing sent | red, a draft defect: fix the template. `continueOnError` does not excuse it |
+    | `UserAccessFilterOnNonReadVerb` | the stage carries userAccessFilter on a verb other than GET or HEAD; nothing sent (#1281) | red, a draft defect: remove userAccessFilter from the stage. `continueOnError` does not excuse it |
+    | `WriteRefused` | a write refused as an export's or background work's (#1288); nothing sent | red, a contract break: a draft resolve is the caller's own request, so this never applies. `continueOnError` does not excuse it |
     | `DestinationRefused` | the destination policy refused the endpoint's address; nothing sent (#1131) | red, saying so, or a note under `continueOnError` |
     | `Timeout` | the request's page budget ended the exchange, a 504 (#1115) | `notChecked` (red), worded "not judged", or a note under `continueOnError` |
     | `NotSent` | a write planned and not sent, with no other failure recorded (#1112) | `notChecked` (red), worded "not judged", or a note under `continueOnError` |
