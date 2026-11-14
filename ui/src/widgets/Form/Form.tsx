@@ -643,7 +643,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   }
 
   return (
-    <div className={styles.form} data-inside-drawer={insideDrawer}>
+    // Inside a Card's `brand` frame the form is the sign-in card's form (styles.signInForm): plain
+    // antd fields, no connector rail, the action bar in the flow.
+    <div className={inBrandFrame ? `${styles.form} ${styles.signInForm}` : styles.form} data-inside-drawer={insideDrawer}>
       {/* The form's own heading: it goes with the form when a Result replaces it. */}
       {typeof title === 'string' && title.trim() ? <FormHeading brand={inBrandFrame} title={title} /> : null}
       {/* Kept mounted (hidden in review) so "Back to edit" preserves every entered value. */}

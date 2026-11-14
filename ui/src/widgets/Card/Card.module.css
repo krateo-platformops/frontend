@@ -283,10 +283,21 @@
   gap: var(--spacing-sm);
 }
 
+/* `brand`: the band is the cover's first child. antd draws every cover child `display: block`
+   with its own top radius, which undid the band's flex (the logo sat at the band's top edge, half
+   outside it); the card's own radius clips the band. */
+.panel.branded :global(.ant-card-cover) > :first-child {
+  border-radius: 0;
+  display: flex;
+}
+
 /* `brand`: the sign-in card's frame (pages/Login .card and .body), on the same tokens — the
    larger radius, the small elevation, and the body's padding under the band. Two and three
    classes, to outrank antd's own `:where(…).ant-card` radius and body padding. */
 .panel.branded {
+  /* The sign-in card's hairline (pages/Login .card: --line-color), where antd's outlined card draws
+     the stronger --border-color: #CBC6DD against the mockup's #E5E2F0 in light; one value in dark. */
+  border-color: var(--line-color);
   border-radius: var(--radius-xl);
   box-shadow: var(--elevation-sm);
   overflow: hidden;

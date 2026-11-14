@@ -190,6 +190,7 @@ export const applyFieldConfig = (schema: JSONSchema4 | undefined, config: Raw): 
     if (link?.href && link.text) { spec.link = link }
     const requiredMessage = text(entry.requiredMessage)
     if (requiredMessage) { spec.requiredMessage = requiredMessage }
+    if (entry.hideOptionalMark === true) { spec.hideOptionalMark = true }
     node[CHECKBOX_KEY] = spec
   }
 
