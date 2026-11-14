@@ -40,10 +40,10 @@
   margin: 0 0 var(--spacing-lg);
 }
 
-/* The heading and its line as one block in a container that spaces its children itself (the
-   Form's column gap): the line keeps no margin of its own below. */
+/* The heading and its line as one block in the Form's column, which spaces its children by
+   --spacing-md: the line keeps the rest of the sign-in card's --spacing-lg to what follows. */
 .heading > .to {
-  margin-bottom: 0;
+  margin-bottom: calc(var(--spacing-lg) - var(--spacing-md));
 }
 
 /* The installation name is an identifier, so it is drawn like one. */

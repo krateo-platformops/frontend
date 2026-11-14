@@ -399,6 +399,10 @@ export interface Form {
          * the message under a required checkbox left unticked
          */
         requiredMessage?: string
+        /**
+         * `true`: no "(optional)" after this checkbox when it is optional and the form has `requiredMark: optional` — for a box whose sentence already says it is a choice. A required checkbox is unaffected
+         */
+        hideOptionalMark?: boolean
       }[]
       /**
        * Configuration for the form fields who are dependent from other form fields. The field options are set via an API call made using a RESTAction which sould be defined below. The RESTActions shuold contain a `status` field, which is an array of object with the `{ label, value }` format.

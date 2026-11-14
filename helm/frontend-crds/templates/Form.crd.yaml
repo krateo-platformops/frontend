@@ -509,6 +509,9 @@ spec:
                       description: boolean fields drawn as a Checkbox whose text is the field's label (its schema `title`, else its key), where a boolean is otherwise a Switch. The label is plain text; one phrase of it can be a link. A REQUIRED checkbox must be ticked to submit
                       items:
                         properties:
+                          hideOptionalMark:
+                            description: '`true`: no "(optional)" after this checkbox when it is optional and the form has `requiredMark: optional` — for a box whose sentence already says it is a choice. A required checkbox is unaffected'
+                            type: boolean
                           link:
                             description: 'one link in the label: the first occurrence of `text` in the label becomes a link to `href`, opened in a new tab (when `text` is not in the label, the link follows it)'
                             properties:

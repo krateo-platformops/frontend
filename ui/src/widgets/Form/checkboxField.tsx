@@ -17,6 +17,8 @@ import { fieldLabel, hasValue } from './schemaRules'
  *   - name: consent
  *     link: { text: privacy policy, href: https://example.com/privacy }
  *     requiredMessage: Please agree to the processing of your details.
+ *   - name: newsletter
+ *     hideOptionalMark: true       # no "(optional)" after it under `requiredMark: optional`
  * ```
  *
  * The label is plain text, never markup. One phrase of it can be a link: the first occurrence of
@@ -28,6 +30,11 @@ export interface CheckboxSpec {
   link?: { text: string; href: string }
   /** shown when a REQUIRED checkbox is left unticked */
   requiredMessage?: string
+  /**
+   * No "(optional)" after an OPTIONAL checkbox under `requiredMark: optional` — for a box whose own
+   * sentence already says it is a choice ("Send me occasional news…"). A required box is unaffected.
+   */
+  hideOptionalMark?: boolean
 }
 
 export const getCheckboxSpec = (node: JSONSchema4): CheckboxSpec | undefined => {
@@ -120,7 +127,7 @@ export const checkboxItem = (key: string, node: JSONSchema4, path: Array<string 
     >
       <Checkbox className={styles.checkbox}>
         <CheckboxText label={fieldLabel(key, node)} link={spec.link} />
-        {requiredMarkFor(isRequired, marks)}
+        {spec.hideOptionalMark && !isRequired ? null : requiredMarkFor(isRequired, marks)}
       </Checkbox>
     </AntdForm.Item>
   )

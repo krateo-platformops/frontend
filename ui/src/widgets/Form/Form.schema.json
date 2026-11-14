@@ -569,6 +569,10 @@
                   "requiredMessage": {
                     "type": "string",
                     "description": "the message under a required checkbox left unticked"
+                  },
+                  "hideOptionalMark": {
+                    "type": "boolean",
+                    "description": "`true`: no \"(optional)\" after this checkbox when it is optional and the form has `requiredMark: optional` — for a box whose sentence already says it is a choice. A required checkbox is unaffected"
                   }
                 }
               }

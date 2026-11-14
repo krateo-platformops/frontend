@@ -588,3 +588,48 @@
   font-size: var(--krateo-text-caption);
   line-height: 1.45;
 }
+
+/* A Form inside a Card's `brand` frame is the SIGN-IN CARD'S form (pages/Login's LoginForm: plain
+   antd Form.Items). The connector rail, the medium-weight caption and the sticky bezel exist for
+   long blueprint forms; a one-column sign-in style form draws none of them. Opt-in through the
+   frame only — every other form keeps its look (Form.frameLookUnchanged). */
+.signInForm .field {
+  border-left: 0;
+  padding-left: 0;
+}
+
+/* antd's own label, at its own colour, size and weight. `height: auto` beats antd's `size: large`
+   label height (35px around a 17px name), which `.field … > label` loses to. */
+.signInForm .field :global(.ant-form-item-label) > label {
+  height: auto;
+}
+
+.signInForm .fieldName {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+/* The last field's own margin and the form's column gap would put 32px over the button, where the
+   sign-in card has the one field margin (16px): the column gap is that step. `.field` sets its
+   margin with !important, so this must too. */
+.signInForm form > .field:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* A `noticeVariant: text` line under the heading is the sign-in card's pitch line (pages/Login
+   .pitch): it tucks under the installation line and leaves the card's --spacing-lg to the fields.
+   Three classes, to outrank `.form .noticeText`. */
+.form.signInForm .noticeText {
+  margin: calc(-1 * var(--spacing-sm)) 0 var(--spacing-lg);
+}
+
+/* The action bar in the flow: not pinned, no hairline, no bezel padding, so the full-width primary
+   lines up with the fields. Three classes, to outrank `.form .extra`. */
+.form.signInForm .extra {
+  background: none;
+  border-top: 0;
+  padding: 0;
+  position: static;
+}

@@ -27,6 +27,13 @@
   font-size: var(--krateo-text-body-sm);
 }
 
+/* …and are underlined (mockup v3's "Sign in"): in small muted text, colour alone is a weak cue that
+   a phrase is a link (WCAG 1.4.1). Only here: every other Markdown keeps the portal's link style
+   (Markdown.linkDecorationUnchanged). */
+.markdown.secondary a {
+  text-decoration: underline;
+}
+
 .markdown hr {
   border: none;
   border-top: 1px solid var(--line-color);
