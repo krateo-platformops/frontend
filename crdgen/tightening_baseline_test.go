@@ -37,6 +37,12 @@ import (
 
 const installerRef = "oci://ghcr.io/krateo-platformops/charts/installer"
 
+// packagedPins is the pins file INSIDE the released installer chart. Since installer 0.3.640
+// (installer#912) that is the generated data-only copy: the annotated chart/files/component-pins.yaml
+// is ~98% comment prose, pushed helm's release Secret past 1 MiB, and is no longer packaged. Same
+// `components:` schema, gated in installer CI (check-pins-min-in-sync); installer flags any rename first.
+const packagedPins = "files/component-pins.min.yaml"
+
 // The pin entry is named `frontend-crd` while the chart it names is `frontend-crds`, plural. Read
 // the entry rather than guessing either name — lint-pinned-crds.py records the same trap.
 const pinName = "frontend-crd"
@@ -61,7 +67,7 @@ func TestNoWidgetCRDBecameStricter(t *testing.T) {
 			// reporting that as a pass is the exact failure this file argues against elsewhere.
 			t.Fatalf("could not determine the pinned frontend-crds version: %v", err)
 		}
-		source = "released installer " + installer + " files/component-pins.yaml (name=" + pinName + ")"
+		source = "released installer " + installer + " " + packagedPins + " (name=" + pinName + ")"
 	}
 
 	baseDir := os.Getenv("PINNED_CRDS_DIR")
@@ -228,9 +234,9 @@ func pinnedVersion(dir string) (version, installer string, err error) {
 	if err := yaml.Unmarshal(chart, &meta); err != nil {
 		return "", "", fmt.Errorf("parsing the installer chart metadata: %w", err)
 	}
-	pins, err := os.ReadFile(filepath.Join(dir, "installer", "files", "component-pins.yaml"))
+	pins, err := os.ReadFile(filepath.Join(dir, "installer", packagedPins))
 	if err != nil {
-		return "", "", fmt.Errorf("the released installer %s carries no pins file: %w", meta.Version, err)
+		return "", "", fmt.Errorf("the released installer %s carries no %s: %w", meta.Version, packagedPins, err)
 	}
 	version, err = pinFrom(pins, pinName)
 	return version, meta.Version, err

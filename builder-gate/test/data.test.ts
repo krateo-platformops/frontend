@@ -326,7 +326,7 @@ describe('data', () => {
       expect(dataOf(envelope).problems).toEqual([problem])
     })
 
-    it.each(['InvalidPath', 'TemplateError'])('%s stays red under continueOnError: no request was sent, so there was no answer to tolerate', async (reason) => {
+    it.each(['InvalidPath', 'TemplateError', 'UserAccessFilterOnNonReadVerb', 'WriteRefused'])('%s stays red under continueOnError: no request was sent, so there was no answer to tolerate', async (reason) => {
       const { transport } = resolving(reason)
       const envelope = await run(tolerant(), liveCtx(transport))
       expect(envelope.failedStep).toBe('data')
@@ -354,6 +354,17 @@ describe('data', () => {
         'widgets[3] (RESTAction/pod-sizing): stage annotate: not sent because the stage it depends on, scale, failed',
       ])
       expect(dataOf(envelope).notes.join('\n')).not.toMatch(/stage (scale|annotate)/)
+    })
+
+    it.each([
+      ['UserAccessFilterOnNonReadVerb', 'widgets[3] (RESTAction/pod-sizing): stage pods: not sent (UserAccessFilterOnNonReadVerb) — userAccessFilter applies only to GET and HEAD, and on this verb the request would have gone out as snowplow\'s ServiceAccount: remove userAccessFilter from this stage'],
+      ['WriteRefused', 'widgets[3] (RESTAction/pod-sizing): stage pods: not sent (WriteRefused) — snowplow refused the write as an export\'s or background work\'s, but a draft resolve is the caller\'s own request: a snowplow contract break, so report it to snowplow'],
+    ])('snowplow#1281/#1288: %s is red, saying what it means', async (reason, problem) => {
+      const { transport } = resolving(reason)
+      const envelope = await run(example(), liveCtx(transport))
+      expect(envelope.failedStep).toBe('data')
+      expect(dataOf(envelope).problems).toEqual([problem])
+      expect(dataOf(envelope).notes.join('\n')).not.toMatch(/stage pods/)
     })
 
     it.each([

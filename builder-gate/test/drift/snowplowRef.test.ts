@@ -25,6 +25,12 @@ import { ROOT } from '../helpers'
 import { snowplowPin } from '../snowplowSource'
 
 const INSTALLER_CHART = 'oci://ghcr.io/krateo-platformops/charts/installer'
+/**
+ * The pins file INSIDE the released chart: the data-only copy since installer 0.3.640 (installer#912),
+ * because the annotated component-pins.yaml pushed helm's release Secret past 1 MiB and is no longer
+ * packaged. Same `components:` schema; crdgen/tightening_baseline_test.go reads the same file.
+ */
+const PACKAGED_PINS = 'files/component-pins.min.yaml'
 
 describe('SNOWPLOW_REF vs the released installer', () => {
   it('SNOWPLOW_REF equals the snowplow pin of the released installer chart', () => {
@@ -32,11 +38,11 @@ describe('SNOWPLOW_REF vs the released installer', () => {
     try {
       execFileSync('helm', ['pull', INSTALLER_CHART, '--untar', '-d', dir], { stdio: ['ignore', 'pipe', 'pipe'] })
       const installer = (yaml.load(readFileSync(join(dir, 'installer', 'Chart.yaml'), 'utf8')) as { version?: unknown }).version
-      const pinned = snowplowPin(readFileSync(join(dir, 'installer', 'files', 'component-pins.yaml'), 'utf8'))
+      const pinned = snowplowPin(readFileSync(join(dir, 'installer', PACKAGED_PINS), 'utf8'))
       const ref = readFileSync(join(ROOT, 'SNOWPLOW_REF'), 'utf8').trim()
       // eslint-disable-next-line no-console -- the run log names what was compared, so a pass says against what
       console.log(`released installer ${String(installer)} pins snowplow ${pinned}; SNOWPLOW_REF is ${ref}`)
-      expect(ref, `SNOWPLOW_REF is ${ref}, but the released installer ${String(installer)} (${INSTALLER_CHART}, files/component-pins.yaml, entry snowplow) pins snowplow ${pinned}. `
+      expect(ref, `SNOWPLOW_REF is ${ref}, but the released installer ${String(installer)} (${INSTALLER_CHART}, ${PACKAGED_PINS}, entry snowplow) pins snowplow ${pinned}. `
         + 'Move SNOWPLOW_REF to the pin and re-vendor jqcheck/modules/ from that tag (the CI module diff names every file that differs).').toBe(pinned)
     } finally {
       rmSync(dir, { force: true, recursive: true })
