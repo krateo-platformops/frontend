@@ -164,6 +164,10 @@ export interface Listy {
          */
         navigateTo?: string
         /**
+         * tree rowVariant only: {dot.path} template to the child's health as the page header's worst-child pill counts it: ready | pending | unknown | notSynced | notReady, or excluded (not judged at all, e.g. a managed Secret the chart deliberately does not read). A row that resolves to one of these is counted as exactly that; any other value, or no health, falls back to the row's raw conditions, then its colour
+         */
+        health?: string
+        /**
          * Resolves the row's accent colour per item, so colour carries meaning from the data rather than being fixed by the author.
          */
         color?: {

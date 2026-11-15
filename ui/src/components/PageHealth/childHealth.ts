@@ -210,6 +210,12 @@ export const childStateFromStatusColor = (color: string | undefined): ChildHealt
 export interface RowHealthInput {
   /** The row's resolved palette colour (used when the row carries no raw conditions). */
   color?: string
+  /**
+   * The row's own health token (the itemTemplate `health` field), when the chart states it:
+   * a ChildHealthState, or `excluded` for a child that is not judged at all. Preferred over
+   * conditions and colour, because the chart decided the state and said so.
+   */
+  health?: string
   /** The child's RAW conditions, when the row's data element carries them — always preferred. */
   conditions?: ConditionLike[]
   href?: string
@@ -217,17 +223,35 @@ export interface RowHealthInput {
   name?: string
 }
 
-/**
- * Build a `ChildHealth` from one rendered row: raw conditions when the data has them (the honest
- * source), the resolved status colour otherwise (all the row has).
- */
-export const childHealthFromRow = ({ color, conditions, href, kind, name }: RowHealthInput): ChildHealth => {
-  const hasConditions = Array.isArray(conditions) && conditions.length > 0
-  const { detail, state } = hasConditions
-    ? childStateFromConditions(conditions)
-    : { detail: '', state: childStateFromStatusColor(color) }
+/** The `health` token that takes a child out of the rollup: neither ready nor an exception. */
+export const EXCLUDED_HEALTH = 'excluded'
 
-  return { detail, href, kind: kind ?? '', name: name ?? '', state }
+const STATED_STATES: readonly ChildHealthState[] = ['ready', 'pending', 'unknown', 'notSynced', 'notReady']
+
+const isChildHealthState = (value: string): value is ChildHealthState =>
+  (STATED_STATES as readonly string[]).includes(value)
+
+/**
+ * Build a `ChildHealth` from one rendered row, or `null` when the row says it is not judged.
+ *
+ * In order: the row's own `health` token when the chart states one (it decided the state; nothing
+ * here should second-guess it), then raw conditions when the data has them (the honest source),
+ * then the resolved status colour (all the row has).
+ *
+ * WHY `excluded` EXISTS. The colour path cannot tell "unknown" from "deliberately not read": the
+ * composition detail paints both grey. A managed Secret the portal never reads (snowplow would
+ * serve it from a cluster-wide Secrets informer) therefore read as `unknown`, and a healthy
+ * installer opened under "└─ ReadyUnknown · 3 of 137 children not Ready" naming three Secrets.
+ * An excluded row is left out of the count entirely: it is not ready, and not an exception.
+ */
+export const childHealthFromRow = ({ color, conditions, health, href, kind, name }: RowHealthInput): ChildHealth | null => {
+  const stated = (health ?? '').trim()
+  if (stated === EXCLUDED_HEALTH) { return null }
+
+  const base = { href, kind: kind ?? '', name: name ?? '' }
+  if (isChildHealthState(stated)) { return { ...base, detail: '', state: stated } }
+  if (Array.isArray(conditions) && conditions.length > 0) { return { ...base, ...childStateFromConditions(conditions) } }
+  return { ...base, detail: '', state: childStateFromStatusColor(color) }
 }
 
 /**

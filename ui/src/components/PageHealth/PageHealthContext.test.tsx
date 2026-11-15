@@ -31,6 +31,7 @@ vi.mock('../../hooks/useHandleActions', () => ({
 }))
 vi.mock('../WidgetRenderer', () => ({ default: () => <div data-testid='action' /> }))
 
+import type { ItemTemplate } from '../../widgets/List/itemTemplate'
 import { ListView } from '../../widgets/List/ListView'
 import PageHeader from '../../widgets/PageHeader/PageHeader'
 
@@ -119,6 +120,54 @@ describe('composition detail — the header answers for its children', () => {
     // A managed child the server could not fetch arrives as `pending` (amber), never green.
     render(page([row('Deployment', 'ghost', 'pending')]))
     expect(childPill()?.textContent).toContain('Pending')
+  })
+
+  // THE BUG, as installer's detail page on krateo-057 showed it (portal 1.8.125): three managed
+  // Secrets the portal deliberately never reads are painted grey ("Unread"), the colour path read
+  // grey as `unknown`, and a fully healthy composition opened under "└─ ReadyUnknown · 3 of 137
+  // children not Ready — ReadyUnknown: Secret/hyperdx-admin-creds; +2 more".
+  describe('a child the chart deliberately does not read', () => {
+    const UNREAD_TEMPLATE = {
+      ...RELATIONS_TEMPLATE,
+      color: { map: { healthy: 'green', unknown: 'gray', unread: 'gray' }, value: '{state}' },
+      health: '{health}',
+    }
+    const unreadPage = (children: unknown[], template: ItemTemplate = UNREAD_TEMPLATE): ReactElement => (
+      <MemoryRouter>
+        <App>
+          <PageHealthProvider>
+            <PageHeader
+              resourcesRefs={{ items: [] }}
+              uid='ph'
+              widgetData={{ items: [], tags: [{ color: 'green', label: 'Ready' }], title: 'installer' }}
+            />
+            <ListView itemTemplate={template} items={children} rowKey='relations' />
+          </PageHealthProvider>
+        </App>
+      </MemoryRouter>
+    )
+    const healthy = { ...row('Deployment', 'snowplow', 'healthy'), health: 'ready' }
+    const secrets = ['hyperdx-admin-creds', 'krateo-registry-image-pull', 'authn-jwt-signing-key']
+      .map((name) => ({ ...row('Secret', name, 'unread'), health: 'excluded' }))
+
+    it('control: without a stated health the unread Secrets read as ReadyUnknown', () => {
+      const { health: _ignored, ...colourOnly } = UNREAD_TEMPLATE
+      render(unreadPage([healthy, ...secrets], colourOnly))
+      expect(childPill()?.getAttribute('aria-label'))
+        .toBe('3 of 4 children not Ready — ReadyUnknown: Secret/hyperdx-admin-creds; +2 more')
+    })
+
+    it('says nothing when the only non-ready rows are excluded', () => {
+      render(unreadPage([healthy, ...secrets]))
+      expect(childPill()).toBeNull()
+      expect(headerPills()).toEqual(['Ready'])
+    })
+
+    it('still names a genuinely unknown child beside the excluded ones', () => {
+      render(unreadPage([healthy, ...secrets, { ...row('Repo', 'src', 'unknown'), health: 'unknown' }]))
+      expect(childPill()?.getAttribute('aria-label'))
+        .toBe('1 of 2 children not Ready — ReadyUnknown: Repo/src')
+    })
   })
 
   it('says nothing when the page reports no children at all', () => {
