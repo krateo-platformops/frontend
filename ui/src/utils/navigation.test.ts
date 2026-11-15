@@ -81,6 +81,29 @@ describe('carryScopeParams', () => {
     expect(carryScopeParams('/compositions', '')).toBe('/compositions')
     expect(carryScopeParams('/compositions?status=failed', '')).toBe('/compositions?status=failed')
   })
+
+  // THE BUG: on /observability's Telemetry tab, a range chip navigated to /observability?range=1h,
+  // dropped ?tab, and landed the reader back on the first tab (Reconciliation).
+  it('keeps the open tab on a navigation that stays on the SAME page', () => {
+    expect(carryScopeParams('/observability?range=1h', '?tab=Telemetry&range=24h', '/observability'))
+      .toBe('/observability?range=1h&tab=Telemetry')
+  })
+
+  it('never carries the tab to ANOTHER page, whose tabs are different', () => {
+    expect(carryScopeParams('/compositions?kind=Installer', '?tab=Telemetry', '/observability'))
+      .toBe('/compositions?kind=Installer')
+  })
+
+  it('lets a target that names its own tab win', () => {
+    expect(carryScopeParams('/observability?tab=Traces', '?tab=Telemetry', '/observability'))
+      .toBe('/observability?tab=Traces')
+  })
+
+  it('carries the scope and the tab together on the same page', () => {
+    const out = carryScopeParams('/observability?range=7d', '?projects=alpha&tab=Telemetry', '/observability')
+    expect(new URLSearchParams(out.split('?')[1]).get('projects')).toBe('alpha')
+    expect(new URLSearchParams(out.split('?')[1]).get('tab')).toBe('Telemetry')
+  })
 })
 
 describe('navigateOrExternal — the global scope rides along', () => {

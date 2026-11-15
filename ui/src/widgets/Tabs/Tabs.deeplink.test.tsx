@@ -4,7 +4,7 @@
  * hand-offs like `/observability?svc=…&tab=Telemetry` land on the logs instead of the default
  * first tab. Absent / non-matching param → antd's default (first tab), i.e. no behaviour change.
  */
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type * as UtilsModule from '../../utils/utils'
@@ -73,5 +73,33 @@ describe('Tabs — deep-linkable active tab (?tab=)', () => {
     setSearch('?tab=does-not-exist')
     renderTabs()
     expect(selected('Reconciliation')).toBe('true')
+  })
+})
+
+// The address follows the reader: choosing a tab REPLACES ?tab=<label> in the current entry, so a
+// copied link reopens that tab and a same-page navigation (the range chips) keeps it.
+describe('Tabs — the address names the open tab', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+  })
+
+  it('writes ?tab=<label> on a tab change, keeping the other params, with no new history entry', () => {
+    setSearch('?range=24h')
+    const replace = vi.spyOn(window.history, 'replaceState')
+    const push = vi.spyOn(window.history, 'pushState')
+    renderTabs()
+    fireEvent.click(screen.getByRole('tab', { name: 'Telemetry' }))
+    expect(replace).toHaveBeenCalledTimes(1)
+    expect(replace.mock.calls[0][2]).toBe('/observability?range=24h&tab=Telemetry')
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when the address already names that tab', () => {
+    setSearch('?tab=Telemetry')
+    const replace = vi.spyOn(window.history, 'replaceState')
+    renderTabs()
+    fireEvent.click(screen.getByRole('tab', { name: 'Telemetry' }))
+    expect(replace).not.toHaveBeenCalled()
   })
 })
