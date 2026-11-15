@@ -26,6 +26,19 @@ export const isExternalUrl = (path: string | undefined | null): boolean =>
 export const SCOPE_PARAMS = ['projects'] as const
 
 /**
+ * PAGE-STATE params — query keys that say which view of the CURRENT page is open, not what data it
+ * shows. Today only `tab`: the Tabs widget writes `?tab=<label>` when a tab is chosen (and reads it
+ * on load), so a link names the open tab.
+ *
+ * They ride along only on a navigation that stays on the SAME page, and never to another page.
+ * The /observability range chips navigate to `/observability?range=1h` and must keep the reader on
+ * the Telemetry tab; before this they dropped `?tab` and every range change jumped back to the
+ * first tab. A different page has different tabs, so carrying `tab` there would select an
+ * arbitrary one.
+ */
+export const PAGE_STATE_PARAMS = ['tab'] as const
+
+/**
  * Carry the global scope params of the CURRENT url onto a navigate target. The target always
  * wins: a link that names `projects` itself (the switcher applying/clearing its own scope, a
  * project-scoped deep link) is passed through untouched, so the scope stays changeable and
@@ -38,12 +51,14 @@ export const SCOPE_PARAMS = ['projects'] as const
 export const carryScopeParams = (
   path: string,
   currentSearch: string = typeof window === 'undefined' ? '' : window.location.search,
+  currentPathname: string = typeof window === 'undefined' ? '' : window.location.pathname,
 ): string => {
   const [targetPath, targetQuery = ''] = path.split('?')
   const current = new URLSearchParams(currentSearch)
   const target = new URLSearchParams(targetQuery)
+  const samePage = targetPath === currentPathname
   let carried = false
-  for (const key of SCOPE_PARAMS) {
+  for (const key of [...SCOPE_PARAMS, ...(samePage ? PAGE_STATE_PARAMS : [])]) {
     const value = current.get(key)
     if (value && !target.has(key)) {
       target.set(key, value)

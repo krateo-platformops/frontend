@@ -158,7 +158,10 @@ export const buildExtrasParam = (
   callerExtras: Readonly<Record<string, unknown>> = EMPTY_CALLER_EXTRAS,
   fragmentExtras: Readonly<Record<string, string>> = EMPTY_FRAGMENT_EXTRAS,
 ): string => {
-  const extras: Record<string, unknown> = Object.fromEntries(searchParams.entries())
+  // `tab` is PAGE STATE (which Tabs tab is open, utils/navigation PAGE_STATE_PARAMS), not an input
+  // to any data source: leaving it out keeps every widget's key, and its snowplow L1 cell, the same
+  // whichever tab the address names, so opening a deep link or switching tabs refetches nothing.
+  const extras: Record<string, unknown> = Object.fromEntries([...searchParams.entries()].filter(([key]) => key !== 'tab'))
   // The page's FRAGMENT extras (context/pageFragment.ts) beat the query string and nothing else:
   // a fragment is exactly as easy to type as a query, so it must not override the identity (which
   // the query cannot either) or a route param. Precedence, extended: caller > route > identity >

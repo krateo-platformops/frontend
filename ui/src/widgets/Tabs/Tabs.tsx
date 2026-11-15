@@ -54,11 +54,29 @@ const Tabs = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<Tabs
     return index >= 0 ? `${uid}-${index}` : undefined
   }, [items, uid])
 
+  // ...and keeps the address in step: choosing a tab REPLACES `?tab=<label>` in the current entry
+  // (no new history entry, so Back still leaves the page), so the address always names the open
+  // tab, a copied link reopens it, and a same-page navigation keeps it (utils/navigation
+  // PAGE_STATE_PARAMS: the /observability range chips no longer jump back to the first tab).
+  // `history.replaceState` with the current state, as context/pageFragment does: the router is not
+  // asked to navigate, so no widget re-renders or refetches, and `tab` is page state that widget
+  // queries leave out (useWidgetQuery buildExtrasParam).
+  const keepTabInAddress = (key: string) => {
+    if (typeof window === 'undefined') { return }
+    const index = tabItems.findIndex((item) => item.key === key)
+    const label = (items[index]?.label ?? '').trim()
+    if (!label) { return }
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('tab') === label) { return }
+    url.searchParams.set('tab', label)
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+
   if (!items.length) {
     return <WidgetEmpty description='No tabs to show' />
   }
 
-  return <AntdTabs centered={centered} className={styles.tabs} defaultActiveKey={defaultActiveKey} items={tabItems} key={uid} size={size} tabPlacement={tabPlacement} type={type} />
+  return <AntdTabs centered={centered} className={styles.tabs} defaultActiveKey={defaultActiveKey} items={tabItems} key={uid} onChange={keepTabInAddress} size={size} tabPlacement={tabPlacement} type={type} />
 }
 
 export default Tabs
