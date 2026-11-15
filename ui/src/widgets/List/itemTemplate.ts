@@ -99,6 +99,14 @@ export interface ItemTemplate {
    */
   navigateTo?: string
   /**
+   * `tree` rows only: `{dot.path}` to the child's health as the page header's worst-child pill
+   * counts it — `ready`, `pending`, `unknown`, `notSynced`, `notReady`, or `excluded` (not judged:
+   * a child the chart deliberately does not read, such as a managed Secret). The chart already
+   * decided each child's state; this says it outright instead of leaving the header to infer it
+   * from the row's colour, where one grey meant both "unknown" and "not read".
+   */
+  health?: string
+  /**
    * Per-row action menu (kebab `⋯`): side-effectful actions for the row, each referencing
    * an action id in the List's `widgetData.actions`, fired with the row as payload. Static
    * descriptors (same menu on every row); the row's data flows in at click time. Distinct
@@ -161,6 +169,8 @@ export interface ResolvedRow {
   color: string
   /** Resolved navigation target (empty string when the row is not clickable). */
   navigateTo: string
+  /** Resolved `health` token (empty string when the template has none). */
+  health: string
   /** Resolved per-row bar (absent when the template has no `bar`). */
   bar?: ResolvedBar
   /** Resolved status glyph (absent when the template has no `status`). */
@@ -247,6 +257,7 @@ export const resolveRow = (template: ItemTemplate, item: unknown): ResolvedRow =
   cardCta: interpolate(template.cardCta, item),
   color: resolveColor(template.color, item),
   description: interpolate(template.description, item),
+  health: interpolate(template.health, item),
   icon: interpolate(template.icon, item),
   navigateTo: interpolate(template.navigateTo, item),
   primaryText: resolveSlot(template, 'primaryText', item),

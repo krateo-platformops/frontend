@@ -13,6 +13,7 @@ import {
   childStateFromConditions,
   childStateFromStatusColor,
   describeChildHealth,
+  EXCLUDED_HEALTH,
   rollupChildHealth,
 } from './childHealth'
 import type { ChildHealth } from './childHealth'
@@ -115,18 +116,51 @@ describe('childHealthFromRow', () => {
       kind: 'Deployment',
       name: 'payments-api',
     })
-    expect(health.state).toBe('notSynced')
-    expect(health.detail).toBe('ReconcileError')
+    expect(health?.state).toBe('notSynced')
+    expect(health?.detail).toBe('ReconcileError')
   })
 
   it('falls back to the resolved status colour when the row carries no conditions', () => {
-    expect(childHealthFromRow({ color: 'red', kind: 'Service', name: 'api' }).state).toBe('notReady')
-    expect(childHealthFromRow({ color: 'green', conditions: [], kind: 'ConfigMap', name: 'cfg' }).state).toBe('ready')
+    expect(childHealthFromRow({ color: 'red', kind: 'Service', name: 'api' })?.state).toBe('notReady')
+    expect(childHealthFromRow({ color: 'green', conditions: [], kind: 'ConfigMap', name: 'cfg' })?.state).toBe('ready')
   })
 
   it('keeps the child\'s route, so the exception can be opened', () => {
-    expect(childHealthFromRow({ color: 'red', href: '/resources/ns/apps/v1/deployments/api' }).href)
+    expect(childHealthFromRow({ color: 'red', href: '/resources/ns/apps/v1/deployments/api' })?.href)
       .toBe('/resources/ns/apps/v1/deployments/api')
+  })
+
+  // THE BUG. A managed Secret the portal never reads is painted grey, the same grey as a child
+  // whose readiness is genuinely unknown, so the colour path read it as `unknown` and a healthy
+  // installer opened under "└─ ReadyUnknown · 3 of 137 children not Ready" naming three Secrets.
+  it('drops a row whose stated health is `excluded` from the rollup entirely', () => {
+    expect(childHealthFromRow({ color: 'gray', health: EXCLUDED_HEALTH, kind: 'Secret', name: 'hyperdx-admin-creds' })).toBeNull()
+    expect(childHealthFromRow({ color: 'gray', kind: 'Secret', name: 'hyperdx-admin-creds' })?.state).toBe('unknown')
+  })
+
+  it('takes a stated health as-is, over conditions and colour', () => {
+    expect(childHealthFromRow({ color: 'gray', health: 'ready', kind: 'ConfigMap', name: 'cfg' })?.state).toBe('ready')
+    expect(childHealthFromRow({
+      color: 'green', conditions: [{ status: 'True', type: 'Ready' }], health: 'notReady', kind: 'Repo', name: 'r',
+    })?.state).toBe('notReady')
+    for (const state of ['ready', 'pending', 'unknown', 'notSynced', 'notReady'] as const) {
+      expect(childHealthFromRow({ color: 'red', health: state })?.state).toBe(state)
+    }
+  })
+
+  it('ignores a health it does not know, and falls back as before', () => {
+    expect(childHealthFromRow({ color: 'red', health: 'Healthy' })?.state).toBe('notReady')
+    expect(childHealthFromRow({ color: 'green', health: '' })?.state).toBe('ready')
+  })
+
+  it('an excluded child is neither ready nor an exception, so a clean set says nothing', () => {
+    const rows = [
+      childHealthFromRow({ color: 'green', health: 'ready', kind: 'Deployment', name: 'api' }),
+      childHealthFromRow({ color: 'gray', health: EXCLUDED_HEALTH, kind: 'Secret', name: 'creds' }),
+    ].filter((child): child is NonNullable<typeof child> => child !== null)
+    const rollup = rollupChildHealth(rows)
+    expect(rollup.total).toBe(1)
+    expect(rollup.worst).toBeUndefined()
   })
 })
 
@@ -159,7 +193,8 @@ describe('rollupChildHealth', () => {
       kind: 'Deployment',
       name: 'drifted',
     })
-    const rollup = rollupChildHealth([child('a', 'ready'), drifted])
+    expect(drifted).not.toBeNull()
+    const rollup = rollupChildHealth([child('a', 'ready'), drifted!])
     expect(rollup.state).toBe('notSynced')
     expect(rollup.worst?.name).toBe('drifted')
     expect(describeChildHealth(rollup)).toContain('NotSynced: Deployment/drifted')

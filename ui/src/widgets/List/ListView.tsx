@@ -187,18 +187,21 @@ export const ListView = ({
   // Every other variant reports nothing, so no other page changes.
   const childHealth = useMemo(() => {
     if (!itemTemplate || itemTemplate.rowVariant !== 'tree') { return [] }
-    return items.map((item) => {
+    return items.flatMap((item) => {
       const row = resolveRow(itemTemplate, item)
       const raw = (item && typeof item === 'object' ? item : {}) as { conditions?: unknown }
-      return childHealthFromRow({
+      const child = childHealthFromRow({
         color: row.color,
         // Preferred whenever the row's data carries them: raw conditions are the honest source,
         // and reading ALL of them is what catches `Ready=True` sitting on `Synced=False`.
         conditions: Array.isArray(raw.conditions) ? (raw.conditions as ConditionLike[]) : undefined,
+        // The chart's own verdict when it states one; `excluded` drops the row from the count.
+        health: row.health,
         href: row.navigateTo || undefined,
         kind: row.primaryText,
         name: row.subPrimaryText,
       })
+      return child ? [child] : []
     })
   }, [itemTemplate, items])
   useReportChildHealth(reportScope, childHealth)

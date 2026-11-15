@@ -2,6 +2,7 @@ export {
   CHILD_STATE_COLOR,
   CHILD_STATE_LABEL,
   childHealthFromRow,
+  EXCLUDED_HEALTH,
   childStateFromConditions,
   childStateFromStatusColor,
   describeChildHealth,
