@@ -53,6 +53,7 @@
     "@testing-library/user-event": "^14.6.8",
     "@types/js-yaml": "^4.0.9",
     "@types/lodash": "^4.17.16",
+    "@types/mdast": "^4.0.4",
     "@types/node": "^24.19.2",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
@@ -134,6 +135,7 @@
     "react-redux": "^9.2.0",
     "react-router": "^8.5.1",
     "react-syntax-highlighter": "^16.1.2",
+    "remark-gfm": "^4.0.1",
     "vite-plugin-svgr": "^5.2.0",
     "yaml": "^2.9.1"
   },
