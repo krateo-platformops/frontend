@@ -910,7 +910,7 @@ Markdown receives markdown in string format and renders it gracefully
 | allowCopy | no | displays a copy button on top of the widget to allow copy to clipboard | boolean |
 | allowDownload | no | displays a download button on top of the widget to allow download of the text | boolean |
 | downloadFileExtension | no | if 'allowDownload' is set, this property allows to set an extension for the downloaded file. Default is .txt | string |
-| markdown | yes | markdown string to be displayed | string |
+| markdown | yes | markdown string to be displayed, GitHub-flavoured (pipe tables, strikethrough, task lists, bare URLs as links). Raw HTML is shown as text, except an `<a href="…">…</a>` anchor whose href is a quoted absolute http, https or mailto URL: it renders as a link, like `[text](url)`, and its other attributes are dropped | string |
 
 
 [Examples](../src/examples/widgets/Markdown/Markdown.example.yaml)

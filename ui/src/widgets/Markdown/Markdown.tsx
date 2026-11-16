@@ -6,11 +6,13 @@ import type { ReactNode } from 'react'
 import { CopyToClipboard } from 'react-copy-to-clipboard-ts'
 import { default as ReactMarkdown } from 'react-markdown'
 import { Link, useInRouterContext } from 'react-router'
+import remarkGfm from 'remark-gfm'
 
 import type { WidgetProps } from '../../types/Widget'
 
 import styles from './Markdown.module.css'
 import type { Markdown as WidgetType } from './Markdown.type'
+import remarkHtmlAnchors from './remarkHtmlAnchors'
 
 export type MarkdownWidgetData = WidgetType['spec']['widgetData']
 
@@ -194,6 +196,11 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
           pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
         }}
         key={uid}
+        // GitHub-flavoured markdown: pipe tables, ~~strikethrough~~, task lists, bare URLs as links.
+        // Without it a `| a | b |` table — what every generated report is made of — rendered as one
+        // paragraph of pipes. Then `<a href>` anchors become links (remarkHtmlAnchors: links only,
+        // no other HTML). Order matters: GFM must have split the table into cells first.
+        remarkPlugins={[remarkGfm, remarkHtmlAnchors]}
       >
         {markdown}
       </ReactMarkdown>
