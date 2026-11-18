@@ -26,7 +26,7 @@ import { HttpError } from '../http'
 import type { GateContext } from '../plan'
 import {
   CAPABILITY_RESOLVE, type SnowplowReply, STAGE_ABORTED_REASON, STAGE_DESTINATION_REFUSED_REASON, STAGE_INVALID_PATH_REASON, STAGE_NOT_EXECUTED_MESSAGE, STAGE_NOT_EXECUTED_REASON,
-  STAGE_NOT_RUN_REASON, STAGE_NOT_SENT_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, STAGE_TEMPLATE_ERROR_REASON, STAGE_TIMEOUT_REASON, STAGE_UAF_NON_READ_REASON,
+  STAGE_NOT_FOUND_FOR_REQUESTER_REASON, STAGE_NOT_RUN_REASON, STAGE_NOT_SENT_REASON, STAGE_OUTCOMES, STAGE_REASONS, STAGE_SKIPPED_REASON, STAGE_TEMPLATE_ERROR_REASON, STAGE_TIMEOUT_REASON, STAGE_UAF_NON_READ_REASON,
   STAGE_WRITE_REFUSED_REASON, stageOutcomesOf,
 } from '../snowplow'
 
@@ -161,6 +161,7 @@ const NOT_JUDGED: ReadonlyMap<string, string> = new Map([
 /** What a red reason means, where the bare code does not say it. */
 const REASON_MEANINGS: ReadonlyMap<string, string> = new Map([
   [STAGE_DESTINATION_REFUSED_REASON, 'the destination policy refused the address its endpoint resolves to, so the page would never get this data: point it at an endpoint the policy allows'],
+  [STAGE_NOT_FOUND_FOR_REQUESTER_REASON, 'the object it reads does not exist for you (snowplow\'s per-user NotFound), so the page would show nothing here for this caller'],
 ])
 
 /** The body's message for a stage, when one names it (`stage "<name>"`): detail for a note. */
