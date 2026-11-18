@@ -11,8 +11,9 @@
  *   - verb + object, never a bare tool name (stepLabels.ts); the raw name stays in the hover title
  *     and in "Copy steps";
  *   - consecutive same-kind calls fold into one line with a count (runSteps.ts);
- *   - each specialist is a lane under its hand-off, filled in when it replies, from the session
- *     store (fetchDelegationEvidence) — no polling;
+ *   - each specialist is a lane under its hand-off. While it works, the lane follows its run in the
+ *     session store (useLiveDelegations, a poll every 2 s while the card is open); when it replies,
+ *     the stored task replaces that (fetchDelegationEvidence);
  *   - a clock on the step in flight, a duration on finished ones, the total in the header;
  *   - honest about silence: two minutes with no event says so; a turn that stopped without an
  *     answer says "didn't finish" instead of looking alive;
@@ -33,12 +34,14 @@ import railStyles from './AgentikoRail.module.css'
 import type { ApprovalPause } from './approval'
 import { deriveSessionsBase, describeArgs, fetchDelegationEvidence, NO_DELEGATION_SESSION, serializeEvidence } from './evidence'
 import { CheckIcon, CopyIcon } from './icons'
+import { liveLastAt } from './liveDelegation'
 import type { RunStep, StepStatus } from './runSteps'
 import { countRun, formatAgo, formatClock, formatDuration, groupSteps, isRunUnfinished, lastEventAt, plural, STALL_MS } from './runSteps'
 import styles from './RunTimeline.module.css'
 import { approvalIntent } from './stepLabels'
 import { a2aAuthHeader } from './transport'
 import type { AgentikoMessage, EvidenceEntry } from './types'
+import { useLiveDelegations } from './useLiveDelegations'
 
 type Tone = 'running' | 'ok' | 'bad' | 'warn' | 'idle'
 
@@ -185,8 +188,17 @@ const RUN_TIMELINE_THEME: ThemeConfig = {
   },
 }
 
-const DelegationLane = ({ entry, onRetry, state, status, waitingOnYou }: {
+/** The specialist's steps so far, read live from its session: open calls run, nothing stalls on
+ *  its own (the card's stall check covers the lane). */
+const liveSteps = (children: EvidenceEntry[], now: number): ReactNode => (
+  <Timeline items={groupSteps(children, { live: true, paused: false }).map((child) => stepItem(child, { now, stalled: false, waitingOnYou: false }))} />
+)
+
+const DelegationLane = ({ entry, liveChildren, now, onRetry, state, status, waitingOnYou }: {
   entry: EvidenceEntry
+  /** Its steps so far, while it works (useLiveDelegations). */
+  liveChildren?: EvidenceEntry[]
+  now: number
   onRetry: () => void
   state?: DelegationState
   status: StepStatus
@@ -194,7 +206,7 @@ const DelegationLane = ({ entry, onRetry, state, status, waitingOnYou }: {
 }) => {
   let body
   if (status === 'running') {
-    body = <div className={styles.note}>its steps appear when it replies</div>
+    body = liveChildren?.length ? liveSteps(liveChildren, now) : <div className={styles.note}>its steps appear as it works</div>
   } else if (status === 'paused') {
     body = <div className={styles.note}>{waitingOnYou ? 'it is waiting for your approval' : 'it paused for an approval'}</div>
   } else if (status === 'unfinished') {
@@ -213,6 +225,9 @@ const DelegationLane = ({ entry, onRetry, state, status, waitingOnYou }: {
     body = state.children.length
       ? <Timeline items={groupSteps(state.children, { live: false, paused: false }).map((child) => stepItem(child, ctx))} />
       : <div className={styles.note}>it ran no tools</div>
+  } else if (liveChildren?.length) {
+    // Replied; its stored task is on its way. Keep what was already seen rather than blanking it.
+    body = liveSteps(liveChildren, 0)
   } else {
     body = <div className={styles.note}>loading its steps…</div>
   }
@@ -343,8 +358,6 @@ export const RunTimeline = ({ approval, approvalOutcome, message, onAskAgain }: 
   const [delegations, setDelegations] = useState<Record<string, DelegationState>>({})
   const [copied, setCopied] = useState(false)
 
-  const lastEvent = lastEventAt(message)
-  const stalled = live && !approval && now - Math.max(lastEvent, keptWaitingAt) >= STALL_MS
   // Open while something is happening or someone must act; folded once it is over. A reader's own
   // toggle holds only within the phase it was made in — the answer arriving folds the card again.
   let phase: 'approval' | 'live' | 'done' = 'done'
@@ -354,6 +367,12 @@ export const RunTimeline = ({ approval, approvalOutcome, message, onAskAgain }: 
     phase = 'live'
   }
   const open = override?.phase === phase ? override.open : phase !== 'done'
+
+  const sessionsBase = base ? deriveSessionsBase(base) : undefined
+  const liveRuns = useLiveDelegations(sessionsBase, entries, live && open, a2aAuthHeader)
+  // A specialist's own steps are activity too: a long hand-off that is visibly working is not silent.
+  const lastEvent = Math.max(lastEventAt(message), ...Object.values(liveRuns).map(liveLastAt))
+  const stalled = live && !approval && now - Math.max(lastEvent, keptWaitingAt) >= STALL_MS
 
   // A specialist's steps are filled in when it REPLIES: its hand-off is done and named a session. The
   // fetch runs only while the card is open — live, that is the moment the reply lands; for a turn
@@ -413,6 +432,8 @@ export const RunTimeline = ({ approval, approvalOutcome, message, onAskAgain }: 
   const items: TimelineItemProps[] = steps.map((step) => stepItem(step, ctx, step.delegation ? (
     <DelegationLane
       entry={step.delegation}
+      liveChildren={liveRuns[step.delegation.id]?.children}
+      now={now}
       onRetry={() => setDelegations((prev) => Object.fromEntries(
         Object.entries(prev).filter(([sid]) => sid !== step.delegation?.sessionId),
       ))}
