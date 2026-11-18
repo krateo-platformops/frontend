@@ -298,7 +298,9 @@ describe('specialists as lanes, filled in when they reply', () => {
 
   it('a hand-off that returned no session says so without offering a retry that cannot work', () => {
     render(<RunTimeline message={turn({ evidence: [handOff({ done: true })], streaming: true })} />)
-    expect(screen.getByText(/no trace exists to read/)).toBeTruthy()
+    expect(screen.getByText(/returned no session id, so its steps cannot be read from here/)).toBeTruthy()
+    // It must not claim what it cannot see: the specialist may have run and been traced.
+    expect(screen.queryByText(/no trace exists|never reached/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
   })
 
