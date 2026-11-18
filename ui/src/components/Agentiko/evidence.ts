@@ -293,13 +293,19 @@ const TRACE_FETCH_FAILURES: Record<number, string> = {
   404: 'the specialist kept no session under that id (404) — it may have failed before recording anything',
 }
 
-/** A delegation whose result never carried a `subagent_session_id`. There is no session to read, so
- *  this is the one case the fetch cannot even attempt — and the rail must still SAY so: the panel
- *  skips fetching for these rows, so before this they expanded to a blank box, which is a worse
+/** A delegation whose result never carried a `subagent_session_id`. There is no session id to read
+ *  by, so this is the one case the fetch cannot even attempt — and the rail must still SAY so: the
+ *  panel skips fetching for these rows, so before this they expanded to a blank box, which is a worse
  *  answer than the sentence #181 was filed about. Exported because AgentikoRail renders it without
- *  calling the fetch at all. */
+ *  calling the fetch at all.
+ *
+ *  It says only what the rail knows: no id came back. It used to add "no trace exists" and "the
+ *  specialist was never reached", and on krateo-057 both were false — core-provider-agent ran, made
+ *  five tool calls and was traced in the same trace as the turn, but its A2A reply carried no session
+ *  id (no `invoke_agent` span either). A missing id is a missing LINK; what the specialist did is not
+ *  visible from here, so the sentence does not guess. */
 export const NO_DELEGATION_SESSION
-  = 'the delegation returned no session id, so no trace exists to read — the specialist was never reached, or kagent recorded nothing for it'
+  = 'the delegation returned no session id, so its steps cannot be read from here — the specialist may still have run'
 
 /** The request never completed: DNS, TLS, a dead gateway, an offline browser, a blocked origin. The
  *  browser's own wording for this is `TypeError: Failed to fetch`, which the panel used to render
