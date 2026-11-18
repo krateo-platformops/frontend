@@ -106,6 +106,18 @@ describe('data', () => {
     expect(dataOf(envelope).problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage nodes failed (Forbidden)'])
   })
 
+  it('snowplow#1319: NotFoundForRequester is a known code — red with its meaning, never "unknown reason"', async () => {
+    const draft = example()
+    const { transport } = recorder(fakeSnowplow({
+      resolve: (_url, body) => resolveReply(200, { ...rec(body.object), status: {} }, [{ name: 'pods', ok: false, reason: 'NotFoundForRequester' }]),
+    }))
+    const envelope = await run(draft, liveCtx(transport))
+    expect(envelope.failedStep).toBe('data')
+    const problems = dataOf(envelope).problems
+    expect(problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage pods failed (NotFoundForRequester) — the object it reads does not exist for you (snowplow\'s per-user NotFound), so the page would show nothing here for this caller'])
+    expect(problems.join(' ')).not.toContain('unknown reason')
+  })
+
   it('snowplow#904: a write SKIPPED because its continueOnError dependency failed is a NOTE, not red', async () => {
     // The regression this prevents. In a dry-run draft a failing continueOnError read followed
     // by a dependent write now reports Skipped; without semantics for it the gate calls it

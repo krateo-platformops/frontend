@@ -102,6 +102,14 @@ export const STAGE_UAF_NON_READ_REASON = 'UserAccessFilterOnNonReadVerb'
 export const STAGE_WRITE_REFUSED_REASON = 'WriteRefused'
 
 /**
+ * snowplow#1319 (`NotFoundForRequester`, 1.12.74): a watched named object that does not exist for
+ * this requester — snowplow's definite per-user NotFound (#1080), in the "denied" group, stored like
+ * a denial. A plain 404 from a dial is still `NotFound`; an older snowplow sends `NotFound` for both.
+ * For a draft resolved as its author, it means the page would show nothing for this caller.
+ */
+export const STAGE_NOT_FOUND_FOR_REQUESTER_REASON = 'NotFoundForRequester'
+
+/**
  * The CLOSED set of stage reason codes: snowplow's `StageReason*` constants (stage_outcomes.go).
  * Anything else is unknown, and red. `test/drift/` holds it equal to snowplow's set at the version
  * the installer pins, so a code snowplow adds fails CI here before a cluster reports it as unknown.
@@ -109,7 +117,7 @@ export const STAGE_WRITE_REFUSED_REASON = 'WriteRefused'
 export const STAGE_REASONS: ReadonlySet<string> = new Set([
   STAGE_NOT_EXECUTED_REASON, 'Forbidden', 'NotFound', 'Unauthorized', STAGE_NOT_RUN_REASON, STAGE_SKIPPED_REASON, STAGE_ABORTED_REASON, 'Error',
   STAGE_INVALID_PATH_REASON, STAGE_TEMPLATE_ERROR_REASON, STAGE_NOT_SENT_REASON, STAGE_TIMEOUT_REASON, STAGE_DESTINATION_REFUSED_REASON,
-  STAGE_UAF_NON_READ_REASON, STAGE_WRITE_REFUSED_REASON,
+  STAGE_UAF_NON_READ_REASON, STAGE_WRITE_REFUSED_REASON, STAGE_NOT_FOUND_FOR_REQUESTER_REASON,
 ])
 export const STAGE_NOT_EXECUTED_MESSAGE = /^dry-run: stage .* is not executed$/
 
