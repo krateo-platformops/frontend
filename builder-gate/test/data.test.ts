@@ -113,7 +113,7 @@ describe('data', () => {
     }))
     const envelope = await run(draft, liveCtx(transport))
     expect(envelope.failedStep).toBe('data')
-    const problems = dataOf(envelope).problems
+    const { problems } = dataOf(envelope)
     expect(problems).toEqual(['widgets[3] (RESTAction/pod-sizing): stage pods failed (NotFoundForRequester) — the object it reads does not exist for you (snowplow\'s per-user NotFound), so the page would show nothing here for this caller'])
     expect(problems.join(' ')).not.toContain('unknown reason')
   })
