@@ -413,6 +413,48 @@ describe('a specialist’s steps while it works', () => {
     expect(after.filter((url) => !url.endsWith('/tasks'))).toEqual([])
   })
 
+  it('backs off while the run cannot be found, then gives up and waits for the reply', async () => {
+    const other = row('u-other', T0 + 1_100, { Author: 'user', Content: { parts: [{ text: 'a different request' }], role: 'user' }, InvocationID: 'inv-x' })
+    const fetchSpy = store(() => [other])
+    vi.stubGlobal('fetch', fetchSpy)
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    const listReads = () => fetchSpy.mock.calls.filter(([url]) => String(url) === '/agentiko/sessions').length
+    await tick(0)
+    expect(listReads()).toBe(1)
+    await tick(10_000)
+    // Tries at 0, 4 and 12 s: a 2 s poll would have listed 6 times by now.
+    expect(listReads()).toBe(2)
+    await tick(80_000)
+    expect(listReads()).toBe(6)
+    expect(within(screen.getByTestId('agentiko-run-lane')).getByText('its steps appear when it replies')).toBeTruthy()
+    await tick(300_000)
+    expect(listReads()).toBe(6)
+  })
+
+  it('follows a run that is found on a later try at the normal rate', async () => {
+    let stored: unknown[] = []
+    const fetchSpy = store(() => stored)
+    vi.stubGlobal('fetch', fetchSpy)
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    await tick(0)
+    stored = [asked(T0 + 1_100), call('c1', T0 + 1_500, 'k8s_get_resources', { namespace: 'krateo-system', resource_type: 'pods' })]
+    await tick(4_000)
+    expect(within(screen.getByTestId('agentiko-run-lane')).getByText('Read Pods')).toBeTruthy()
+    const followReads = () => fetchSpy.mock.calls.filter(([url]) => String(url).startsWith('/agentiko/sessions/sub-1?')).length
+    const before = followReads()
+    await tick(10_000)
+    expect(followReads() - before).toBe(5)
+  })
+
+  it('stops after repeated failed reads and says the steps come with the reply', async () => {
+    const fetchSpy = vi.fn(() => respond({ error: true }, 403))
+    vi.stubGlobal('fetch', fetchSpy)
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    await tick(10_000)
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+    expect(within(screen.getByTestId('agentiko-run-lane')).getByText('its steps appear when it replies')).toBeTruthy()
+  })
+
   it('does not poll a turn read back from history', async () => {
     const fetchSpy = vi.fn(() => respond({ data: [] }))
     vi.stubGlobal('fetch', fetchSpy)

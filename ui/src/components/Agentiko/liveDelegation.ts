@@ -122,6 +122,8 @@ export interface LiveCursor {
 export interface LiveDelegation {
   cursor?: LiveCursor
   children: EvidenceEntry[]
+  /** Polling gave up on this hand-off; its steps arrive with the reply. */
+  stopped?: boolean
 }
 
 /** Fold one run's new events into its rows. Times are moved onto the browser clock, so the lane's

@@ -194,10 +194,12 @@ const liveSteps = (children: EvidenceEntry[], now: number): ReactNode => (
   <Timeline items={groupSteps(children, { live: true, paused: false }).map((child) => stepItem(child, { now, stalled: false, waitingOnYou: false }))} />
 )
 
-const DelegationLane = ({ entry, liveChildren, now, onRetry, state, status, waitingOnYou }: {
+const DelegationLane = ({ entry, liveChildren, liveStopped, now, onRetry, state, status, waitingOnYou }: {
   entry: EvidenceEntry
   /** Its steps so far, while it works (useLiveDelegations). */
   liveChildren?: EvidenceEntry[]
+  /** Following it live gave up; its steps arrive with the reply. */
+  liveStopped?: boolean
   now: number
   onRetry: () => void
   state?: DelegationState
@@ -206,7 +208,11 @@ const DelegationLane = ({ entry, liveChildren, now, onRetry, state, status, wait
 }) => {
   let body
   if (status === 'running') {
-    body = liveChildren?.length ? liveSteps(liveChildren, now) : <div className={styles.note}>its steps appear as it works</div>
+    if (liveChildren?.length) {
+      body = liveSteps(liveChildren, now)
+    } else {
+      body = <div className={styles.note}>{liveStopped ? 'its steps appear when it replies' : 'its steps appear as it works'}</div>
+    }
   } else if (status === 'paused') {
     body = <div className={styles.note}>{waitingOnYou ? 'it is waiting for your approval' : 'it paused for an approval'}</div>
   } else if (status === 'unfinished') {
@@ -433,6 +439,7 @@ export const RunTimeline = ({ approval, approvalOutcome, message, onAskAgain }: 
     <DelegationLane
       entry={step.delegation}
       liveChildren={liveRuns[step.delegation.id]?.children}
+      liveStopped={liveRuns[step.delegation.id]?.stopped}
       now={now}
       onRetry={() => setDelegations((prev) => Object.fromEntries(
         Object.entries(prev).filter(([sid]) => sid !== step.delegation?.sessionId),
