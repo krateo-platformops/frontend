@@ -90,6 +90,8 @@ beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: false })
   vi.setSystemTime(T0)
   copied.texts.length = 0
+  // A live hand-off polls the session store; by default it has nothing stored yet.
+  vi.stubGlobal('fetch', vi.fn(() => respond({ data: [] })))
 })
 
 afterEach(() => {
@@ -242,14 +244,11 @@ describe('honest about silence', () => {
 })
 
 describe('specialists as lanes, filled in when they reply', () => {
-  it('while the specialist works its lane says when its steps will appear, and nothing is fetched', () => {
-    const fetchSpy = vi.fn()
-    vi.stubGlobal('fetch', fetchSpy)
+  it('while the specialist works and none of its steps are stored yet, its lane says they will appear', () => {
+    vi.stubGlobal('fetch', vi.fn(() => respond({ data: [] })))
     render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
     expect(head().textContent).toContain('1 specialist busy')
-    expect(within(screen.getByTestId('agentiko-run-lane')).getByText('its steps appear when it replies')).toBeTruthy()
-    act(() => { vi.advanceTimersByTime(30_000) })
-    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(within(screen.getByTestId('agentiko-run-lane')).getByText('its steps appear as it works')).toBeTruthy()
   })
 
   it('shows a one-line intent with the full request one click away', () => {
@@ -269,8 +268,9 @@ describe('specialists as lanes, filled in when they reply', () => {
     const { rerender } = render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
     rerender(<RunTimeline message={turn({ evidence: [handOff({ done: true, endedAt: T0 + 37_000, sessionId: 's-1' })], streaming: true })} />)
     await act(async () => { await vi.runOnlyPendingTimersAsync() })
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(String((fetchSpy.mock.calls[0] as unknown[])[0])).toBe('/agentiko/sessions/s-1/tasks')
+    // While it was running the live lane read the session list too; the stored task is read once.
+    const taskReads = fetchSpy.mock.calls.map((call) => String((call as unknown[])[0])).filter((url) => url.endsWith('/tasks'))
+    expect(taskReads).toEqual(['/agentiko/sessions/s-1/tasks'])
     const lane = within(screen.getByTestId('agentiko-run-lane'))
     expect(lane.getByText('Traced the config references of CompositionDefinition event-health')).toBeTruthy()
     expect(lane.getByText('Read Pods')).toBeTruthy()
@@ -313,6 +313,154 @@ describe('specialists as lanes, filled in when they reply', () => {
     fireEvent.click(head())
     await act(async () => { await vi.runOnlyPendingTimersAsync() })
     expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('a specialist’s steps while it works', () => {
+  const TOOL = 'krateo_system__NS__core_provider_agent'
+  /** A session-store event row: kagent stores the ADK event JSON-encoded under `data`. */
+  const row = (id: string, atMs: number, event: Record<string, unknown>) => ({
+    created_at: new Date(atMs).toISOString(),
+    data: JSON.stringify({ Author: 'core_provider_agent', InvocationID: 'inv-1', Partial: false, ...event }),
+    id,
+  })
+  const asked = (atMs: number, invocation = 'inv-1') =>
+    row(`u-${invocation}`, atMs, { Author: 'user', Content: { parts: [{ text: REQUEST }], role: 'user' }, InvocationID: invocation })
+  const call = (id: string, atMs: number, name: string, args: Record<string, unknown>, invocation = 'inv-1') =>
+    row(`e-${id}`, atMs, { Content: { parts: [{ functionCall: { args, id, name } }], role: 'model' }, InvocationID: invocation })
+  const result = (id: string, atMs: number, name: string, response: Record<string, unknown>) =>
+    row(`r-${id}`, atMs, { Content: { parts: [{ functionResponse: { id, name, response } }], role: 'user' } })
+
+  /** The session store: one sub-agent session whose stored events are `events()` at each read. */
+  const store = (events: () => unknown[]) => vi.fn((url: string) => {
+    if (url === '/agentiko/sessions') {
+      return respond({ data: [{ agent_id: TOOL, id: 'sub-1', source: 'agent', updated_at: new Date(T0 + 2_000).toISOString() }] })
+    }
+    if (url.startsWith('/agentiko/sessions/sub-1?')) {
+      return respond({ data: { events: events(), session: { id: 'sub-1' } } })
+    }
+    return respond({ data: [] })
+  })
+
+  const tick = async (ms: number) => {
+    await act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+  }
+
+  it('fills the lane from the session store as each step is stored, before the specialist replies', async () => {
+    let stored: unknown[] = [asked(T0 + 1_100), call('c1', T0 + 1_500, 'k8s_get_resources', { namespace: 'krateo-system', resource_type: 'pods' })]
+    const fetchSpy = store(() => stored)
+    vi.stubGlobal('fetch', fetchSpy)
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    await tick(0)
+    const lane = () => within(screen.getByTestId('agentiko-run-lane'))
+    expect(lane().getByText('Read Pods')).toBeTruthy()
+    expect(lane().getByTestId('agentiko-run-step').getAttribute('data-status')).toBe('running')
+
+    stored = [...stored, result('c1', T0 + 1_900, 'k8s_get_resources', { output: { output: 'NAME READY' } })]
+    await tick(2_000)
+    expect(lane().getByTestId('agentiko-run-step').getAttribute('data-status')).toBe('done')
+    const reads = fetchSpy.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith('/agentiko/sessions/sub-1?'))
+    expect(new URL(reads[reads.length - 1], 'http://x').searchParams.get('order')).toBe('asc')
+  })
+
+  it('shows only its own run when the specialist’s session is shared with other conversations', async () => {
+    vi.stubGlobal('fetch', store(() => [
+      asked(T0 + 900, 'inv-other'),
+      call('x1', T0 + 950, 'k8s_get_resource_yaml', { name: 'other' }, 'inv-other'),
+      asked(T0 + 1_100),
+      call('c1', T0 + 1_500, 'k8s_get_resources', { namespace: 'krateo-system', resource_type: 'pods' }),
+    ]))
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    await tick(0)
+    const lane = within(screen.getByTestId('agentiko-run-lane'))
+    expect(lane.getAllByTestId('agentiko-run-step')).toHaveLength(1)
+    expect(lane.getByText('Read Pods')).toBeTruthy()
+  })
+
+  it('marks a step that failed while the specialist is still working', async () => {
+    vi.stubGlobal('fetch', store(() => [
+      asked(T0 + 1_100),
+      call('c1', T0 + 1_500, 'run_query', { query: 'SELECT 1' }),
+      result('c1', T0 + 1_600, 'run_query', { error: 'Tool execution failed. Details: Query error' }),
+    ]))
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    await tick(0)
+    const step = within(screen.getByTestId('agentiko-run-lane')).getByTestId('agentiko-run-step')
+    expect(step.getAttribute('data-status')).toBe('failed')
+    expect(step.textContent).toContain('Tool execution failed. Details: Query error')
+  })
+
+  it('a specialist that is visibly working does not trip the two-minute silence', async () => {
+    let stored: unknown[] = [asked(T0 + 1_100)]
+    vi.stubGlobal('fetch', store(() => stored))
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} onAskAgain={vi.fn()} />)
+    await tick(100_000)
+    stored = [...stored, call('c1', Date.now(), 'k8s_get_resources', { namespace: 'krateo-system', resource_type: 'pods' })]
+    await tick(40_000)
+    expect(head().textContent).not.toContain('No reply')
+  })
+
+  it('stops polling once the specialist replies, and the stored task takes over', async () => {
+    const fetchSpy = store(() => [asked(T0 + 1_100)])
+    vi.stubGlobal('fetch', fetchSpy)
+    const { rerender } = render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    await tick(0)
+    rerender(<RunTimeline message={turn({ evidence: [handOff({ done: true, endedAt: T0 + 9_000, sessionId: 'sub-1' })], streaming: true })} />)
+    await tick(0)
+    const before = fetchSpy.mock.calls.length
+    await tick(10_000)
+    const after = fetchSpy.mock.calls.slice(before).map(([url]) => String(url))
+    expect(after.filter((url) => !url.endsWith('/tasks'))).toEqual([])
+  })
+
+  it('backs off while the run cannot be found, then gives up and waits for the reply', async () => {
+    const other = row('u-other', T0 + 1_100, { Author: 'user', Content: { parts: [{ text: 'a different request' }], role: 'user' }, InvocationID: 'inv-x' })
+    const fetchSpy = store(() => [other])
+    vi.stubGlobal('fetch', fetchSpy)
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    const listReads = () => fetchSpy.mock.calls.filter(([url]) => String(url) === '/agentiko/sessions').length
+    await tick(0)
+    expect(listReads()).toBe(1)
+    await tick(10_000)
+    // Tries at 0, 4 and 12 s: a 2 s poll would have listed 6 times by now.
+    expect(listReads()).toBe(2)
+    await tick(80_000)
+    expect(listReads()).toBe(6)
+    expect(within(screen.getByTestId('agentiko-run-lane')).getByText('its steps appear when it replies')).toBeTruthy()
+    await tick(300_000)
+    expect(listReads()).toBe(6)
+  })
+
+  it('follows a run that is found on a later try at the normal rate', async () => {
+    let stored: unknown[] = []
+    const fetchSpy = store(() => stored)
+    vi.stubGlobal('fetch', fetchSpy)
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    await tick(0)
+    stored = [asked(T0 + 1_100), call('c1', T0 + 1_500, 'k8s_get_resources', { namespace: 'krateo-system', resource_type: 'pods' })]
+    await tick(4_000)
+    expect(within(screen.getByTestId('agentiko-run-lane')).getByText('Read Pods')).toBeTruthy()
+    const followReads = () => fetchSpy.mock.calls.filter(([url]) => String(url).startsWith('/agentiko/sessions/sub-1?')).length
+    const before = followReads()
+    await tick(10_000)
+    expect(followReads() - before).toBe(5)
+  })
+
+  it('stops after repeated failed reads and says the steps come with the reply', async () => {
+    const fetchSpy = vi.fn(() => respond({ error: true }, 403))
+    vi.stubGlobal('fetch', fetchSpy)
+    render(<RunTimeline message={turn({ evidence: [handOff()], streaming: true })} />)
+    await tick(10_000)
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+    expect(within(screen.getByTestId('agentiko-run-lane')).getByText('its steps appear when it replies')).toBeTruthy()
+  })
+
+  it('does not poll a turn read back from history', async () => {
+    const fetchSpy = vi.fn(() => respond({ data: [] }))
+    vi.stubGlobal('fetch', fetchSpy)
+    render(<RunTimeline message={turn({ evidence: [handOff()] })} />)
+    await tick(10_000)
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
 
