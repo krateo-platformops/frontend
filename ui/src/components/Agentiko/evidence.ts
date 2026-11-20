@@ -9,6 +9,7 @@
  */
 
 import { readPartMetadata } from './approval'
+import { isPortalTool } from './portalTools'
 import { redactValue } from './redact'
 import type { AgentikoFrame, EvidenceEntry, EvidenceKind, EvidenceSource } from './types'
 
@@ -18,8 +19,9 @@ const asRecord = (value: unknown): Record<string, unknown> | undefined =>
 const clamp = (text: string, max: number): string =>
   (text.length > max ? `${text.slice(0, max)}…` : text)
 
-/** Protocol, not sources: these drive the portal or ask the human something. */
-const PROTOCOL_TOOLS = new Set(['adk_request_confirmation', 'adk_request_credential', 'ask_user', 'propose_portal_action'])
+/** Protocol, not sources: these ask the human something. The portal tools (portalTools.ts) drive the
+ *  portal; what they did shows as the reply's action chips. */
+const PROTOCOL_TOOLS = new Set(['adk_request_confirmation', 'adk_request_credential', 'ask_user'])
 
 const REPO_TOOLS = new Set(['list_blueprints', 'list_repo_files', 'list_repos', 'read_repo_file', 'search_repo', 'validate_manifest'])
 
@@ -28,7 +30,7 @@ const GRAPH_TOOLS = new Set(['get_neighbors', 'graph_find', 'graph_map', 'graph_
 /** kagent encodes an agent tool as `<namespace>__NS__<agent_name>`, hyphens as underscores. */
 const AGENT_TOOL = /__NS__/
 
-export const isEvidenceTool = (name: string): boolean => !PROTOCOL_TOOLS.has(name)
+export const isEvidenceTool = (name: string): boolean => !PROTOCOL_TOOLS.has(name) && !isPortalTool(name)
 
 /** `krateo_system__NS__core_provider_agent` → `core-provider-agent`. */
 export const agentFromToolName = (name: string): string | undefined => {
@@ -129,10 +131,12 @@ export const readToolPart = (part: unknown): ToolPart | undefined => {
     return { args: asRecord(data.args), id, name: data.name, type: 'call' }
   }
   const response = asRecord(data.response)
-  const payload = response?.output ?? response?.result
+  // adk-go reports a failed tool (an MCP result with isError, a tool kagent refused) as `{error: "…"}`.
+  const failure = typeof response?.error === 'string' ? response.error : undefined
+  const payload = response?.output ?? response?.result ?? failure
   return {
     id,
-    isError: response?.isError === true,
+    isError: response?.isError === true || failure !== undefined,
     name: data.name,
     ...(typeof payload === 'string' ? { output: payload } : {}),
     ...(typeof response?.subagent_session_id === 'string' ? { sessionId: response.subagent_session_id } : {}),
