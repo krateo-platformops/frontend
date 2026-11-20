@@ -341,6 +341,14 @@ describe('selectProposalsToRun', () => {
     expect(selectProposalsToRun([], [at('navigate'), at('navigate')]).map((x) => x.verb)).toEqual(['navigate'])
   })
 
+  it('lets one form fill follow the action, so opening a form and filling it is one reply', () => {
+    expect(selectProposalsToRun([at('navigate'), at('prefillForm')], []).map((x) => x.verb)).toEqual(['navigate', 'prefillForm'])
+    expect(selectProposalsToRun([at('runAction')], [at('navigate'), at('prefillForm'), at('prefillForm')]).map((x) => x.verb))
+      .toEqual(['runAction', 'prefillForm'])
+    // A fill that comes first is the reply's one action; a later navigate would leave the form it filled.
+    expect(selectProposalsToRun([at('prefillForm'), at('navigate')], []).map((x) => x.verb)).toEqual(['prefillForm'])
+  })
+
   it('runs a compose SEQUENCE, because a create and its bind are one intent', () => {
     const run = selectProposalsToRun([], [at('composeAdd'), at('composeBind')])
     expect(run.map((x) => x.verb)).toEqual(['composeAdd', 'composeBind'])

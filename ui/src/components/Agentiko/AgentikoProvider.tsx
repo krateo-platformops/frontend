@@ -18,7 +18,7 @@ import type { WriteOrigin } from '../../hooks/provenance'
 import { randomId } from '../../utils/utils'
 
 import { agentOfA2aBase } from './a2aEndpoint'
-import type { PortalActionProposal, PortalTour } from './actionBridge'
+import type { PortalTour } from './actionBridge'
 import { isComposeVerb, isRefusedChip, parseAgentikoDirectives, previewSkippedChip, sanitizeChatText, selectProposalsToRun, useAgentikoActionBridge } from './actionBridge'
 import { AgentDraftProvider } from './agentDraft'
 import type { ApprovalDecision, ApprovalGovernor, ApprovalPause } from './approval'
@@ -36,6 +36,7 @@ import { recordToolFrame } from './evidence'
 import { useAgentikoShortcut } from './keyboardShortcut'
 import { AgentikoLicenceContext } from './licence'
 import { createOasAttachmentStore, type OasAttachmentResult } from './oasAttachment'
+import { isPortalTool, type PortalToolCall, portalToolTurn, recordPortalFrame } from './portalTools'
 import { PREVIEW_SELF_CORRECTION_NUDGE, setPreviewRender } from './previewBus'
 import { emitPublishConfirmed, emitPublishResult, onPublishRequest } from './previewPublishRequest'
 import { AgentikoPreviewDrawer } from './previewSurface'
@@ -209,7 +210,8 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // Accumulated raw assistant text + pending proposals per in-flight turn, used to
   // finalize (strip fenced proposals, auto-apply read-only actions) on `done`.
   const assistantTextRef = useRef<Map<string, string>>(new Map())
-  const proposalsRef = useRef<Map<string, PortalActionProposal[]>>(new Map())
+  // The turn's portal tool calls (portalTools.ts), each marked once its result says the server accepted it.
+  const portalCallsRef = useRef<Map<string, PortalToolCall[]>>(new Map())
   const evidenceRef = useRef<Map<string, EvidenceEntry[]>>(new Map())
   // Assistant turns already finalized, so a duplicate `done` frame can't re-run finalize
   // (which deletes the text buffer and would otherwise wipe the rendered answer).
@@ -264,7 +266,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // (384 vs 640px), and a single owner avoids two effects racing to set the same DOM property.
 
   // On stream end: strip fenced `portal-action` blocks from the assistant text, then
-  // auto-apply the read-only proposals (from tool_call frames + fenced blocks) through
+  // auto-apply the proposals (acknowledged portal tool calls, then fenced blocks) through
   // the REAL dispatcher, attaching a chip per applied action. The bridge denies any
   // non-read-only verb, so this never mutates.
   // `modality` is THIS turn's own provenance (voice spec FR 67), handed down the same
@@ -300,11 +302,15 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     }
     finalizedRef.current.add(assistantId)
     const rawText = assistantTextRef.current.get(assistantId) ?? ''
-    const { cleanedText, proposals: textProposals, suggestions, tour: proposedTour } = parseAgentikoDirectives(rawText)
-    const toolProposals = proposalsRef.current.get(assistantId) ?? []
+    const { cleanedText, proposals: textProposals, suggestions: textSuggestions, tour: textTour } = parseAgentikoDirectives(rawText)
+    // Acknowledged portal tool calls first; a fence in the text still runs after them.
+    const portalTurn = portalToolTurn(portalCallsRef.current.get(assistantId) ?? [])
+    const toolProposals = portalTurn.proposals
+    const suggestions = [...new Set([...portalTurn.suggestions, ...textSuggestions])]
+    const proposedTour = portalTurn.tour ?? textTour
     const evidence = evidenceRef.current.get(assistantId) ?? []
     assistantTextRef.current.delete(assistantId)
-    proposalsRef.current.delete(assistantId)
+    portalCallsRef.current.delete(assistantId)
     evidenceRef.current.delete(assistantId)
 
     setMessages((prev) => prev.map((message) => (
@@ -482,10 +488,10 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
         return
       }
 
-      // NARRATED-PUBLISH TRAMPOLINE: the model approved-published in PROSE but emitted no publish
-      // fence (the exact rail-publish stall) — so nothing was proposed and no blast-radius dialog
+      // NARRATED-PUBLISH TRAMPOLINE: the model approved-published in PROSE but made no publish
+      // call (the exact rail-publish stall) — so nothing was proposed and no blast-radius dialog
       // opened. If the user's last message was an approval AND a previewed draft is held, re-prompt
-      // ONCE to emit the held draft's own publish verb (emitting the fence IS the gate).
+      // ONCE to call the held draft's own publish verb (the call IS the gate).
       const held = blueprintStore.get()
       const heldName = heldDraftIdentity(held)
       const approvedPublish = /\b(publish|open the (?:pull request|pr|merge request|mr)|go ahead|do it|approve|proceed|looks good|ship it)\b/i.test(lastUserTextRef.current)
@@ -548,20 +554,17 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
         agentikoConversationStore.setContextId(frame.contextId, agent)
         break
       case 'tool_call':
-        if (frame.name === 'propose_portal_action' && frame.args && typeof frame.args === 'object') {
-          proposalsRef.current.set(assistantId, [...(proposalsRef.current.get(assistantId) ?? []), frame.args as PortalActionProposal])
+      case 'tool_result':
+        if (isPortalTool(frame.name)) {
+          portalCallsRef.current.set(assistantId, recordPortalFrame(portalCallsRef.current.get(assistantId) ?? [], frame))
         } else {
           evidenceRef.current.set(assistantId, recordToolFrame(evidenceRef.current.get(assistantId) ?? [], frame))
           publishEvidence(assistantId)
         }
         break
-      case 'tool_result':
-        evidenceRef.current.set(assistantId, recordToolFrame(evidenceRef.current.get(assistantId) ?? [], frame))
-        publishEvidence(assistantId)
-        break
       case 'error':
         assistantTextRef.current.delete(assistantId)
-        proposalsRef.current.delete(assistantId)
+        portalCallsRef.current.delete(assistantId)
         evidenceRef.current.delete(assistantId)
         setMessages((prev) => prev.map((message) => (
           message.id === assistantId
@@ -751,7 +754,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     resetPreviewDataLoop()
     setPreviewRender(null)
     assistantTextRef.current.clear()
-    proposalsRef.current.clear()
+    portalCallsRef.current.clear()
     evidenceRef.current.clear()
     finalizedRef.current.clear()
     setStreaming(false)

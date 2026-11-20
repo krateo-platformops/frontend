@@ -337,7 +337,7 @@ export const publishDraft = async (deps: PublishDraftDeps, proposal: PortalActio
 
 /**
  * The NARRATED-PUBLISH recovery nudge: the person approved a publish, the model said so in prose and
- * emitted no publish fence, so nothing was proposed and no confirm opened. The nudge names the HELD
+ * made no publish call, so nothing was proposed and no confirm opened. The nudge names the HELD
  * draft's own publish verb — the one its Builder allows — with its destination's prefills, so a held
  * controller is nudged to publishRestDef, never another builder's verb. Null when the held draft's
  * Builder publishes nothing this frontend runs.
@@ -350,7 +350,7 @@ export const narratedPublishNudge = (held: BlueprintDraftHeld, heldName: string,
   }
   const target = builderTargetFor(targets, builder.publish.targetKey)
   const scalarVerb = `{"verb":"${verb}","owner":"${target.owner}","repo":"${target.repo}","base":"main"}`
-  return `You approved publishing \`${heldName}\` but your reply contained NO portal-action fence, so nothing was proposed and no confirm dialog opened. Do NOT say the user "will be asked to confirm" — EMITTING the fence is ITSELF what opens the blast-radius dialog. Re-issue the PUBLISH step NOW as a single fenced \`\`\`portal-action block containing ONLY this one scalar verb: ${scalarVerb}. The portal commits the held ${draftKindPlugin(builder.draftKind).nouns.short} as ONE publish claim — a branch with its files, and a change request for review — you do NOT write any of that yourself.`
+  return `You approved publishing \`${heldName}\` but your reply made NO publish call, so nothing was proposed and no confirm dialog opened. Do NOT say the user "will be asked to confirm" — the publish call is ITSELF what opens the blast-radius dialog. Make it NOW: call \`${verb}\` with owner "${target.owner}", repo "${target.repo}", base "main" (without portal tools, emit a single fenced \`\`\`portal-action block containing ONLY ${scalarVerb}). The portal commits the held ${draftKindPlugin(builder.draftKind).nouns.short} as ONE publish claim — a branch with its files, and a change request for review — you do NOT write any of that yourself.`
 }
 
 export interface PersonPublishDeps extends PublishDraftDeps {

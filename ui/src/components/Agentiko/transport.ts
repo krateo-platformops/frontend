@@ -15,8 +15,8 @@
  *     its output so it is never mistaken for a real answer.
  *
  * GOVERNING INVARIANT: the transport is read-only plumbing. It carries text and
- * (later) `propose_portal_action` tool_call frames the bridge intercepts — it never
- * itself mutates the cluster.
+ * tool frames, among them the portal tool calls the provider runs (portalTools.ts) —
+ * it never itself mutates the cluster.
  */
 
 import { withA2aMethod } from '../../otel/spanContract'
