@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { isEvidenceTool, readToolPart } from './evidence'
-import { isPortalTool, PORTAL_VERB_TOOLS, portalToolTurn, recordPortalFrame, type PortalToolCall } from './portalTools'
+import { decodePortalArgs, isPortalTool, PORTAL_VERB_TOOLS, portalToolTurn, recordPortalFrame, type PortalToolCall } from './portalTools'
 import type { AgentikoFrame } from './types'
 
 const call = (name: string, args: Record<string, unknown>, id = name): AgentikoFrame => ({ args, id, kind: 'tool_call', name })
@@ -89,6 +89,35 @@ describe('a turn runs the calls the server accepted', () => {
 
   it('frames of other tools leave the list alone', () => {
     expect(fold([call('read_repo_file', { path: 'x' }), result('read_repo_file', false)])).toEqual([])
+  })
+})
+
+describe('whole objects arrive as JSON text', () => {
+  const flex = { apiVersion: 'widgets.templates.krateo.io/v1beta1', kind: 'Flex', metadata: { annotations: { 'krateo.io/nav-path': '/x' }, name: 'page-x' } }
+
+  it('previewPage parses widgets into the CRs, and takes one object as one widget', () => {
+    const calls = fold([call('previewPage', { label: 'Preview', widgets: JSON.stringify([flex]) }), result('previewPage', false)])
+    expect(portalToolTurn(calls).proposals).toEqual([{ label: 'Preview', verb: 'previewPage', widgets: [flex] }])
+    const one = fold([call('previewPage', { widgets: JSON.stringify(flex) }), result('previewPage', false)])
+    expect(portalToolTurn(one).proposals[0].widgets).toEqual([flex])
+  })
+
+  it('applyResourceSet parses each payload; an op without one is left as it is', () => {
+    const ops = [
+      { gvr: { group: '', resource: 'configmaps', version: 'v1' }, namespace: 'demo', payload: JSON.stringify({ data: { 'a.json': '{"k": 1}' }, metadata: { name: 'x' } }), verb: 'POST' },
+      { gvr: { group: '', resource: 'configmaps', version: 'v1' }, name: 'y', namespace: 'demo', verb: 'DELETE' },
+    ]
+    const calls = fold([call('applyResourceSet', { ops }), result('applyResourceSet', false)])
+    expect(portalToolTurn(calls).proposals[0].ops).toEqual([
+      { ...ops[0], payload: { data: { 'a.json': '{"k": 1}' }, metadata: { name: 'x' } } },
+      ops[1],
+    ])
+  })
+
+  it('text that does not parse stays text, and object arguments pass through unchanged', () => {
+    expect(decodePortalArgs('previewPage', { widgets: '[{' })).toEqual({ widgets: '[{' })
+    expect(decodePortalArgs('previewPage', { widgets: [flex] })).toEqual({ widgets: [flex] })
+    expect(decodePortalArgs('prefillForm', { values: { name: '{"a":1}' } })).toEqual({ values: { name: '{"a":1}' } })
   })
 })
 

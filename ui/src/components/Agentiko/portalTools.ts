@@ -5,6 +5,9 @@
  * `tool_result` saying whether the server accepted them. Only an accepted call runs, so a call the model
  * corrected in the same turn runs once, in its corrected form.
  *
+ * Whole objects travel as JSON text (`previewPage.widgets`, `applyResourceSet.ops[].payload`): Gemini fills a
+ * free-form object argument unreliably, so the server takes a string and the rail parses it here.
+ *
  * `propose_portal_action` is the older single-tool shape (its arguments are a whole proposal, verb
  * included). It runs unless its result is an error, as it always has.
  */
@@ -71,6 +74,40 @@ export interface PortalToolTurn {
   tour?: PortalTour
 }
 
+const parseJson = (text: string): unknown => {
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * A call's arguments with its JSON-text fields parsed into objects. Text that does not parse stays text, so
+ * the verb refuses it as malformed; the server refuses such a call first, so it does not reach here.
+ */
+export const decodePortalArgs = (name: string, args: Record<string, unknown>): Record<string, unknown> => {
+  if (name === 'previewPage' && typeof args.widgets === 'string') {
+    const widgets = parseJson(args.widgets)
+    if (Array.isArray(widgets)) {
+      return { ...args, widgets }
+    }
+    return asRecord(widgets) ? { ...args, widgets: [widgets] } : args
+  }
+  if (name === 'applyResourceSet' && Array.isArray(args.ops)) {
+    const ops = args.ops.map((op: unknown) => {
+      const record = asRecord(op)
+      if (!record || typeof record.payload !== 'string') {
+        return op
+      }
+      const payload = parseJson(record.payload)
+      return payload === undefined ? op : { ...record, payload }
+    })
+    return { ...args, ops }
+  }
+  return args
+}
+
 const runs = (call: PortalToolCall): boolean => (call.name === LEGACY_TOOL ? call.ok !== false : call.ok === true)
 
 const tourOf = (args: Record<string, unknown>): PortalTour | undefined => {
@@ -99,7 +136,7 @@ export const portalToolTurn = (calls: readonly PortalToolCall[]): PortalToolTurn
       tour = tour ?? tourOf(call.args)
     } else if (PORTAL_VERB_TOOLS.has(call.name)) {
       // The tool name is the verb, and it wins over any `verb` the arguments carry.
-      proposals.push({ ...call.args, verb: call.name })
+      proposals.push({ ...decodePortalArgs(call.name, call.args), verb: call.name })
     }
   }
   return { proposals, suggestions: [...new Set(suggestions)], ...(tour ? { tour } : {}) }
