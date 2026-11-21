@@ -150,8 +150,8 @@
 }
 
 /* Tree row (itemTemplate.rowVariant: tree) — detail Relations "composed children":
-   tight single-line mono row, `└─` connector + glow dot + Kind + muted name +
-   right-aligned colored state. Mirrors the mockup `.rel-row`. */
+   tight single-line mono row, glow dot + Kind + muted name + right-aligned colored state.
+   No branch connector: each row is a direct child of the page's composition. */
 .treeRow {
   align-items: center;
   display: flex;
@@ -159,11 +159,6 @@
   font-size: var(--krateo-text-caption);
   gap: var(--spacing-sm);
   padding: var(--spacing-xsm) var(--spacing-xxs) !important;
-}
-
-.treeConnector {
-  color: var(--gray-color);
-  flex: none;
 }
 
 .treeDot {

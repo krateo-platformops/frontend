@@ -125,7 +125,7 @@ export interface ItemTemplate {
   status?: StatusSpec
   /**
    * Row layout: `default` (antd List.Item.Meta — avatar + stacked title/description),
-   * `tree` (a tight single-line mono row: `└─` connector + status dot + primaryText
+   * `tree` (a tight single-line mono row: status dot + primaryText
    * + muted inline subPrimaryText + right-aligned colored secondaryText — the detail
    * Relations "composed children" tree), or `card` (a full antd Card tile — icon-tile +
    * name + version badge (subPrimaryText) + category tag (secondaryText) + description +

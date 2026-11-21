@@ -84,7 +84,8 @@ export const requiredMarkFor = (isRequired: boolean, marks: Marks | undefined): 
  * author wrote in values.schema.json) falling back to the schema `key`, plus its `description`
  * (muted, if present). Used identically for scalars, toggles, maps and nested-object groups so the
  * whole form reads as one system. Preferring `title` means a novice sees "Availability zones", not
- * the raw key `azs`.
+ * the raw key `azs`; the key follows in small mono ("Availability zones azs"), so the name a chart
+ * author and values.yaml use stays findable.
  */
 export const fieldHeader = (key: string, node: JSONSchema4, isRequired: boolean, marks?: Marks): React.ReactNode => {
   const description = typeof node.description === 'string' ? node.description : ''
@@ -94,6 +95,9 @@ export const fieldHeader = (key: string, node: JSONSchema4, isRequired: boolean,
       <span className={styles.fieldName}>
         {label}
         {requiredMarkFor(isRequired, marks)}
+        {/* The key beside a title that says something else (UX review round 3): not for "Name" over `name`,
+            which would only repeat it. aria-hidden, so the accessible name stays the title. */}
+        {label.toLowerCase() !== key.toLowerCase() ? <span aria-hidden='true' className={styles.fieldKey}>{key}</span> : null}
       </span>
       {description ? <span className={styles.fieldDesc}>{description}</span> : null}
     </span>

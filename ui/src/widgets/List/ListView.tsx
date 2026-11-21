@@ -372,8 +372,11 @@ export const ListView = ({
           )
         }
 
-        // Tree row (detail Relations): a tight single-line mono row — `└─` connector
-        // + status dot + Kind + muted inline name + right-aligned colored state.
+        // Tree row (detail Relations): a tight single-line mono row — status dot + Kind + muted
+        // inline name + right-aligned colored state. NO `└─` connector: every row is a direct child
+        // of the composition the page header already names, so a branch with no drawn parent read
+        // as a broken tree (UX review round 3; Diego chose removing it over adding a root row). The
+        // variant still reports each child's health upward (childHealth above).
         if (itemTemplate.rowVariant === 'tree') {
           return (
             <AntdList.Item
@@ -381,7 +384,6 @@ export const ListView = ({
               key={`${rowKey}-${index}`}
               {...rowNavProps(row.navigateTo, (path) => navigateOrExternal(navigate, path))}
             >
-              <span className={styles.treeConnector}>└─</span>
               <span className={styles.treeDot} style={{ backgroundColor: colorCode, boxShadow: `0 0 5px 1px ${colorCode}` }} />
               <span className={styles.treeKind}>{row.primaryText}</span>
               {row.subPrimaryText && <span className={styles.treeName}>{row.subPrimaryText}</span>}

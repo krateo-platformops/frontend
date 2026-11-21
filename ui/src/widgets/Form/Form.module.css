@@ -243,6 +243,17 @@
   line-height: 1.3;
 }
 
+/* The schema key beside a field's title, when the title is not the key ("Image pull secrets
+   imagePullSecrets"): what a chart author and `values.yaml` call the field. Hidden from assistive
+   technology, so the field's accessible name stays its title. */
+.fieldKey {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  font-weight: var(--font-weight-light);
+  margin-left: var(--spacing-xsm);
+}
+
 .req {
   color: var(--primary-color);
 }
@@ -317,12 +328,14 @@
   white-space: nowrap;
 }
 
-/* Connector rail — one consistent left line binds each property's name + description to its
-   value (a leaf's control, or a group's child fields) as a single unit. Nested groups nest
-   the rail, so depth is legible; the rail lights amber while its field is focused, making the
-   active name↔value pair obvious. */
+/* Connector rail. A FIELD's rail is invisible at rest and lights amber while the field is focused,
+   making the active name↔value pair obvious. Only a nested GROUP draws a line at rest (.group): one
+   continuous line down its fields. UX review round 3: a line on every field AND on every group drew
+   two broken lines at each level ("drop the first-level one and make the second continuous"); Diego
+   approved the rule for every form (https://claude.ai/artifact/2DzX7yxTtVAb72mTgs1YE7, section 3).
+   The border stays 2px, transparent, so focusing a field never shifts the layout. */
 .field {
-  border-left: 2px solid color-mix(in srgb, var(--gray-color) 38%, transparent);
+  border-left: 2px solid transparent;
   margin-bottom: var(--spacing-md) !important;
   padding-left: var(--spacing-smd);
   transition: border-color 0.15s ease;
