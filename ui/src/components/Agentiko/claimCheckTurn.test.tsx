@@ -28,6 +28,8 @@ vi.mock('../../context/ConfigContext', async (importOriginal) => ({
   useConfigContext: () => ({ config: { api: { AUTOPILOT_API_BASE_URL: 'echo' } } }),
 }))
 vi.mock('./askDeepLink', () => ({ useAskDeepLink: () => undefined }))
+// The provider also consumes `?agentiko=` through a router hook; this harness renders it without a router.
+vi.mock('./useApprovalLink', () => ({ useApprovalLink: () => undefined }))
 vi.mock('./useAgentikoContext', () => ({
   buildContextDelta: () => ({}),
   useAgentikoContext: () => ({ collect: () => ({ focus: 'Home', route: '/', widgets: [] }) }),
