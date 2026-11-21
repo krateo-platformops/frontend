@@ -93,7 +93,7 @@ describe('BlueprintBuilder — a chart held before it mounted', () => {
     // Now the composer mounts, and hears the held chart only through the replay it asks for.
     act(() => { provider.showBuilder() })
     const palette = () => screen.getByRole('region', { name: 'Add' })
-    await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
+    await waitFor(() => expect(within(palette()).getByText('72 kinds · 3 providers')).toBeTruthy())
 
     const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { fireEvent.change(within(palette()).getByLabelText('Filter by kind or group'), { target: { value: 'Repository' } }) })

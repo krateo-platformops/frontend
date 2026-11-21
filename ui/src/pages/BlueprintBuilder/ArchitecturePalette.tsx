@@ -173,23 +173,40 @@ export const ArchitecturePalette = ({ chart, dimmed, onDismissRefusal, onFormFie
         </Section>
 
         {read?.unavailable ? null : (
-          <Section busy={custom.state === 'loading'} count={custom.state === 'ok' ? `${custom.kinds} kinds · ${custom.groupCount} groups` : undefined} title='Custom resources'>
+          <Section busy={custom.state === 'loading'} count={custom.state === 'ok' ? `${custom.kinds} kinds · ${counted(custom.providerCount, 'provider')}` : undefined} title='Custom resources'>
             {custom.state === 'loading' ? <p className={styles.fieldText}>Listing what you may place…</p> : null}
             {custom.sentence ? <p className={styles.paletteNote}>{custom.sentence}</p> : null}
             {custom.state === 'ok' && !custom.kinds ? <p className={styles.fieldText}>No custom resources are installed here that a composition can place.</p> : null}
-            {custom.groups.map((group) => (
-              <div className={styles.paletteGroup} key={group.group}>
+            {/* Provider → group → kind (approved mockup): 137 group rows on krateo-057 became 13 provider
+                rows. Both levels start closed; a filter opens every provider and group it matches. */}
+            {custom.providers.map((provider) => (
+              <div className={styles.paletteGroup} key={`provider:${provider.provider}`}>
                 <button
-                  aria-expanded={expanded(group.group)}
-                  className={styles.paletteGroupHead}
-                  onClick={() => toggle(group.group)}
+                  aria-expanded={expanded(`provider:${provider.provider}`)}
+                  className={`${styles.paletteGroupHead} ${styles.paletteProviderHead}`}
+                  onClick={() => toggle(`provider:${provider.provider}`)}
                   type='button'
                 >
-                  <span aria-hidden='true'>{expanded(group.group) ? '▾' : '▸'}</span>
-                  <span className={styles.paletteGroupName}>{group.group}</span>
-                  <span className={styles.countPill}>{group.owner ? `${group.owner} · ${group.total}` : String(group.total)}</span>
+                  <span aria-hidden='true'>{expanded(`provider:${provider.provider}`) ? '▾' : '▸'}</span>
+                  <span className={styles.paletteGroupName}>{provider.provider}</span>
+                  <span className={styles.countPill}>{`${counted(provider.groupCount, 'group')} · ${provider.total}`}</span>
                 </button>
-                {expanded(group.group) ? group.rows.map((entry) => row(entry, true)) : null}
+                {expanded(`provider:${provider.provider}`) ? provider.groups.map((group) => (
+                  <div className={`${styles.paletteGroup} ${styles.paletteGroupNested}`} key={group.group}>
+                    <button
+                      aria-expanded={expanded(group.group)}
+                      className={styles.paletteGroupHead}
+                      onClick={() => toggle(group.group)}
+                      title={group.group}
+                      type='button'
+                    >
+                      <span aria-hidden='true'>{expanded(group.group) ? '▾' : '▸'}</span>
+                      <span className={styles.paletteGroupName}>{group.label}</span>
+                      <span className={styles.countPill}>{group.owner ? `${group.owner} · ${group.total}` : String(group.total)}</span>
+                    </button>
+                    {expanded(group.group) ? group.rows.map((entry) => row(entry, true)) : null}
+                  </div>
+                )) : null}
               </div>
             ))}
             {custom.clusterScoped ? (
