@@ -1,5 +1,5 @@
-import { useIsFetching } from '@tanstack/react-query'
-import { useSyncExternalStore } from 'react'
+import { useIsFetching, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useLocation } from 'react-router'
 
 import { buildersStatus, isBuilderPath, subscribeBuilders } from '../../builders/builderRegistry'
@@ -14,6 +14,9 @@ import { PageHealthProvider } from '../PageHealth'
 import PageSearch from '../PageSearch'
 import WidgetRenderer from '../WidgetRenderer'
 import { WidgetLoading } from '../WidgetStates'
+
+import NavigationUnavailable from './NavigationUnavailable'
+import { retryRouteSource, routeSourceKey, type RouteSourceState } from './routeSource'
 
 /** Exact routes that get a frontend-rendered page search bar (→ `?q=` → the page's
  * data-source RESTAction name/description filter). Frontend chrome, like the Shell search. */
@@ -52,6 +55,14 @@ export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: 
   // Routes now come from the sidebar Menu's inline items (registered once the INIT
   // Layout → Menu resolves), so "routes still loading" = that fetch is in flight —
   // show loading, not 404, until the route source has registered.
+  // The route source's own state (routeSource.ts): whether the Menu's read FAILED, and how. Read from
+  // the query the sider's Menu already made, never a second fetch. The snapshot is a string so it is
+  // stable between cache events, as useSyncExternalStore requires.
+  const queryClient = useQueryClient()
+  const subscribeRouteSource = useCallback((onChange: () => void) => queryClient.getQueryCache().subscribe(onChange), [queryClient])
+  const routeSourceSnapshot = useSyncExternalStore(subscribeRouteSource, () => routeSourceKey(queryClient))
+  const routeSource = useMemo(() => JSON.parse(routeSourceSnapshot) as RouteSourceState, [routeSourceSnapshot])
+
   const isFetchingRoutes = useIsFetching({
     predicate: (query) => {
       const key = query.queryKey[1] as string
@@ -71,6 +82,19 @@ export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: 
     // (and always for `/`, the home-redirect target), so a truly-unknown path only
     // 404s once routes ARE populated.
     const routesPopulated = menuRoutes.length > 0
+    // THE MENU'S READ FAILED, so no route will ever register: say why instead of loading forever (the
+    // approved "When the sidebar menu cannot load" states). Checked before the loading guard below,
+    // because a retry in flight keeps `isFetchingRoutes` up: the message stays and its button shows the
+    // progress. Only while no route exists: a menu that failed on a later refresh still has its routes.
+    if (!routesPopulated && routeSource.failure) {
+      return (
+        <NavigationUnavailable
+          failure={routeSource.failure}
+          onRetry={() => { void retryRouteSource(queryClient) }}
+          retrying={routeSource.retrying}
+        />
+      )
+    }
     const isHomeRedirect = location.pathname === '/'
     // The same holds for the Builders: until their read answers, this path may be a builder route not
     // mounted YET (/portal-builder/compose right after sign-in) — loading, not a 404 flash. Bounded:
