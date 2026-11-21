@@ -7,7 +7,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import HeaderProgress, { clockLabel, elapsedMinutes } from './HeaderProgress'
+import HeaderProgress, { clockLabel, elapsedLabel, elapsedMinutes } from './HeaderProgress'
 
 const NOW = Date.parse('2026-11-21T12:06:15Z')
 
@@ -46,6 +46,18 @@ describe('HeaderProgress', () => {
   it('an unparseable time renders nothing rather than "NaN"', () => {
     const { container } = render(<HeaderProgress progress={{ label: 'Re-analysis since', live: true, since: 'soon' }} />)
     expect(container.innerHTML).toBe('')
+  })
+
+  it('elapsed reads in the two largest units: minutes, then hours, then days', () => {
+    expect(elapsedLabel(0)).toBe('0 min')
+    expect(elapsedLabel(59)).toBe('59 min')
+    expect(elapsedLabel(60)).toBe('1 h')
+    expect(elapsedLabel(192)).toBe('3 h 12 min')
+    expect(elapsedLabel(24 * 60 - 1)).toBe('23 h 59 min')
+    expect(elapsedLabel(24 * 60)).toBe('1 d')
+    // krateo-057's incident 8 days in Verifying, which read "11501 min".
+    expect(elapsedLabel(11_501)).toBe('7 d 23 h')
+    expect(elapsedLabel(8 * 24 * 60 + 2 * 60 + 7)).toBe('8 d 2 h')
   })
 
   it('a start on an earlier day carries its date; elapsed is never negative', () => {

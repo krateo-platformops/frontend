@@ -33,6 +33,22 @@ export const elapsedMinutes = (since: string, now: number): number | null => {
   return Number.isNaN(at) ? null : Math.max(0, Math.floor((now - at) / 60_000))
 }
 
+/**
+ * Elapsed minutes in the two largest units that matter: "12 min", "3 h 12 min", "8 d 2 h" (a zero second
+ * unit is dropped: "3 h", "8 d"). Minutes alone read "11501 min" on a 057 incident 8 days old.
+ */
+export const elapsedLabel = (minutes: number): string => {
+  if (minutes < 60) { return `${minutes} min` }
+  if (minutes < 24 * 60) {
+    const hours = Math.floor(minutes / 60)
+    const rest = minutes % 60
+    return rest ? `${hours} h ${rest} min` : `${hours} h`
+  }
+  const days = Math.floor(minutes / (24 * 60))
+  const hours = Math.floor((minutes % (24 * 60)) / 60)
+  return hours ? `${days} d ${hours} h` : `${days} d`
+}
+
 const HeaderProgress = ({ progress }: { progress: HeaderProgressData }) => {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -50,7 +66,7 @@ const HeaderProgress = ({ progress }: { progress: HeaderProgressData }) => {
     <div className={styles.progress} data-page-header='progress'>
       <span className={styles.progressLine}>
         {progress.label} <span className={styles.progressValue}>{clock}</span>
-        {minutes !== null && <> · <span className={styles.progressValue}>{minutes} min</span></>}
+        {minutes !== null && <> · <span className={styles.progressValue}>{elapsedLabel(minutes)}</span></>}
         {progress.live && <span className={styles.progressLive}><span aria-hidden className={styles.progressDot} />live</span>}
       </span>
       {progress.live && progress.hint && <span className={styles.progressHint}>{progress.hint}</span>}
