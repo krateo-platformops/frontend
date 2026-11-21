@@ -414,3 +414,42 @@
 .chipRemove {
   opacity: 0.7;
 }
+
+/* M2 (approved motion set): a chip row with exactly one active chip draws the active fill as ONE pill
+   behind the row, which slides to the next chip chosen while the row stays mounted. The chips sit
+   above it; the active one is see-through (variant text) with the on-primary ink. */
+.chipFrame {
+  position: relative;
+}
+
+.chipFrame :global(.ant-list-item) {
+  position: relative;
+  z-index: 1;
+}
+
+.chipPill {
+  background: var(--krateo-color-action-primary);
+  border-radius: var(--krateo-radius-md);
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.chipPillMoving {
+  transition:
+    left var(--krateo-motion-standard) var(--krateo-motion-ease),
+    top var(--krateo-motion-standard) var(--krateo-motion-ease),
+    width var(--krateo-motion-standard) var(--krateo-motion-ease),
+    height var(--krateo-motion-standard) var(--krateo-motion-ease);
+}
+
+/* The see-through active chip (variant text, on-primary ink set inline). Kept as a hook for tests. */
+.chipOnPill {
+  position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chipPillMoving {
+    transition: none;
+  }
+}

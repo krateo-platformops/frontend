@@ -24,3 +24,28 @@
   font-size: var(--krateo-text-caption);
   font-weight: var(--font-weight-medium);
 }
+/* M1 (approved motion set): the panel that becomes active fades in with a 4px rise. antd hides an
+   inactive pane with display:none, so the animation restarts each time a pane is shown. The old
+   pane is hidden at once (antd does not keep it mounted to animate out), so this is the entering
+   half only. The ink bar already slides (antd's default). Off under reduced motion. */
+.tabs :global(.ant-tabs-tabpane-active) {
+  animation: tab-panel-in var(--krateo-motion-standard) var(--krateo-motion-ease) both;
+}
+
+@keyframes tab-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--krateo-space-1));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabs :global(.ant-tabs-tabpane-active) {
+    animation: none;
+  }
+}

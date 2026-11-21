@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Avatar, Card, List as AntdList, Button, Progress, Statistic, Tag, Tooltip, Typography } from 'antd'
 import type { ListGridType } from 'antd/es/list'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
-import { useId, useMemo, useState } from 'react'
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
 import { childHealthFromRow, useReportChildHealth } from '../../components/PageHealth'
@@ -206,13 +206,43 @@ export const ListView = ({
   }, [itemTemplate, items])
   useReportChildHealth(reportScope, childHealth)
 
+  // M2 (approved motion set): in a chip row with exactly ONE active chip, the active background is
+  // one pill behind the row that slides to the chip chosen next, instead of jumping. Measured from the
+  // active chip's box. The FIRST measurement only places it: a row that remounts (a chip that
+  // navigates and refetches the list) shows the new chip at once, and only a row that stays mounted
+  // across the change slides. A resize re-places it without motion. Rows with none or several active
+  // chips (filter bars) keep the plain primary chip. Off under reduced motion (the CSS).
+  const activeChips = isChips ? items.filter((item) => Boolean((item as { active?: unknown } | null)?.active)).length : 0
+  const slidingPill = isChips && activeChips === 1
+  const chipFrame = useRef<HTMLDivElement>(null)
+  const [pill, setPill] = useState<{ height: number; left: number; moving: boolean; top: number; width: number } | undefined>(undefined)
+  useLayoutEffect(() => {
+    const frame = chipFrame.current
+    if (!slidingPill || !frame) {
+      setPill(undefined)
+      return undefined
+    }
+    const place = (moving: boolean) => {
+      const chip = frame.querySelector<HTMLElement>('[data-chip-active="true"]')
+      if (!chip) { return }
+      const frameBox = frame.getBoundingClientRect()
+      const box = chip.getBoundingClientRect()
+      setPill((previous) => ({ height: box.height, left: box.left - frameBox.left, moving: moving && previous !== undefined, top: box.top - frameBox.top, width: box.width }))
+    }
+    place(true)
+    if (typeof ResizeObserver === 'undefined') { return undefined }
+    const observer = new ResizeObserver(() => { place(false) })
+    observer.observe(frame)
+    return () => { observer.disconnect() }
+  }, [items, slidingPill])
+
   if (!loading && !items.length) {
     // Conditional-section gate: when the RA emits no items (the condition is false —
     // e.g. the user already owns compositions), render nothing instead of a "No data" box.
     return hideWhenEmpty ? null : <WidgetEmpty />
   }
 
-  return (
+  const list = (
     <AntdList
       bordered={bordered}
       className={listClassName}
@@ -282,14 +312,19 @@ export const ListView = ({
             <AntdList.Item className={styles.chipItem} key={`${rowKey}-${index}`}>
               <Button
                 aria-label={removable ? `Remove filter: ${row.primaryText}` : undefined}
-                className={styles.chip}
+                className={active && slidingPill ? `${styles.chip} ${styles.chipOnPill}` : styles.chip}
+                data-chip-active={active ? 'true' : undefined}
                 // antd's own close glyph, the one a closable antd Tag draws.
                 icon={removable ? <CloseOutlined className={styles.chipRemove} /> : undefined}
                 iconPlacement={removable ? 'end' : undefined}
                 onClick={row.navigateTo ? () => navigateOrExternal(navigate, row.navigateTo) : undefined}
                 size='small'
-                type={active ? 'primary' : 'default'}
-                variant={active ? 'filled' : 'outlined'}
+                // On the sliding pill (M2) the active chip is see-through, the pill behind it being its
+                // fill: antd's text variant in the primary colour, with the on-primary ink. `type` is left
+                // out there, because antd lets `type` override `variant`. Every other chip is unchanged.
+                {...(active && slidingPill
+                  ? { color: 'primary' as const, style: { color: 'var(--krateo-color-action-on-primary)' }, variant: 'text' as const }
+                  : { type: active ? 'primary' as const : 'default' as const, variant: active ? 'filled' as const : 'outlined' as const })}
               >
                 {row.primaryText}
                 {showCount && <span className={styles.chipCount}>{count}</span>}
@@ -507,5 +542,18 @@ export const ListView = ({
       size={size}
       split={isChips ? false : split}
     />
+  )
+  if (!slidingPill) { return list }
+  return (
+    <div className={styles.chipFrame} ref={chipFrame}>
+      {pill ? (
+        <span
+          aria-hidden='true'
+          className={pill.moving ? `${styles.chipPill} ${styles.chipPillMoving}` : styles.chipPill}
+          style={{ height: pill.height, left: pill.left, top: pill.top, width: pill.width }}
+        />
+      ) : null}
+      {list}
+    </div>
   )
 }
