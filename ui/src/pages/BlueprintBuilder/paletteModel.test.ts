@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
 
 import { PALETTE_STATUS } from './__fixtures__/s4a'
 import { shapePaletteStatus } from './blueprintPalette'
-import { groupOwnerLabel, knownReadyField, paletteModel, placedCounts, rowLabel } from './paletteModel'
+import type { CustomKind, PaletteRead } from './blueprintPalette'
+import { groupOwnerLabel, knownReadyField, paletteModel, placedCounts, providerOf, rowLabel } from './paletteModel'
 
 const read = shapePaletteStatus(PALETTE_STATUS)
 const model = (filter = '', resources: { apiVersion: string; kind: string }[] = [], chart: string | null = 'orders') =>
@@ -16,11 +17,12 @@ describe('paletteModel — the custom class', () => {
   it('groups by API group, namespaced kinds only, and counts what it left out', () => {
     const { custom } = model()
     expect(custom.state).toBe('ok')
+    // In provider order (krateo.io first, then by kinds served), alphabetical within a provider.
     expect(custom.groups.map((group) => [group.group, group.owner, group.total])).toEqual([
-      ['cert-manager.io', null, 3],
       ['git.krateo.io', 'git-provider-crd', 2],
       ['github.krateo.io', 'github-provider-kog', 58],
       ['kagent.dev', 'kagent-crds', 9],
+      ['cert-manager.io', null, 3],
     ])
     expect(custom.kinds).toBe(72)
     expect(custom.groupCount).toBe(4)
@@ -120,5 +122,53 @@ describe('paletteModel — while listing, and when a class is denied', () => {
     expect(denied.compositions.state).toBe('denied')
     expect(denied.compositions.sentence).toMatch(/403 on CompositionDefinitions/)
     expect(denied.compositions.rows).toEqual([])
+  })
+})
+
+/**
+ * Providers (portal UX review: "the menu is quite messy for custom resources"; approved mockup
+ * https://claude.ai/artifact/SzL973XFHZSmngUCK7p4Bb). krateo-057 had 137 groups; a provider is the
+ * group's registrable domain, computed, so they become 13. krateo.io first, then by kinds served;
+ * templates.krateo.io last inside krateo.io; a group labelled without its provider's suffix.
+ */
+describe('paletteModel — custom kinds by provider', () => {
+  const kind = (group: string, name: string): CustomKind => ({
+    group, kind: name, owner: null, plural: `${name.toLowerCase()}s`, scope: 'Namespaced', statusFields: [], version: 'v1',
+  } as unknown as CustomKind)
+  const custom = (kinds: CustomKind[], filter = '') => paletteModel(
+    { compositions: { items: [], sentence: null, state: 'ok' }, custom: { items: kinds, sentence: null, state: 'ok' } } as unknown as PaletteRead,
+    filter, [], null,
+  ).custom
+  const GOOGLE = ['compute', 'sql', 'storage'].flatMap((service, index) => Array.from({ length: index + 2 }, (_, count) => kind(`${service}.cnrm.cloud.google.com`, `${service}K${count}`)))
+  const KRATEO = [kind('composition.krateo.io', 'Webapp'), kind('widgets.templates.krateo.io', 'Button'), kind('github.krateo.io', 'Repository')]
+  const OTHER = [kind('cert-manager.io', 'Certificate'), kind('acme.cert-manager.io', 'Order'), kind('kagent.dev', 'Agent')]
+
+  it('a provider is the group\'s last two labels', () => {
+    expect(['compute.cnrm.cloud.google.com', 'monitoring.googleapis.com', 'krateo.io', 'kagent.dev', 'local'].map(providerOf))
+      .toEqual(['google.com', 'googleapis.com', 'krateo.io', 'kagent.dev', 'local'])
+  })
+
+  it('krateo.io first even when another provider serves more kinds; then by kinds, then by name', () => {
+    const all = custom([...GOOGLE, ...KRATEO, ...OTHER])
+    expect(all.providers.map((entry) => [entry.provider, entry.groupCount, entry.total])).toEqual([
+      ['krateo.io', 3, 3], ['google.com', 3, 9], ['cert-manager.io', 2, 2], ['kagent.dev', 1, 1],
+    ])
+    expect(all.providerCount).toBe(4)
+    expect(all.groupCount).toBe(9)
+  })
+
+  it('inside krateo.io the portal\'s own templates.krateo.io groups come last; groups drop the provider suffix', () => {
+    const [krateo] = custom(KRATEO).providers
+    expect(krateo.groups.map((group) => [group.group, group.label])).toEqual([
+      ['composition.krateo.io', 'composition'], ['github.krateo.io', 'github'], ['widgets.templates.krateo.io', 'widgets.templates'],
+    ])
+    expect(custom(OTHER).providers.find((entry) => entry.provider === 'cert-manager.io')?.groups.map((group) => group.label)).toEqual(['acme', 'cert-manager.io'])
+  })
+
+  it('the filter matches a provider (all its kinds), a group, or a kind', () => {
+    expect(custom([...GOOGLE, ...KRATEO], 'google').providers.map((entry) => [entry.provider, entry.groups.flatMap((group) => group.rows).length])).toEqual([['google.com', 9]])
+    expect(custom([...GOOGLE, ...KRATEO], 'sql.cnrm').providers.map((entry) => entry.groups.map((group) => group.group))).toEqual([['sql.cnrm.cloud.google.com']])
+    expect(custom([...GOOGLE, ...KRATEO], 'webapp').providers.map((entry) => entry.provider)).toEqual(['krateo.io'])
+    expect(custom([...GOOGLE, ...KRATEO], 'nothing-like-this').providers).toEqual([])
   })
 })

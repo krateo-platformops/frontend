@@ -381,19 +381,31 @@
   gap: var(--spacing-xsm);
 }
 
-/* A custom group: a disclosure button, closed until opened or matched by the filter. */
+/* A provider or custom group: a disclosure button, closed until opened or matched by the filter. One
+   line: caret, name (ellipsized, the full name on hover), count; a long group name used to wrap and
+   push its count onto a line of its own (portal UX review). */
 .paletteGroupHead {
   align-items: center;
   background: none;
   border: 0;
   color: var(--gray-color);
   cursor: pointer;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   font-size: var(--krateo-text-caption);
   gap: var(--spacing-xsm);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   padding: var(--spacing-xxs) 0;
   text-align: start;
+}
+
+/* A provider is the outer level: its name reads as the heading of what is inside. */
+.paletteProviderHead {
+  color: var(--text-color);
+  font-weight: var(--font-weight-medium);
+}
+
+.paletteGroupNested {
+  padding-inline-start: var(--spacing-sm);
 }
 
 .paletteGroupHead[aria-expanded='true'] .paletteGroupName {
@@ -402,7 +414,9 @@
 
 /* stylelint-disable-next-line no-descending-specificity -- fixing this means MOVING a rule, and the cascade decides the outcome — a wrong move changes rendering and the 78 visual shots would not catch it. See #576. */
 .paletteGroupName {
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .paletteMatches {

@@ -9,8 +9,17 @@
  * NAMESPACED ONLY. A composition's resources live in its own namespace, so a cluster-scoped kind
  * cannot be one of them; the section counts what it left out, rather than leaving it out silently.
  *
- * THE FILTER matches a kind, its group, or a blueprint's name. A group whose NAME matches shows all
- * its kinds (the operator is what was asked for); otherwise only the kinds that match.
+ * THEN BY PROVIDER (portal UX review; Diego, 2026-11-21, approved mockup
+ * https://claude.ai/artifact/SzL973XFHZSmngUCK7p4Bb): krateo-057 grew to 137 groups, one row each, the
+ * reviewer's "quite messy". A provider is the group's registrable domain, its LAST TWO LABELS
+ * (`compute.cnrm.cloud.google.com` → `google.com`), computed and never a hand-written name list that
+ * could go stale: 137 groups become 13 providers. krateo.io is pinned first (a blueprint author reaches
+ * for Krateo kinds most), the rest by how many kinds they serve; inside krateo.io the portal's own
+ * templates.krateo.io groups (widgets, RESTActions) sort last, kept but out of the way. A group is
+ * labelled without its provider's suffix (`compute.cnrm.cloud`), the full name on hover.
+ *
+ * THE FILTER matches a kind, its group, its provider, or a blueprint's name. A provider or group whose
+ * NAME matches shows all its kinds (that is what was asked for); otherwise only the kinds that match.
  *
  * READINESS, where the palette can say it. Native: the kind's kstatus meaning. Custom: a
  * four-entry table of kinds whose readiness is known — shown only when THIS cluster's CRD declares
@@ -38,6 +47,8 @@ export interface PaletteRow {
 
 export interface CustomGroup {
   group: string
+  /** The group without its provider's suffix (`compute.cnrm.cloud`), or the group when it IS the provider. */
+  label: string
   owner: string | null
   /** Every placeable kind in the group — what its pill counts. */
   total: number
@@ -45,11 +56,31 @@ export interface CustomGroup {
   rows: PaletteRow[]
 }
 
+/** A provider: every group under one registrable domain (see the header). */
+export interface CustomProvider {
+  provider: string
+  /** Every placeable group and kind under it — what its pill counts, whatever the filter keeps. */
+  groupCount: number
+  total: number
+  /** The groups the filter keeps. */
+  groups: CustomGroup[]
+}
+
 export type SectionState = 'loading' | 'ok' | 'denied' | 'error'
 
 export interface PaletteModel {
   native: PaletteRow[]
-  custom: { state: SectionState; sentence: string | null; groups: CustomGroup[]; kinds: number; groupCount: number; clusterScoped: number }
+  custom: {
+    state: SectionState
+    sentence: string | null
+    /** The kept groups, flat, in provider order. */
+    groups: CustomGroup[]
+    providers: CustomProvider[]
+    kinds: number
+    groupCount: number
+    providerCount: number
+    clusterScoped: number
+  }
   compositions: { state: SectionState; sentence: string | null; rows: PaletteRow[]; installed: number; selfNesting: string | null }
   /** The filter, trimmed — empty when there is none. */
   filter: string
@@ -136,18 +167,44 @@ const customRow = (entry: CustomKind, counts: Map<string, number>): PaletteRow =
   }
 }
 
-const customGroups = (kinds: readonly CustomKind[], query: string, counts: Map<string, number>): CustomGroup[] => {
-  const byGroup = new Map<string, CustomKind[]>()
+/** The provider pinned first: Krateo's own domain. */
+export const KRATEO_PROVIDER = 'krateo.io'
+
+/** A group's provider: its registrable domain, the last two labels (a one-label group is its own). */
+export const providerOf = (group: string): string => group.split('.').slice(-2).join('.')
+
+/** The portal's own kinds (widgets, RESTActions): kept in the palette, sorted last inside krateo.io. */
+const isPortalInternal = (group: string): boolean => group === 'templates.krateo.io' || group.endsWith('.templates.krateo.io')
+
+const groupLabel = (group: string, provider: string): string =>
+  (group !== provider && group.endsWith(`.${provider}`) ? group.slice(0, -provider.length - 1) : group)
+
+const customProviders = (kinds: readonly CustomKind[], query: string, counts: Map<string, number>): CustomProvider[] => {
+  const byProvider = new Map<string, Map<string, CustomKind[]>>()
   for (const entry of kinds) {
-    byGroup.set(entry.group, [...(byGroup.get(entry.group) ?? []), entry])
+    const provider = providerOf(entry.group)
+    const groups = byProvider.get(provider) ?? new Map<string, CustomKind[]>()
+    groups.set(entry.group, [...(groups.get(entry.group) ?? []), entry])
+    byProvider.set(provider, groups)
   }
-  return [...byGroup.entries()].sort(([left], [right]) => byText(left, right)).flatMap(([group, members]) => {
-    const sorted = [...members].sort((left, right) => byText(left.kind, right.kind))
-    const shown = includes(query, group) ? sorted : sorted.filter((entry) => includes(query, entry.kind))
-    return shown.length
-      ? [{ group, owner: groupOwnerLabel(members.map((entry) => entry.owner)), rows: shown.map((entry) => customRow(entry, counts)), total: members.length }]
-      : []
-  })
+  const totalOf = (groups: Map<string, CustomKind[]>): number => [...groups.values()].reduce((sum, members) => sum + members.length, 0)
+  return [...byProvider.entries()]
+    .sort(([left, leftGroups], [right, rightGroups]) => (Number(right === KRATEO_PROVIDER) - Number(left === KRATEO_PROVIDER))
+      || (totalOf(rightGroups) - totalOf(leftGroups))
+      || byText(left, right))
+    .flatMap(([provider, groups]) => {
+      const providerMatches = includes(query, provider)
+      const kept = [...groups.entries()]
+        .sort(([left], [right]) => (Number(isPortalInternal(left)) - Number(isPortalInternal(right))) || byText(left, right))
+        .flatMap(([group, members]): CustomGroup[] => {
+          const sorted = [...members].sort((left, right) => byText(left.kind, right.kind))
+          const shown = providerMatches || includes(query, group) ? sorted : sorted.filter((entry) => includes(query, entry.kind))
+          return shown.length
+            ? [{ group, label: groupLabel(group, provider), owner: groupOwnerLabel(members.map((entry) => entry.owner)), rows: shown.map((entry) => customRow(entry, counts)), total: members.length }]
+            : []
+        })
+      return kept.length ? [{ groupCount: groups.size, groups: kept, provider, total: totalOf(groups) }] : []
+    })
 }
 
 const compositionRows = (items: readonly InstalledBlueprint[], query: string, counts: Map<string, number>, selfKind: string | null): PaletteRow[] => [...items]
@@ -178,7 +235,8 @@ export const paletteModel = (
   const counts = placedCounts(resources)
   const custom = stateOf(read?.custom ?? null)
   const namespaced = custom.items.filter((entry) => entry.scope === 'Namespaced')
-  const groups = customGroups(namespaced, query, counts)
+  const providers = customProviders(namespaced, query, counts)
+  const groups = providers.flatMap((provider) => provider.groups)
   const compositions = stateOf(read?.compositions ?? null)
   const selfKind = chart ? compositionKind(chart) : null
   const rows = compositionRows(compositions.items, query, counts, selfKind)
@@ -196,6 +254,8 @@ export const paletteModel = (
       groupCount: new Set(namespaced.map((entry) => entry.group)).size,
       groups,
       kinds: namespaced.length,
+      providerCount: new Set(namespaced.map((entry) => providerOf(entry.group))).size,
+      providers,
       sentence: custom.sentence,
       state: custom.state,
     },
