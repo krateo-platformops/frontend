@@ -77,3 +77,61 @@
   color: var(--gray-color);
   font-size: var(--krateo-text-caption);
 }
+
+/* `progress`: something on the page is in progress (approved mockup, incident "no sign of life").
+   "Re-analysis since 11:54 UTC · 12 min", the minutes ticking in HeaderProgress while live, a live
+   mark, and a hint under it. Muted like the subtitle; the times in the text colour. */
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+}
+
+.progressLine {
+  align-items: center;
+  color: var(--gray-color);
+  display: inline-flex;
+  flex-wrap: wrap;
+  font-size: var(--krateo-text-body-sm);
+  gap: var(--spacing-xs);
+}
+
+.progressValue {
+  color: var(--text-color);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-medium);
+}
+
+.progressLive {
+  align-items: center;
+  display: inline-flex;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+  gap: var(--spacing-xsm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.progressDot {
+  animation: progress-pulse 2s ease-in-out infinite;
+  background: var(--green-color);
+  border-radius: 50%;
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+}
+
+@keyframes progress-pulse {
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressDot {
+    animation: none;
+  }
+}
+
+.progressHint {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-caption);
+}
