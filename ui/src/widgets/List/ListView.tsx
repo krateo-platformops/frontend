@@ -9,7 +9,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 
 import { childHealthFromRow, useReportChildHealth } from '../../components/PageHealth'
 import type { ConditionLike } from '../../components/PageHealth'
-import { RowActionControls, useFireRowAction } from '../../components/RowActions'
+import { RowActionControls, rowActionButtonType, useFireRowAction } from '../../components/RowActions'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { getColorCode, inkOnFill } from '../../theme/palette'
 import type { ResourcesRefs, Widget, WidgetActions } from '../../types/Widget'
@@ -405,7 +405,7 @@ export const ListView = ({
               // #81 §0.1: card-row action (e.g. the Blueprints grid "Create") was `small` and read
               // undersized in the card footer; `middle` matches the detail-page action buttons.
               size='middle'
-              type={actionIndex === 0 ? 'primary' : 'default'}
+              type={rowActionButtonType(rowAction, actionIndex)}
             >
               {rowAction.label}
             </Button>
