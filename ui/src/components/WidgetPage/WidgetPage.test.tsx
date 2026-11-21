@@ -31,7 +31,6 @@ import { fixtureItems, fixtureBuilders } from '../../builders/fixtures/fixtureBu
 import type { AppRoute } from '../../context/RoutesContext'
 
 import type { RouteSourceState } from './routeSource'
-
 import WidgetPage from './WidgetPage'
 
 // ---------------------------------------------------------------------------

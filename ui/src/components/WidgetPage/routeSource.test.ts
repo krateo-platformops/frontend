@@ -12,8 +12,10 @@ import { classifyRouteSourceFailure, readRouteSource, retryRouteSource } from '.
 const MENUS = '/call?resource=menus&apiVersion=widgets.templates.krateo.io/v1beta1&name=sidebar-nav&namespace=krateo-system'
 const OTHER = '/call?resource=flexes&apiVersion=widgets.templates.krateo.io/v1beta1&name=page-alerts&namespace=krateo-alerts'
 
-const failWith = async (client: QueryClient, endpoint: string, error: unknown) => {
-  await client.fetchQuery({ queryFn: () => Promise.reject(error), queryKey: ['widgets', endpoint, ''], retry: false }).catch(() => undefined)
+const failWith = async (client: QueryClient, endpoint: string, error: Error) => {
+  const queryKey = ['widgets', endpoint, '']
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps -- the key is the menu query's own shape; the error is the fixture
+  await client.fetchQuery({ queryFn: () => Promise.reject(error), queryKey, retry: false }).catch(() => undefined)
 }
 
 describe('readRouteSource', () => {
@@ -71,6 +73,8 @@ describe('readRouteSource', () => {
   it('a retry in flight keeps the failure and says it is retrying, then clears on success', async () => {
     const client = new QueryClient()
     await failWith(client, MENUS, new WidgetFetchError('x', 424, 'missing'))
+    // The page reads the cache on every change, so it has seen the failure before anyone retries.
+    expect(readRouteSource(client).failure?.kind).toBe('dependency')
     let release: (value: unknown) => void = () => undefined
     const query = client.getQueryCache().find({ queryKey: ['widgets', MENUS, ''] })
     query?.setOptions({ queryFn: () => new Promise((resolve) => { release = resolve }), queryKey: ['widgets', MENUS, ''], retry: false })

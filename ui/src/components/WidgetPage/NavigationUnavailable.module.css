@@ -21,7 +21,7 @@
   border-radius: var(--krateo-radius-md);
   box-sizing: border-box;
   color: var(--krateo-color-text-default);
-  font-size: 13px;
+  font-size: var(--krateo-text-body-sm);
   margin: 0 auto var(--krateo-space-3);
   max-width: 520px;
   padding: var(--krateo-space-3) var(--krateo-space-4);
@@ -37,7 +37,7 @@
   color: var(--krateo-color-text-muted);
   display: block;
   font-family: var(--krateo-font-mono);
-  font-size: 11px;
+  font-size: var(--krateo-text-label-sm);
   letter-spacing: 0.04em;
   text-align: center;
 }

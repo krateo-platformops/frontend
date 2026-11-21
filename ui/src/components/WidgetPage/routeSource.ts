@@ -45,7 +45,8 @@ const objectOf = (endpoint: string): string | undefined => {
     const params = new URL(endpoint, 'http://portal.invalid').searchParams
     const name = params.get('name')
     const namespace = params.get('namespace')
-    return name ? (namespace ? `${namespace}/${name}` : name) : undefined
+    if (!name) { return undefined }
+    return namespace ? `${namespace}/${name}` : name
   } catch {
     return undefined
   }
@@ -81,23 +82,38 @@ const bodyFailure = (data: unknown): StatusBody | undefined => {
   return first && typeof first.status === 'string' && typeof first.code === 'number' && first.code >= 400 ? first : undefined
 }
 
-/** The route source's state now. Pure over the cache, so it can be tested without React. */
+/**
+ * The last failure seen per menu query. A RETRY of a query that never succeeded resets it to `pending`
+ * and drops its error (react-query's fetch reducer does so whenever there is no data yet), so without
+ * this the page would fall back to the skeleton for exactly the moment the person pressed Retry. It is
+ * recorded whenever the cache reports the failure, which is every snapshot the page takes.
+ */
+const lastFailure = new WeakMap<Query, RouteSourceFailure>()
+
+/** The route source's state now. Pure over the cache apart from that memory, so it tests without React. */
 export const readRouteSource = (client: QueryClient): RouteSourceState => {
-  const query = client.getQueryCache().findAll({ predicate: isRouteSourceQuery })[0]
+  const [query] = client.getQueryCache().findAll({ predicate: isRouteSourceQuery })
   if (!query) { return { retrying: false } }
   const endpoint = query.queryKey[1] as string
-  const { data, error, fetchStatus, status } = query.state
+  const { data, error, errorUpdateCount, fetchStatus, status } = query.state
   const retrying = fetchStatus === 'fetching'
   if (status === 'error') {
-    return { failure: classifyRouteSourceFailure(error, endpoint), retrying }
+    const failure = classifyRouteSourceFailure(error, endpoint)
+    lastFailure.set(query, failure)
+    return { failure, retrying }
+  }
+  // A retry of a read that has failed before and never succeeded: keep showing that failure.
+  const remembered = lastFailure.get(query)
+  if (status === 'pending' && retrying && errorUpdateCount > 0 && remembered) {
+    return { failure: remembered, retrying: true }
   }
   const body = status === 'success' ? bodyFailure(data) : undefined
   if (body) {
-    return {
-      failure: { detail: body.message, kind: kindOf(body.code, false), object: objectOf(endpoint), status: body.code },
-      retrying,
-    }
+    const failure: RouteSourceFailure = { detail: body.message, kind: kindOf(body.code, false), object: objectOf(endpoint), status: body.code }
+    lastFailure.set(query, failure)
+    return { failure, retrying }
   }
+  if (status === 'success') { lastFailure.delete(query) }
   return { retrying: false }
 }
 

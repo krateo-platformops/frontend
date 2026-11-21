@@ -1,12 +1,12 @@
 /* The sider's one-line navigation notice: the menu's own ink on the nav ground, a dashed hairline frame. */
 .notice {
-  align-items: flex-start;
+  align-items: center;
   border: 1px dashed var(--menuitem-color);
   border-radius: var(--radius-md);
   box-sizing: border-box;
   color: var(--menuitem-color);
   display: flex;
-  font-size: 12px;
+  font-size: var(--krateo-text-caption);
   gap: var(--krateo-space-2);
   line-height: 1.45;
   margin: var(--krateo-space-2);
@@ -15,7 +15,6 @@
 
 .icon {
   flex-shrink: 0;
-  margin-top: 1px;
   stroke: var(--menuitem-color);
 }
 
