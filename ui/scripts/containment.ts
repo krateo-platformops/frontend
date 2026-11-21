@@ -33,6 +33,8 @@ const INPUT_WIDGETS = [
 /** Each exists for one job, so its list IS the rule. Every value is checked at generation. */
 export const PURPOSE_BUILT: Readonly<Record<string, readonly string[]>> = {
   ButtonGroup: ['buttons'],
+  // An overflow menu (the "⋯" of a page header): it holds actions and nothing else.
+  Dropdown: ['buttons'],
   Filters: INPUT_WIDGETS,
   Form: [...INPUT_WIDGETS, 'uploads'],
   // `navmenuitems` and `pages` are retired, and stay for the reason above.
