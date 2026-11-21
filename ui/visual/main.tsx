@@ -61,6 +61,7 @@ import { architectureEdgeAppearance, architectureGraphSize, architectureNodeSize
 import FlowChart, { type FlowChartNodeData, type FlowChartWidgetData } from '../src/widgets/FlowChart/FlowChart'
 import { useArchitectureCardHeight } from '../src/widgets/FlowChart/useArchitectureCardHeight'
 import Layout from '../src/widgets/Layout/Layout'
+import { ListView } from '../src/widgets/List/ListView'
 import { Menu } from '../src/widgets/Menu/Menu'
 import PageHeader from '../src/widgets/PageHeader/PageHeader'
 import { getWidgetModule } from '../src/widgets/registry'
@@ -527,6 +528,37 @@ const tableVirtualAlignment = () => (
   </div>
 )
 
+/**
+ * `?fixture=list-card-tiles`: card-variant List rows with an icon tile, as the portal's card grids
+ * send them (compositions, blueprints, marketplace). listCardTile.spec.ts measures the tile against
+ * the title lines: beside a name and a tag line it spans both, top to bottom; with a narrow card the
+ * tag line wraps and the tile stays level with the name; beside a name alone it stays centred.
+ */
+const cardTile = (testId: string, width: number, row: Record<string, string>, withMeta: boolean) => (
+  <div data-testid={testId} style={{ width }}>
+    <ListView
+      itemTemplate={{
+        description: '{desc}',
+        icon: '{icon}',
+        iconVariant: 'tile',
+        primaryText: '{name}',
+        rowVariant: 'card',
+        ...(withMeta ? { secondaryText: '{state}', subPrimaryText: '{kind}' } : {}),
+      }}
+      items={[row]}
+      rowKey='name'
+    />
+  </div>
+)
+const tileRow = { desc: 'Ready=True · ReconcilePaused', icon: 'fa-cubes', kind: 'AcmeFeedback', name: 'acme-feedback-controller', state: 'Paused' }
+const listCardTiles = () => (
+  <Space orientation='vertical' size='large'>
+    {cardTile('two-lines', 520, tileRow, true)}
+    {cardTile('tags-wrap', 230, { ...tileRow, kind: 'AcmeFeedbackControllerConfiguration' }, true)}
+    {cardTile('one-line', 520, tileRow, false)}
+  </Space>
+)
+
 const fixtures: Record<string, () => React.ReactNode> = {
   'agentiko-rail': agentikoRail,
   'app-shell': appShell,
@@ -536,6 +568,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'architecture-names': architectureNames,
   'focus-ring': focusRing,
   'graph-zoom': () => <GraphZoomFixture />,
+  'list-card-tiles': listCardTiles,
   login,
   'nav-menu': navMenu,
   'page-header': () => pageHeader('Turn an OpenAPI document into Kubernetes kinds: which operations each kind maps, how it is identified, and the credentials it calls with.'),

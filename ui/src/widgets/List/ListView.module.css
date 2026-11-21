@@ -244,6 +244,27 @@
   min-width: 0;
 }
 
+/* A card with two title lines (name, then the tag and version line). Centred, the 32px tile met
+   neither line: it started below the name and ended above the tags (portal review). The tile is now
+   a square as tall as the two lines, and the lines are pinned to its edges: the name to its top, the
+   tags to its bottom. A sized square, not `align-self: stretch` with `aspect-ratio`: Chromium keeps
+   the stretched height but not the width (a 9px tile), and a one-line card would shrink it.
+   48px = the name's line (21px) + the gap (4px) + a tag (22px), rounded up, so the lines always fit;
+   when the tags wrap, the block grows and the tile stays level with the name. */
+.cardTopTwoLine {
+  align-items: flex-start;
+}
+
+.cardTopTwoLine > .tile {
+  height: 48px;
+  width: 48px;
+}
+
+.cardTopTwoLine > .cardTitles {
+  justify-content: space-between;
+  min-height: 48px;
+}
+
 /* At-a-glance status glyph pinned top-right of the card (e.g. a blueprint's Ready condition).
    flex-shrink:0 + margin-left:auto keep it hugging the right edge as the title column flexes. */
 .cardStatus {
