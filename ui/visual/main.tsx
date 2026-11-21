@@ -67,6 +67,8 @@ import PageHeader from '../src/widgets/PageHeader/PageHeader'
 import { getWidgetModule } from '../src/widgets/registry'
 import Table, { type TableWidgetData } from '../src/widgets/Table/Table'
 
+import { formGuideLines } from './formGuideLinesFixture'
+
 const examples = import.meta.glob<string>('../src/examples/widgets/*/*.example.yaml', { eager: true, import: 'default', query: '?raw' })
 
 // The icon set App.tsx registers. Without it every widget with an icon was photographed without one.
@@ -591,6 +593,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'architecture-graph': () => <ArchitectureGraphFixture />,
   'architecture-names': architectureNames,
   'focus-ring': focusRing,
+  'form-guide-lines': formGuideLines,
   'graph-zoom': () => <GraphZoomFixture />,
   'list-card-tiles': listCardTiles,
   'list-stat-strip': listStatStrip,
