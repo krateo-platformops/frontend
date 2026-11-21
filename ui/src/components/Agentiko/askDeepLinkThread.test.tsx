@@ -42,6 +42,8 @@ vi.mock('../../context/ConfigContext', async (importOriginal) => ({
 vi.mock('./askDeepLink', () => ({
   useAskDeepLink: (_access: string, onAsk: (ask: string) => void) => { harness.onAsk = onAsk },
 }))
+// The provider also consumes `?agentiko=` through a router hook; this harness renders it without a router.
+vi.mock('./useApprovalLink', () => ({ useApprovalLink: () => undefined }))
 vi.mock('./useAgentikoContext', () => ({
   buildContextDelta: () => ({}),
   useAgentikoContext: () => ({ collect: () => ({ focus: 'Home', route: '/', widgets: [] }) }),

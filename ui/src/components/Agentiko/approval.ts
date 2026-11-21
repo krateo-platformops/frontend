@@ -52,6 +52,12 @@ export interface ApprovalRequest {
 /** An `input-required` approval pause: the task to resume + its paused tool calls. */
 export interface ApprovalPause {
   contextId?: string
+  /**
+   * `link`: opened from an approval link (approvalLink.ts) for a task started elsewhere. EXPLICIT
+   * ONLY: no timer, and dismiss / new thread leave it paused (createExplicitApprovalGovernor).
+   * Absent: a pause this rail's own turn hit, which keeps deny-by-default.
+   */
+  origin?: 'link'
   requests: ApprovalRequest[]
   taskId: string
 }
@@ -236,6 +242,26 @@ export interface ApprovalGovernor {
  * `timeoutMs`, `onExpire` fires (exactly once) so the provider sends the reject.
  * Settling first cancels the timer; both paths are mutually exclusive.
  */
+/**
+ * A governor for a pause opened from an approval LINK (approvalLink.ts): EXPLICIT ONLY, by Diego's
+ * decision. Only Approve or Reject settle it; there is no timer, and the paths that deny a rail-started
+ * pause (dismiss, a new thread, the 5-minute window) leave this one paused, because the task was
+ * started elsewhere (the person's own agent) and may have waited hours already: a stray click or an
+ * unattended tab must not reject it. kagent's own timeout, if any, still applies server-side.
+ * (A `setTimeout(…, Infinity)` would not do: an out-of-range delay fires at once.)
+ */
+export const createExplicitApprovalGovernor = (): ApprovalGovernor => {
+  let settled = false
+  return {
+    dispose: () => undefined,
+    settle: () => {
+      if (settled) { return false }
+      settled = true
+      return true
+    },
+  }
+}
+
 export const createApprovalGovernor = (onExpire: () => void, timeoutMs: number = APPROVAL_TIMEOUT_MS): ApprovalGovernor => {
   let settled = false
   const timer = setTimeout(() => {

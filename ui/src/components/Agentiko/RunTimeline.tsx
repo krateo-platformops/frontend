@@ -248,7 +248,8 @@ const DelegationLane = ({ entry, liveChildren, liveStopped, now, onRetry, state,
 /**
  * The kagent HITL approval, as a step. BEHAVIOUR IS UNCHANGED from the card it replaces: Approve and
  * Deny call the provider's paths, dismissing denies, and the provider's governor self-denies an
- * unattended pause after 5 minutes. Same classes for the mono block and the buttons, so it keeps
+ * unattended pause after 5 minutes. EXCEPT a pause opened from an approval link (`origin: 'link'`,
+ * approvalLink.ts): explicit only, so it has no dismiss and its note says that leaving keeps it paused. Same classes for the mono block and the buttons, so it keeps
  * BlastRadiusConfirm's calm decision language.
  */
 const ApprovalStep = ({ approval }: { approval: RunApproval }) => {
@@ -256,6 +257,7 @@ const ApprovalStep = ({ approval }: { approval: RunApproval }) => {
   const [first] = pause.requests
   const who = first?.agentName ?? 'Agentiko'
   const what = pause.requests.length === 1 && first ? approvalIntent(first.toolName) : `run ${pause.requests.length} write tools`
+  const linked = pause.origin === 'link'
   return (
     <div className={styles.approval} data-testid='agentiko-approval'>
       <div className={styles.step} data-tone='warn'>
@@ -264,7 +266,7 @@ const ApprovalStep = ({ approval }: { approval: RunApproval }) => {
           <b>{who}</b> wants to {what}
           <small>the agent wants to run a write tool</small>
         </span>
-        <button aria-label='Dismiss (denies)' className={railStyles.apIc} onClick={onDeny} title='Dismiss (denies)' type='button'>×</button>
+        {linked ? null : <button aria-label='Dismiss (denies)' className={railStyles.apIc} onClick={onDeny} title='Dismiss (denies)' type='button'>×</button>}
       </div>
       {pause.requests.map((request) => (
         <div key={request.requestId}>
@@ -279,7 +281,11 @@ const ApprovalStep = ({ approval }: { approval: RunApproval }) => {
         <button className={railStyles.apBtnApprove} onClick={onApprove} type='button'>Approve</button>
         <button className={railStyles.apBtnDeny} onClick={onDeny} type='button'>Deny</button>
       </div>
-      <div className={railStyles.apApprovalNote}>Deny is the default — dismissing, starting a new thread, or waiting 5 minutes denies.</div>
+      <div className={railStyles.apApprovalNote}>
+        {linked
+          ? 'Only Approve or Deny decide. Closing the rail or leaving the page keeps the task paused.'
+          : 'Deny is the default — dismissing, starting a new thread, or waiting 5 minutes denies.'}
+      </div>
     </div>
   )
 }

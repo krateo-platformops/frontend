@@ -559,30 +559,6 @@ const listCardTiles = () => (
   </Space>
 )
 
-/**
- * `?fixture=list-stat-strip`: the dashboard's stats strip (a List with `rowVariant: statistic`) as
- * the dashboard sends it, at a width where one title wraps and at one where the strip reflows to
- * two rows. listStatStrip.spec.ts checks every number in a row of tiles starts on one line.
- */
-const statTiles = [
-  { caption: '12 alerts', title: 'Open incidents', value: '52' },
-  { caption: 'of 33', title: 'Alerts firing', value: '0' },
-  { caption: 'of 91', title: 'Compositions not Ready', value: '0' },
-  { caption: 'of 11 agents', title: 'Agent gateway gaps', value: '0' },
-  { caption: 'review proposals', title: 'Waiting for a decision', value: '158' },
-]
-const statStrip = (testId: string, width: number) => (
-  <div data-testid={testId} style={{ width }}>
-    <ListView itemTemplate={{ primaryText: '{title}', rowVariant: 'statistic', secondaryText: '{value}', subPrimaryText: '{caption}' }} items={statTiles} rowKey='title' />
-  </div>
-)
-const listStatStrip = () => (
-  <Space orientation='vertical' size='large'>
-    {statStrip('one-row', 860)}
-    {statStrip('reflowed', 520)}
-  </Space>
-)
-
 const fixtures: Record<string, () => React.ReactNode> = {
   'agentiko-rail': agentikoRail,
   'app-shell': appShell,
@@ -593,7 +569,6 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'focus-ring': focusRing,
   'graph-zoom': () => <GraphZoomFixture />,
   'list-card-tiles': listCardTiles,
-  'list-stat-strip': listStatStrip,
   login,
   'nav-menu': navMenu,
   'page-header': () => pageHeader('Turn an OpenAPI document into Kubernetes kinds: which operations each kind maps, how it is identified, and the credentials it calls with.'),

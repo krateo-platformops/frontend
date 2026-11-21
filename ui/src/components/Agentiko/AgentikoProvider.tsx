@@ -47,6 +47,7 @@ import type { ThreadSummary } from './sessionHistoryStore'
 import { createEchoTransport, createKagentTransport } from './transport'
 import type { AgentikoActionChip, AgentikoFrame, AgentikoMessage, AgentikoTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAgentikoContext } from './useAgentikoContext'
+import { useApprovalLink } from './useApprovalLink'
 import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
 import { type ClaimRetryApi, useClaimCheck } from './useClaimCheck'
 import { createDraftAutosave, useDraftAutosave } from './useDraftAutosave'
@@ -737,8 +738,9 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     // DENY-BY-DEFAULT on thread reset: a pending approval is rejected (fire-and-forget,
     // no-op handlers — the new thread does not render the released task's stream) so
     // the paused kagent task is never left dangling toward an approve.
+    // A pause opened from an approval LINK is explicit-only (Diego): leaving it here leaves it paused.
     const active = approvalRef.current
-    if (active && active.governor.settle()) {
+    if (active && active.pause.origin !== 'link' && active.governor.settle()) {
       transport.respondToApproval(
         { reason: 'Denied: the user started/switched threads (deny-by-default).', type: 'reject' },
         active.pause,
@@ -874,6 +876,10 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
   const closeTour = useCallback(() => setTourOpen(false), [])
   useAgentikoShortcut(reachable, toggle)
+
+  // The `?agentiko=<contextId>` approval link: a decision a task started by the person's own agent is
+  // waiting on, brought here (useApprovalLink.ts). Explicit only: see the thread teardown above.
+  useApprovalLink({ access: askAccessOf({ checking, licensed, reachable }), agent, approvalRef, endpoint, newThread, setMessages, setOpen, setPendingApproval })
 
   // The `?ask=` deep-link (Diagnose / Troubleshoot buttons): licensed and reachable → open the rail
   // and seed one turn; unlicensed or unreachable → open the rail, which says why, and leave the
