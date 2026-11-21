@@ -10,6 +10,13 @@ export type FlexWidgetData = WidgetType['spec']['widgetData']
 const Flex = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<FlexWidgetData>) => {
   const { align, ariaLabel, gap, items, justify, role, vertical, wrap } = widgetData
 
+  // A Flex with no items renders NOTHING, not an empty box: a parent Flex's `gap` is applied
+  // between children, so an empty child still opened a gap (e.g. an incident page slot whose
+  // RESTAction found no Zendesk request added 16px of blank space). EXCEPT a Flex with a `role`: a
+  // `status` live region must be in the DOM BEFORE its content arrives, or a screen reader never
+  // announces it, and a named landmark is navigable even when empty.
+  if (!items.length && !role) { return null }
+
   // `role` / `ariaLabel` name the Flex for assistive technology: a filter bar as a `search`
   // landmark, a result count as a `status` live region. Absent, React writes neither attribute, so
   // a Flex that sets neither renders exactly the DOM it always did (Flex.unchanged.test.tsx).
