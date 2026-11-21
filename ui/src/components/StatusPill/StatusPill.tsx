@@ -63,7 +63,7 @@ const StatusPill = ({ color, label, style, ...rest }: StatusPillProps) => {
 
   return (
     <AntdTag {...rest} style={merged}>
-      {Glyph && <Glyph aria-hidden data-state-family={family} style={{ color: palette?.color, fontSize: 12, marginRight: 'var(--spacing-xsm)', verticalAlign: '-0.125em' }} />}
+      {Glyph && <Glyph aria-hidden data-state-family={family} style={{ color: palette?.color, fontSize: 'var(--krateo-text-caption)', marginRight: 'var(--spacing-xsm)', verticalAlign: '-0.125em' }} />}
       {showMark && !Glyph && (
         <span
           style={{
