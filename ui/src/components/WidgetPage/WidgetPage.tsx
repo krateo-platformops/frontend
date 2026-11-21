@@ -1,5 +1,5 @@
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { useLocation } from 'react-router'
 
 import { buildersStatus, isBuilderPath, subscribeBuilders } from '../../builders/builderRegistry'
@@ -17,6 +17,23 @@ import { WidgetLoading } from '../WidgetStates'
 
 import NavigationUnavailable from './NavigationUnavailable'
 import { retryRouteSource, routeSourceKey, type RouteSourceState } from './routeSource'
+
+/**
+ * M3 (approved motion set): on a page change only the CONTENT area moves. It fades in over the
+ * standard motion duration with a 4px rise; the sidebar, header and Agentiko rail stay put. Played
+ * on the content area itself (the element the shell's <Outlet/> renders into, reached through a
+ * hidden marker), so no wrapper element changes the page's layout. A query-only change (the Alerts
+ * range chips) is not a page change and does not play it. Off under reduced motion, and wherever the
+ * Web Animations API is missing.
+ */
+export const playPageEnter = (area: HTMLElement | null | undefined): void => {
+  if (!area || typeof area.animate !== 'function' || typeof window === 'undefined') { return }
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { return }
+  const tokens = getComputedStyle(document.documentElement)
+  const duration = Number.parseFloat(tokens.getPropertyValue('--krateo-motion-standard')) || 240
+  const easing = tokens.getPropertyValue('--krateo-motion-ease').trim() || 'ease-out'
+  area.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration, easing })
+}
 
 /** Exact routes that get a frontend-rendered page search bar (→ `?q=` → the page's
  * data-source RESTAction name/description filter). Frontend chrome, like the Shell search. */
@@ -62,6 +79,9 @@ export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: 
   const subscribeRouteSource = useCallback((onChange: () => void) => queryClient.getQueryCache().subscribe(onChange), [queryClient])
   const routeSourceSnapshot = useSyncExternalStore(subscribeRouteSource, () => routeSourceKey(queryClient))
   const routeSource = useMemo(() => JSON.parse(routeSourceSnapshot) as RouteSourceState, [routeSourceSnapshot])
+
+  const pageMarker = useRef<HTMLSpanElement>(null)
+  useLayoutEffect(() => { playPageEnter(pageMarker.current?.parentElement) }, [location.pathname])
 
   const isFetchingRoutes = useIsFetching({
     predicate: (query) => {
@@ -117,6 +137,7 @@ export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: 
     // PageHealthContext). Keyed by pathname so one composition's children are never rolled up into
     // the next page's header.
     <PageHealthProvider key={location.pathname}>
+      <span hidden ref={pageMarker} />
       {searchPlaceholder ? <PageSearch placeholder={searchPlaceholder} /> : null}
       {/* The page root: it reads the fragment keys its CR declares (`krateo.io/fragment-keys`)
           for its widgets, then clears them from the address bar (context/PageRootContext.tsx).

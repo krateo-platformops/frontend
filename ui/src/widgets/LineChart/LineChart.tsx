@@ -1,4 +1,5 @@
 import { Line } from '@ant-design/plots'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useAutoFitChart } from '../../hooks/useAutoFitChart'
@@ -10,6 +11,21 @@ import styles from './LineChart.module.css'
 import type { LineChart as WidgetType } from './LineChart.type'
 
 export type LineChartWidgetData = WidgetType['spec']['widgetData']
+
+/**
+ * M4 (approved motion set): the line draws in, left to right, on the chart's FIRST paint, only when
+ * the chart is on screen at that moment and the reader has not asked for reduced motion. A chart
+ * reached by scrolling appears already drawn, so nothing moves under someone who is reading, and a
+ * refresh or a range change never replays it (`update: false`): the decision is made once.
+ */
+export const DRAW_IN = { enter: { duration: 400, easing: 'ease-out', type: 'pathIn' as const }, exit: false, update: false }
+
+export const shouldDrawIn = (element: Element | null): boolean => {
+  if (!element || typeof window === 'undefined') { return false }
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { return false }
+  const box = element.getBoundingClientRect()
+  return box.bottom > 0 && box.top < window.innerHeight && box.right > 0 && box.left < window.innerWidth
+}
 
 /**
  * Gradient area fill beneath the line when `widgetData.area` is true: the first categorical
@@ -109,6 +125,17 @@ const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
   // chart on every non-zero measurement of the container — see that hook.
   const { onReady, ref, width } = useAutoFitChart<HTMLDivElement>()
   const height = widgetData.height ?? 300
+  // Decided once, when the container first has a width (the chart's first paint), before the browser
+  // paints: undefined until then, so the Line never mounts with a guess.
+  const [drawIn, setDrawIn] = useState<boolean | undefined>(undefined)
+  const box = useRef<HTMLDivElement | null>(null)
+  const boxRef = useCallback((element: HTMLDivElement | null) => {
+    box.current = element
+    ref(element)
+  }, [ref])
+  useLayoutEffect(() => {
+    if (width > 0 && drawIn === undefined) { setDrawIn(shouldDrawIn(box.current)) }
+  }, [drawIn, width])
 
   if (!widgetData.data?.length) {
     return <WidgetEmpty description='No data to chart' />
@@ -130,9 +157,10 @@ const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
     : { color: { range: getChartCatPalette() }, ...widgetData.scale }
 
   return (
-    <div className={styles.lineChart} ref={ref} style={{ height }}>
-      {width > 0 ? (
+    <div className={styles.lineChart} ref={boxRef} style={{ height }}>
+      {width > 0 && drawIn !== undefined ? (
         <Line
+          animate={drawIn ? DRAW_IN : false}
           annotations={localAnnotations}
           area={widgetData.area ? brandAreaFill() : undefined}
           autoFit
