@@ -10,6 +10,7 @@ import { resolveLocalTokens } from '../../utils/localTokens'
 import { navigateOrExternal } from '../../utils/navigation'
 import { getEndpointUrl } from '../../utils/utils'
 
+import HeaderProgress from './HeaderProgress'
 import styles from './PageHeader.module.css'
 import type { PageHeader as WidgetType } from './PageHeader.type'
 
@@ -37,7 +38,7 @@ export type PageHeaderWidgetData = NonNullable<WidgetType['spec']>['widgetData']
  * because only the author knows which one a page is for. The layout affords exactly one.
  */
 const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWidgetData>) => {
-  const { counter, counterLabel, items, subtitle, tags, title } = widgetData
+  const { counter, counterLabel, items, progress, subtitle, tags, title } = widgetData
   const navigate = useNavigate()
 
   /*
@@ -145,6 +146,7 @@ const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWi
               </Tooltip>
             )}
           </Flex>
+          {progress && <HeaderProgress progress={progress} />}
           {resolvedSubtitle && <Typography.Paragraph className={styles.subtitle}>{resolvedSubtitle}</Typography.Paragraph>}
         </div>
 

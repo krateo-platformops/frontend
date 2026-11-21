@@ -45,6 +45,27 @@ export interface PageHeader {
         color?: 'blue' | 'darkBlue' | 'orange' | 'gray' | 'red' | 'green' | 'violet'
       }[]
       /**
+       * something on this page is in progress (an analysis, a check): one line under the title saying since when, with the elapsed minutes ticking in the browser while `live` is true. No ETA. The page itself updates when the state changes; this line only keeps the wait visible.
+       */
+      progress?: {
+        /**
+         * what is happening, as the lead-in to the time, e.g. "Re-analysis since" or "Resolved at"
+         */
+        label: string
+        /**
+         * RFC 3339 timestamp it started (or settled); shown as HH:MM UTC
+         */
+        since: string
+        /**
+         * still running: show the elapsed minutes, ticking, and a live mark. False or absent: a settled time only, nothing ticks
+         */
+        live?: boolean
+        /**
+         * one muted line under it while live, e.g. "Usually 2–3 min; longer when the model is rate-limited."
+         */
+        hint?: string
+      }
+      /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */
       allowedResources?: string[]
