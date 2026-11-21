@@ -29,6 +29,7 @@ import {
   DownOutlined,
   DownSquareOutlined,
   EditOutlined,
+  EllipsisOutlined,
   FilterOutlined,
   FormOutlined,
   LoadingOutlined,
@@ -84,6 +85,8 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
   datepickers: CalendarOutlined,
   descriptions: ProfileOutlined,
   dividers: MinusOutlined,
+  // The overflow menu: the same ellipsis its trigger draws.
+  dropdowns: EllipsisOutlined,
   filters: FilterOutlined,
   flexes: LayoutOutlined,
   flowcharts: PartitionOutlined,
