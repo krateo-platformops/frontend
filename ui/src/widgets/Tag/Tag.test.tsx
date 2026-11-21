@@ -19,11 +19,19 @@ const dot = (container: HTMLElement) => container.querySelector('.ant-tag > span
 describe('Tag — colour is never the only signal', () => {
   afterEach(() => { cleanup() })
 
-  it('renders the status dot for a coloured, labelled pill', () => {
+  it('renders the status dot for a coloured, labelled pill that is not a Kubernetes state', () => {
+    const { container } = renderTag({ color: 'blue', label: 'Open' })
+
+    expect(container.textContent).toContain('Open')
+    expect(dot(container)).not.toBeNull()
+  })
+
+  it('renders the state family glyph, and no dot, for a Kubernetes state token', () => {
     const { container } = renderTag({ color: 'green', label: 'Healthy' })
 
     expect(container.textContent).toContain('Healthy')
-    expect(dot(container)).not.toBeNull()
+    expect(container.querySelector('[data-state-family="healthy"]')).not.toBeNull()
+    expect(dot(container)).toBeNull()
   })
 
   it('renders NO dot when the label is empty — colour alone is not a signal', () => {
