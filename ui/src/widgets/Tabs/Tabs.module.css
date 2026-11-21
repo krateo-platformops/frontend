@@ -24,6 +24,7 @@
   font-size: var(--krateo-text-caption);
   font-weight: var(--font-weight-medium);
 }
+
 /* M1 (approved motion set): the panel that becomes active fades in with a 4px rise. antd hides an
    inactive pane with display:none, so the animation restarts each time a pane is shown. The old
    pane is hidden at once (antd does not keep it mounted to animate out), so this is the entering
