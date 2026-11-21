@@ -295,6 +295,10 @@ export const ListView = ({
           avatar = <Avatar icon={<FontAwesomeIcon icon={row.icon as IconProp} />} style={{ backgroundColor: colorCode, color: inkOnFill(colorCode) }} />
         }
 
+        // A card's icon tile beside two title lines (name, then tags) spans both, top to bottom. An
+        // Avatar or a dot keeps its size and stays centred.
+        const tileSpansTitles = itemTemplate.iconVariant === 'tile' && Boolean(row.icon) && Boolean(row.secondaryText || row.subPrimaryText)
+
         // Compact navigable filter pill (Marketplace facet chips): `primaryText` label +
         // optional `count`; solid/amber when the item's `active` flag is set. One chip per
         // element of the catalog RA's data-driven `categories` / `sources` array.
@@ -419,7 +423,7 @@ export const ListView = ({
                 {...rowNavProps(row.navigateTo, (path) => navigateOrExternal(navigate, path))}
                 size='small'
               >
-                <div className={styles.cardTop}>
+                <div className={tileSpansTitles ? `${styles.cardTop} ${styles.cardTopTwoLine}` : styles.cardTop}>
                   {avatar}
                   <div className={styles.cardTitles}>
                     {/* Name alone on the first line; version badge + category tag share the meta line below it. */}

@@ -529,6 +529,37 @@ const tableVirtualAlignment = () => (
 )
 
 /**
+ * `?fixture=list-card-tiles`: card-variant List rows with an icon tile, as the portal's card grids
+ * send them (compositions, blueprints, marketplace). listCardTile.spec.ts measures the tile against
+ * the title lines: beside a name and a tag line it spans both, top to bottom; with a narrow card the
+ * tag line wraps and the tile stays level with the name; beside a name alone it stays centred.
+ */
+const cardTile = (testId: string, width: number, row: Record<string, string>, withMeta: boolean) => (
+  <div data-testid={testId} style={{ width }}>
+    <ListView
+      itemTemplate={{
+        description: '{desc}',
+        icon: '{icon}',
+        iconVariant: 'tile',
+        primaryText: '{name}',
+        rowVariant: 'card',
+        ...(withMeta ? { secondaryText: '{state}', subPrimaryText: '{kind}' } : {}),
+      }}
+      items={[row]}
+      rowKey='name'
+    />
+  </div>
+)
+const tileRow = { desc: 'Ready=True · ReconcilePaused', icon: 'fa-cubes', kind: 'AcmeFeedback', name: 'acme-feedback-controller', state: 'Paused' }
+const listCardTiles = () => (
+  <Space orientation='vertical' size='large'>
+    {cardTile('two-lines', 520, tileRow, true)}
+    {cardTile('tags-wrap', 230, { ...tileRow, kind: 'AcmeFeedbackControllerConfiguration' }, true)}
+    {cardTile('one-line', 520, tileRow, false)}
+  </Space>
+)
+
+/**
  * `?fixture=list-stat-strip`: the dashboard's stats strip (a List with `rowVariant: statistic`) as
  * the dashboard sends it, at a width where one title wraps and at one where the strip reflows to
  * two rows. listStatStrip.spec.ts checks every number in a row of tiles starts on one line.
@@ -561,6 +592,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'architecture-names': architectureNames,
   'focus-ring': focusRing,
   'graph-zoom': () => <GraphZoomFixture />,
+  'list-card-tiles': listCardTiles,
   'list-stat-strip': listStatStrip,
   login,
   'nav-menu': navMenu,
