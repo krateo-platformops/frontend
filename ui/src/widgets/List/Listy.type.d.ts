@@ -284,6 +284,10 @@ export interface Listy {
            * render the menu item in a destructive (red) style
            */
           danger?: boolean
+          /**
+           * the button's emphasis where row actions show as buttons (a List card footer, or rowActionsDisplay: buttons). Unset: the first action is primary and the rest default. Set default on the first to have no primary. Ignored in the kebab menu.
+           */
+          type?: 'primary' | 'default'
         }[]
         /**
          * how the default rowVariant presents rowActions: menu (a kebab (⋯) at the row's end, default) | buttons (antd Buttons at the row's end, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (navigateTo) is unchanged either way. The card rowVariant always renders buttons.

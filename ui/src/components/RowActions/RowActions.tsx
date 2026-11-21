@@ -24,7 +24,18 @@ export interface RowAction {
   icon?: string
   /** Render the menu item in a destructive (red) style. */
   danger?: boolean
+  /**
+   * The button's emphasis where row actions show as buttons (a List card footer, `buttons`
+   * display). Unset: the first action is primary and the rest default, as before. Set `default` on
+   * the first to have no primary at all (portal UX review: a page of blueprint cards, each with a
+   * filled Create, had no focal point). Ignored in the kebab menu, whose items have no emphasis.
+   */
+  type?: 'primary' | 'default'
 }
+
+/** A row action's button type: its own `type`, else primary for the first and default for the rest. */
+export const rowActionButtonType = (rowAction: RowAction, actionIndex: number): 'primary' | 'default' =>
+  rowAction.type ?? (actionIndex === 0 ? 'primary' : 'default')
 
 export type RowActionsDisplay = 'menu' | 'buttons'
 
@@ -62,7 +73,7 @@ export const useFireRowAction = ({ actions, deniedRefIds, noun, resourcesRefs, w
 
 /**
  * The row's action control: a kebab (⋯) menu (`menu`, the default) or antd Buttons in declared
- * order, the first primary and a `danger` entry as danger (`buttons`). One Space holding the
+ * order, the first primary unless an entry sets its own `type`, and a `danger` entry as danger (`buttons`). One Space holding the
  * buttons, not one slot per button, so a host that separates its slots (antd List.Item `actions`)
  * draws no divider between two verbs.
  *
@@ -91,7 +102,7 @@ export const RowActionControls = ({ display, onFire, rowActions, size = 'middle'
             onClick={(event) => { event.stopPropagation(); onFire(rowAction.actionId) }}
             onKeyDown={(event) => { event.stopPropagation() }}
             size={size}
-            type={actionIndex === 0 ? 'primary' : 'default'}
+            type={rowActionButtonType(rowAction, actionIndex)}
           >
             {rowAction.label}
           </Button>

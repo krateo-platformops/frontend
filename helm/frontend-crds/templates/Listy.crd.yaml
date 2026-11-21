@@ -573,6 +573,12 @@ spec:
                               label:
                                 description: menu item label
                                 type: string
+                              type:
+                                description: 'the button''s emphasis where row actions show as buttons (a List card footer, or rowActionsDisplay: buttons). Unset: the first action is primary and the rest default. Set default on the first to have no primary. Ignored in the kebab menu.'
+                                enum:
+                                  - primary
+                                  - default
+                                type: string
                             required:
                               - actionId
                               - label

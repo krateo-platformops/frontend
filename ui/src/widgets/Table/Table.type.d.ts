@@ -174,6 +174,10 @@ export interface Table {
          * render the menu item in a destructive (red) style
          */
         danger?: boolean
+        /**
+         * the button's emphasis where row actions show as buttons (a List card footer, or rowActionsDisplay: buttons). Unset: the first action is primary and the rest default. Set default on the first to have no primary. Ignored in the kebab menu.
+         */
+        type?: 'primary' | 'default'
       }[]
       /**
        * how rowActions are presented: menu (a kebab (⋯) in the row's last cell, default) | buttons (antd Buttons in the row's last cell, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (rowNavigateTo) is unchanged either way. Same field and values as List's itemTemplate.rowActionsDisplay.
