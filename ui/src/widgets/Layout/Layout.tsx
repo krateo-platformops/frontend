@@ -36,10 +36,10 @@ const ANTD_SIDER_WIDTH = 200
 // (see render), so a nested Layout inherits none of the app-shell chrome.
 const EMPTY_SHELL_SLOTS: ShellSlots = {}
 
-const slot = (resourceRefId: string | undefined, resourcesRefs: ResourcesRefs) => {
+const slot = (resourceRefId: string | undefined, resourcesRefs: ResourcesRefs, failureNotice?: 'navigation') => {
   if (!resourceRefId) { return null }
   const endpoint = getEndpointUrl(resourceRefId, resourcesRefs)
-  return endpoint ? <WidgetRenderer widgetEndpoint={endpoint} /> : null
+  return endpoint ? <WidgetRenderer failureNotice={failureNotice} widgetEndpoint={endpoint} /> : null
 }
 
 /**
@@ -111,7 +111,8 @@ const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) =>
       <div className={styles.sider}>
         {headerRef ? <div className={collapsed ? `${styles.siderHeader} ${styles.siderHeaderCollapsed}` : styles.siderHeader} key={headerRef}>{slot(headerRef, resourcesRefs)}</div> : null}
         {shell.siderHeader}
-        <div className={styles.siderBody}>{slot(sider.resourceRefId, resourcesRefs)}</div>
+        {/* The navigation: a failed read is one line here, and the page area says why (WidgetPage). */}
+        <div className={styles.siderBody}>{slot(sider.resourceRefId, resourcesRefs, 'navigation')}</div>
         {shell.siderFooter}
       </div>
     )

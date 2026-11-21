@@ -13,11 +13,16 @@ import { getWidgetModule } from '../../widgets/registry'
 import { useFilter } from '../FiltesProvider/FiltersProvider'
 import { FreshnessBadge } from '../FreshnessBadge/FreshnessBadge'
 import { ScrollPagination } from '../Pagination/ScrollPagination'
+import { NavigationNotice } from '../WidgetPage/NavigationNotice'
+import { classifyRouteSourceFailure } from '../WidgetPage/routeSource'
 import { WidgetDependencyMissing, WidgetError, WidgetErrorBoundary, WidgetForbidden, WidgetLoading, WidgetNotFound, WidgetTimeout } from '../WidgetStates'
 
 import styles from './WidgetRenderer.module.css'
 
 type WidgetRendererProps = {
+  /** `navigation`: the sider's menu slot. A failed read shows one muted line (NavigationNotice) instead
+   *  of the full error card, which does not fit the column and which the page area explains in full. */
+  failureNotice?: 'navigation'
   invisible?: boolean
   onLoadingChange?: (isLoading: boolean) => void
   prefix?: string
@@ -97,7 +102,7 @@ const parseWidget = (
   return element
 }
 
-const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndpoint, wrapper }: WidgetRendererProps) => {
+const WidgetRenderer = ({ failureNotice, invisible = false, onLoadingChange, prefix, widgetEndpoint, wrapper }: WidgetRendererProps) => {
   // X6: widgets render widgets, and nothing bounded that. A CR whose resourcesRefs points back at
   // an ancestor — directly or through a cycle — recursed until the browser's stack gave out. The
   // check runs BEFORE the fetch: a cycle should cost zero requests, not a request per turn of it.
@@ -190,6 +195,9 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
 
   if (error) {
     console.error(error)
+    if (failureNotice === 'navigation') {
+      return <NavigationNotice failure={classifyRouteSourceFailure(error, widgetEndpoint)} />
+    }
     // A slow/still-warming server (request deadline, cancelled fetch, 503/504) gets a
     // CALM, distinct timeout state — not the hard-error red cross — with a working Retry.
     // `timedOut` is the Freshness layer's classification of THIS error (useWidgetQuery),
@@ -257,6 +265,9 @@ const WidgetRenderer = ({ invisible = false, onLoadingChange, prefix, widgetEndp
         )
 
         session.signInAgain()
+      }
+      if (failureNotice === 'navigation' && typeof code === 'number' && code >= 400) {
+        return <NavigationNotice failure={classifyRouteSourceFailure({ detail: message, status: code }, widgetEndpoint)} />
       }
 
       const params = new URLSearchParams(widgetEndpoint)

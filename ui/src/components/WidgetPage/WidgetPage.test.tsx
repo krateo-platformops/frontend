@@ -22,7 +22,7 @@
  * (menuRoutes, isFetchingRoutes, location). WidgetRenderer is stubbed so a
  * resolved route renders an identifiable marker instead of touching the network.
  */
-import { act, render } from '@testing-library/react'
+import { act, fireEvent, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -30,6 +30,7 @@ import { failBuilders, installBuilders, markBuildersLoading, parseBuilderItems }
 import { fixtureItems, fixtureBuilders } from '../../builders/fixtures/fixtureBuilders'
 import type { AppRoute } from '../../context/RoutesContext'
 
+import type { RouteSourceState } from './routeSource'
 import WidgetPage from './WidgetPage'
 
 // ---------------------------------------------------------------------------
@@ -38,6 +39,9 @@ import WidgetPage from './WidgetPage'
 
 let mockMenuRoutes: AppRoute[] = []
 let mockIsFetchingRoutes = 0
+// The route source (the Menu's own read), as routeSource.ts would read it from the query cache.
+let mockRouteSource: RouteSourceState = { retrying: false }
+const mockRetryRouteSource = vi.fn(() => Promise.resolve())
 
 vi.mock('../../context/RoutesContext', () => ({
   useRoutesContext: () => ({ menuRoutes: mockMenuRoutes }),
@@ -45,6 +49,12 @@ vi.mock('../../context/RoutesContext', () => ({
 
 vi.mock('@tanstack/react-query', () => ({
   useIsFetching: () => mockIsFetchingRoutes,
+  useQueryClient: () => ({ getQueryCache: () => ({ subscribe: () => () => undefined }) }),
+}))
+
+vi.mock('./routeSource', () => ({
+  retryRouteSource: () => mockRetryRouteSource(),
+  routeSourceKey: () => JSON.stringify(mockRouteSource),
 }))
 
 vi.mock('../../hooks/useDocumentTitle', () => ({
@@ -94,6 +104,8 @@ beforeAll(() => {
 afterEach(() => {
   mockMenuRoutes = []
   mockIsFetchingRoutes = 0
+  mockRouteSource = { retrying: false }
+  mockRetryRouteSource.mockClear()
   document.body.innerHTML = ''
 })
 
@@ -227,5 +239,79 @@ describe('WidgetPage — the failure sentence is for builder addresses only', ()
     act(() => { failBuilders('snowplow answered 503.') })
     const { getAllByText } = renderAt('/ops-builder/compose')
     expect(getAllByText(/Builders could not be read from the cluster/).length).toBeGreaterThan(0)
+  })
+})
+
+describe('WidgetPage — the menu could not load (approved "When the sidebar menu cannot load")', () => {
+  const failed = (kind: 'dependency' | 'forbidden' | 'timeout' | 'error', status: number, detail?: string, retrying = false): RouteSourceState => ({
+    failure: { detail, kind, object: 'krateo-system/sidebar-nav', status },
+    retrying,
+  })
+
+  it('S2: a 424 says the navigation could not load, shows snowplow\u2019s words, and Check again asks again', () => {
+    mockRouteSource = failed('dependency', 424, 'restactions "nav-items" not found')
+    const { getByRole, getByTestId, getByText, queryByTestId } = renderAt('/dashboard')
+
+    expect(getByTestId('navigation-unavailable-dependency')).not.toBeNull()
+    expect(queryByTestId('widget-loading')).toBeNull()
+    expect(getByText('The navigation could not load')).not.toBeNull()
+    expect(getByText('restactions "nav-items" not found')).not.toBeNull()
+    expect(getByText('menus · krateo-system/sidebar-nav · HTTP 424')).not.toBeNull()
+    fireEvent.click(getByRole('button', { name: 'Check again' }))
+    expect(mockRetryRouteSource).toHaveBeenCalledTimes(1)
+  })
+
+  it('S3: a 403 offers no button (asking again changes nothing) and keeps Profile and Sign out', () => {
+    mockRouteSource = failed('forbidden', 403, 'forbidden')
+    const { getByRole, getByTestId, queryByRole } = renderAt('/dashboard')
+
+    expect(getByTestId('navigation-unavailable-forbidden')).not.toBeNull()
+    expect(queryByRole('button')).toBeNull()
+    expect(getByRole('link', { name: 'Profile' }).getAttribute('href')).toBe('/profile')
+    expect(getByRole('link', { name: 'Sign out' }).getAttribute('href')).toBe('/logout')
+  })
+
+  it('S4: any other failure is an error, with the server\u2019s detail and Retry', () => {
+    mockRouteSource = failed('error', 500, 'boom')
+    const { getByRole, getByTestId, getByText } = renderAt('/dashboard')
+
+    expect(getByTestId('navigation-unavailable-error')).not.toBeNull()
+    expect(getByText('boom')).not.toBeNull()
+    fireEvent.click(getByRole('button', { name: 'Retry' }))
+    expect(mockRetryRouteSource).toHaveBeenCalledTimes(1)
+  })
+
+  it('S5: a timeout says it is still waiting, with Retry', () => {
+    mockRouteSource = failed('timeout', 504)
+    const { getByRole, getByText } = renderAt('/dashboard')
+
+    expect(getByText('Still waiting for the navigation')).not.toBeNull()
+    expect(getByRole('button', { name: 'Retry' })).not.toBeNull()
+  })
+
+  it('S6: while a retry runs the message stays and only the button shows progress (no fall back to the skeleton)', () => {
+    mockRouteSource = failed('dependency', 424, 'missing', true)
+    mockIsFetchingRoutes = 1
+    const { getByRole, getByTestId, queryByTestId } = renderAt('/dashboard')
+
+    expect(getByTestId('navigation-unavailable-dependency')).not.toBeNull()
+    expect(queryByTestId('widget-loading')).toBeNull()
+    expect((getByRole('button', { name: /Checking/ }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('home (`/`) gets the same explanation: it waits on the menu too', () => {
+    mockRouteSource = failed('dependency', 424, 'missing')
+    const { getByTestId } = renderAt('/')
+
+    expect(getByTestId('navigation-unavailable-dependency')).not.toBeNull()
+  })
+
+  it('a menu that failed on a LATER refresh keeps its routes: the page renders, no explanation', () => {
+    mockMenuRoutes = [route('/dashboard')]
+    mockRouteSource = failed('error', 500, 'boom')
+    const { queryByTestId } = renderAt('/dashboard')
+
+    expect(queryByTestId('widget-content')).not.toBeNull()
+    expect(queryByTestId('navigation-unavailable-error')).toBeNull()
   })
 })

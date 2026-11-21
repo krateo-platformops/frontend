@@ -347,3 +347,43 @@ describe('WidgetRenderer — loading state suppresses both error components', ()
     expect(queryByTestId('widget-timeout')).toBeNull()
   })
 })
+
+describe('WidgetRenderer — the sider’s navigation slot (failureNotice="navigation")', () => {
+  const MENUS = '/call?resource=menus&apiVersion=widgets.templates.krateo.io%2Fv1beta1&name=sidebar-nav&namespace=krateo-system'
+  const renderNav = () =>
+    render(
+      <MemoryRouter>
+        <App>
+          <WidgetRenderer failureNotice='navigation' widgetEndpoint={MENUS} />
+        </App>
+      </MemoryRouter>,
+    )
+
+  it('a failed menu read is ONE muted line, not the full card that does not fit the column', async () => {
+    await setState({ error: Object.assign(new Error('Widget fetch failed: 424 Failed Dependency'), { status: 424 }), isPending: false, timedOut: false })
+    const { getByText, queryByTestId } = renderNav()
+
+    expect(queryByTestId('navigation-notice-dependency')).not.toBeNull()
+    expect(getByText('Navigation unavailable')).not.toBeNull()
+    expect(queryByTestId('widget-dependency-missing')).toBeNull()
+  })
+
+  it('names a 403, a 504 and a 500 the way the page area does', async () => {
+    await setState({ error: Object.assign(new Error('x'), { status: 403 }), isPending: false, timedOut: false })
+    expect(renderNav().queryByTestId('navigation-notice-forbidden')).not.toBeNull()
+    document.body.innerHTML = ''
+    await setState({ error: Object.assign(new Error('x'), { status: 504 }), isPending: false, timedOut: true })
+    expect(renderNav().queryByTestId('navigation-notice-timeout')).not.toBeNull()
+    document.body.innerHTML = ''
+    await setState({ error: Object.assign(new Error('x'), { status: 500 }), isPending: false, timedOut: false })
+    expect(renderNav().queryByTestId('navigation-notice-error')).not.toBeNull()
+  })
+
+  it('any other slot keeps the full card', async () => {
+    await setState({ error: Object.assign(new Error('Widget fetch failed: 424 Failed Dependency'), { status: 424 }), isPending: false, timedOut: false })
+    const { queryByTestId } = renderWidget()
+
+    expect(queryByTestId('widget-dependency-missing')).not.toBeNull()
+    expect(queryByTestId('navigation-notice-dependency')).toBeNull()
+  })
+})
