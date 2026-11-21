@@ -1,0 +1,17 @@
+/* The overflow menu's panel: the held Button widgets in one column, each as wide as the panel and
+   left-aligned, on the elevated surface antd menus use. */
+.panel {
+  background: var(--krateo-color-background-elevated);
+  border-radius: var(--krateo-radius-md);
+  box-shadow: var(--elevation-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--krateo-space-1);
+  min-width: 160px;
+  padding: var(--krateo-space-1);
+}
+
+.panel :global(.ant-btn) {
+  justify-content: flex-start;
+  width: 100%;
+}

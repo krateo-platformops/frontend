@@ -167,6 +167,7 @@ spec:
                           - datepickers
                           - descriptions
                           - dividers
+                          - dropdowns
                           - eventlists
                           - filters
                           - flexes

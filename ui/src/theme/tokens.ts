@@ -559,6 +559,8 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Descriptions: { colonMarginLeft: spacing.xxs, colonMarginRight: spacing.xs, itemPaddingBottom: spacing.sm, itemPaddingEnd: spacing.sm, titleMarginBottom: spacing.md },
   Divider: { margin: spacing.sm, marginLG: spacing.md, textPaddingInline: '1em', verticalMarginInline: spacing.xs },
   Drawer: { paddingLG: spacing.lg },
+  // The overflow menu (Dropdown widget): its popup's vertical padding on the spacing scale.
+  Dropdown: { paddingBlock: spacing.xs },
   // `gap: small | middle | large` reads paddingXS / padding / paddingLG, not the flexGap* tokens.
   Flex: { padding: spacing.sm, paddingLG: spacing.md, paddingXS: spacing.xs },
   // T2: Form density, on the scale. itemMarginBottom restates antd's compact default (16) so it is
