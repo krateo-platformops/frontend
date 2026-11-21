@@ -115,8 +115,9 @@ const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWi
             ))}
 
             {worstChild && (
-            // The worst child, named. The `└─` is the SAME connector the Relations tree draws, so
-            // the pill says whose state this is without inventing a word for "child", and the
+            // The worst child, named. The muted word "resources" before the pill says whose state
+            // this is (portal UX review: the `└─` connector that used to sit inside the pill read as
+            // a second, unexplained icon); the pill itself stays one Kubernetes token, and the
             // tooltip says which resource and why. When the child row carried a route, the pill is
             // the way to it: the reader goes from "something under this is broken" to the broken
             // object in one click.
@@ -138,15 +139,8 @@ const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWi
                     }
                     : {})}
                 >
-                  <StatusPill
-                    color={CHILD_STATE_COLOR[childHealth.state]}
-                    label={(
-                      <>
-                        <span className={styles.childConnector}>└─</span>
-                        {CHILD_STATE_LABEL[childHealth.state]}
-                      </>
-                    )}
-                  />
+                  <span className={styles.childWhose}>resources</span>
+                  <StatusPill color={CHILD_STATE_COLOR[childHealth.state]} label={CHILD_STATE_LABEL[childHealth.state]} />
                 </span>
               </Tooltip>
             )}

@@ -108,10 +108,17 @@ describe('PageHeader', () => {
    * onto, so all four would have lost their dot on the way in.
    */
   it('draws the leading status dot on a coloured, labelled tag — the same pill the Tag widget draws', () => {
-    const { container } = renderHeader({ tags: [{ color: 'green', label: 'Healthy' }] })
+    // A label that is not a Kubernetes state token keeps the dot (stateFamily.ts).
+    const { container } = renderHeader({ tags: [{ color: 'blue', label: 'Open' }] })
     const dot = container.querySelector('.ant-tag span[style*="border-radius: 50%"]')
     expect(dot).toBeTruthy()
     expect((dot as HTMLElement).style.height).toBe('6px')
+  })
+
+  it('a Kubernetes state token carries its family glyph in the dot\'s place', () => {
+    const { container } = renderHeader({ tags: [{ color: 'green', label: 'Healthy' }] })
+    expect(container.querySelector('.ant-tag [data-state-family="healthy"]')).toBeTruthy()
+    expect(container.querySelector('.ant-tag span[style*="border-radius: 50%"]')).toBeNull()
   })
 
   it('draws NO dot when the tag has no label — colour alone is not a status', () => {
