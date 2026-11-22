@@ -45,7 +45,7 @@ export interface PageHeader {
         color?: 'blue' | 'darkBlue' | 'orange' | 'gray' | 'red' | 'green' | 'violet'
       }[]
       /**
-       * something on this page is in progress (an analysis, a check): one line under the title saying since when, with the elapsed minutes ticking in the browser while `live` is true. No ETA. The page itself updates when the state changes; this line only keeps the wait visible.
+       * something on this page is in progress (an analysis, a check): one line under the title saying since when, with the elapsed minutes ticking in the browser while `live` is true. No ETA. The page itself updates when the state changes; this line only keeps the wait visible. null means no progress line: a RESTAction that has nothing in progress sends null, because a widgetDataTemplate cannot leave the path unset (snowplow writes "" for no output) and the CRD must admit what it then writes.
        */
       progress?: {
         /**
@@ -64,7 +64,7 @@ export interface PageHeader {
          * one muted line under it while live, e.g. "Usually 2–3 min; longer when the model is rate-limited."
          */
         hint?: string
-      }
+      } | null
       /**
        * the list of resources that are allowed to be children of this widget or referenced by it
        */

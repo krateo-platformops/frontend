@@ -6,7 +6,11 @@
  * names, so what matters is that the shape it guarantees actually holds: one baseline row carrying
  * the title, its counter and its tags, with the page's actions right-aligned beside them.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { cleanup, render, screen } from '@testing-library/react'
+import { load } from 'js-yaml'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -156,5 +160,20 @@ describe('PageHeader', () => {
     renderHeader({ items: [] })
     expect(screen.queryAllByTestId('action')).toHaveLength(0)
     expect(screen.getByRole('heading', { level: 1 })).toBeTruthy()
+  })
+})
+
+describe('progress: null is "no progress line" (snowplow validates the resolved header against the CRD)', () => {
+  it('renders no progress line for null, as for absent', () => {
+    const { container } = renderHeader({ progress: null })
+    expect(container.querySelector('[data-page-header="progress"]')).toBeNull()
+  })
+
+  it('the shipped CRD admits null, or snowplow refuses the whole header (057, portal 1.8.154: 80 walk failures a day)', () => {
+    // vitest runs from ui/; the chart sits beside it.
+    const crd = load(readFileSync(join(process.cwd(), '..', 'helm', 'frontend-crds', 'templates', 'PageHeader.crd.yaml'), 'utf8')) as {
+      spec: { versions: Array<{ schema: { openAPIV3Schema: { properties: { spec: { properties: { widgetData: { properties: { progress: { nullable?: boolean } } } } } } } } }> }
+    }
+    expect(crd.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.widgetData.properties.progress.nullable).toBe(true)
   })
 })
