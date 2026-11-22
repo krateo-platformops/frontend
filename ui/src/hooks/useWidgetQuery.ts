@@ -1,7 +1,7 @@
 /* eslint-disable sort-keys/sort-keys-fix */
 /* this rules conflicts with react-query ordering required for correct type inference */
 
-import { useInfiniteQuery, useIsFetching } from '@tanstack/react-query'
+import { useInfiniteQuery, useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 
@@ -15,6 +15,7 @@ import { getUserInfo } from '../utils/getUserInfo'
 import { getCallReadQuery, getExportEndpoint } from '../utils/utils'
 
 import type { WatchMatcher } from './liveRefresh'
+import { prefetchChildren } from './prefetchChildren'
 import { getRefreshEntry, isWidgetLiveRefreshEnabled, wasRefetchEventTriggered } from './refreshSse'
 import { useLiveWatch } from './useLiveRefresh'
 import { useWidgetLiveRefresh } from './useWidgetLiveRefresh'
@@ -253,6 +254,10 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // its reads either — it would also tell the RESTActions who is looking.
   const injectIdentity = !config?.api.SNOWPLOW_IDENTITY_INJECTION && transport.identity === 'signed-in'
   const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, callerExtras, fragmentExtras)
+  // What a child rendered by RefChild sends: the same envelope without this widget's caller extras
+  // (a child carries none). The children prefetch keys their reads with it (./prefetchChildren).
+  const childExtrasParam = callerExtras ? buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, EMPTY_CALLER_EXTRAS, fragmentExtras) : extrasParam
+  const queryClient = useQueryClient()
 
   const widgetFullUrl = `${config!.api.SNOWPLOW_API_BASE_URL}${widgetEndpoint}`
   // The widget's `/call` query, for its export (`exportRequestFor`); null when it is not a /call read.
@@ -323,9 +328,20 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // The read this widget's query makes (./widgetRequest), the same one a parent's prefetch makes. The
   // key is (endpoint, extras[, page]); the read is a function of those plus the install's base URL
   // and the transport in context, exactly as the inline fetch it replaces was.
-  function fetchPage(pageParam: { page?: number; perPage?: number }) {
+  // On the answer, the reads of the children it draws on first render start at once, under the keys
+  // their own queries use, instead of after this widget renders and they mount (./prefetchChildren).
+  async function fetchPage(pageParam: { page?: number; perPage?: number }) {
     const read: WidgetRead = { extrasInBody, extrasParam, refreshWidgetId: refreshEnabled ? widgetId : undefined, transport, url: widgetFullUrl }
-    return fetchWidgetPage(read, pageParam)
+    const widget = await fetchWidgetPage(read, pageParam)
+    prefetchChildren(queryClient, widget, {
+      baseUrl: config!.api.SNOWPLOW_API_BASE_URL,
+      childExtrasParam,
+      extrasInBody,
+      liveRefresh: refreshEnabled,
+      search: widgetSearchParams,
+      transport,
+    })
+    return widget
   }
 
   const queryResult = useInfiniteQuery({
