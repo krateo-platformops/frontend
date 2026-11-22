@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const raiseSessionExpired = vi.fn<() => Promise<'logout' | 'resumed'>>()
+vi.mock('../../utils/sessionResume', () => ({ raiseSessionExpired: () => raiseSessionExpired() }))
 
 import { ParentRefetchContext } from '../../context/ParentRefetchContext'
 import type { RefFailure, ResourcesRefs } from '../../types/Widget'
@@ -25,7 +28,16 @@ const TYPE_NOT_INSTALLED: RefFailure = {
 const BARE_500: RefFailure = { code: 500, kind: 'Status', message: 'The type menus (widgets.templates.krateo.io/v1beta1) could not be looked up.', reason: 'InternalError', status: 'Failure' }
 const THROTTLED: RefFailure = { code: 429, kind: 'Status', message: 'The type menus could not be looked up.', reason: 'TooManyRequests', status: 'Failure' }
 
+// A lookup snowplow sent with discovery's own code (#1576 DiscoveryFailed): the credential refused, or refused access.
+const REFUSED_401: RefFailure = { code: 401, details: { causes: [{ reason: 'DiscoveryFailed' }] }, kind: 'Status', message: 'The type menus could not be looked up: Unauthorized.', reason: 'Unauthorized', status: 'Failure' }
+const REFUSED_403: RefFailure = { code: 403, details: { causes: [{ reason: 'DiscoveryFailed' }] }, kind: 'Status', message: 'The type menus could not be looked up: Forbidden.', reason: 'Forbidden', status: 'Failure' }
+
 const NONE: ResourcesRefs = { items: [] }
+
+afterEach(() => {
+  cleanup()
+  raiseSessionExpired.mockReset()
+})
 
 describe('failureKind: keyed on snowplow\'s structured cause, never its message', () => {
   it('a type not installed is permanent (424, or the TypeNotInstalled cause)', () => {
@@ -41,6 +53,14 @@ describe('failureKind: keyed on snowplow\'s structured cause, never its message'
   it('a bare 500 is transient until snowplow names its cause; the cluster\'s own codes are transient', () => {
     expect(failureKind(BARE_500)).toBe('transient')
     expect(failureKind(THROTTLED)).toBe('transient')
+  })
+})
+
+describe('failureKind: the part\'s own 401 and 403 are never retried', () => {
+  it('401 asks to sign in again; 403 is permanent; both whatever the cause says', () => {
+    expect(failureKind(REFUSED_401)).toBe('signin')
+    expect(failureKind(REFUSED_403)).toBe('permanent')
+    expect(failureKind({ ...REFUSED_403, details: undefined })).toBe('permanent')
   })
 })
 
@@ -74,6 +94,33 @@ describe('RefChild with a failed part', () => {
     expect(screen.getByText(BARE_500.message!)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /try again/i }))
     expect(refetch).toHaveBeenCalledOnce()
+  })
+
+  it('a 403: who can fix it, and no retry', () => {
+    render(<RefChild failedRefs={{ nav: REFUSED_403 }} resourceRefId='nav' resourcesRefs={NONE} />)
+    expect(screen.getByText(/403 · you don’t have access to look this up: ask a platform admin/)).toBeTruthy()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('a 401: Sign in again opens the session-expired flow, and re-reads the parent only once resumed', async () => {
+    const refetch = vi.fn()
+    const view = (failure: RefFailure) => render(
+      <ParentRefetchContext.Provider value={refetch}>
+        <RefChild failedRefs={{ nav: failure }} resourceRefId='nav' resourcesRefs={NONE} />
+      </ParentRefetchContext.Provider>,
+    )
+    raiseSessionExpired.mockResolvedValueOnce('logout')
+    const first = view(REFUSED_401)
+    expect(screen.getByText('Your sign-in wasn’t accepted for this part')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /try again/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /sign in again/i }))
+    await vi.waitFor(() => { expect(raiseSessionExpired).toHaveBeenCalledOnce() })
+    expect(refetch).not.toHaveBeenCalled()
+    first.unmount()
+    raiseSessionExpired.mockResolvedValueOnce('resumed')
+    view(REFUSED_401)
+    fireEvent.click(screen.getByRole('button', { name: /sign in again/i }))
+    await vi.waitFor(() => { expect(refetch).toHaveBeenCalledOnce() })
   })
 
   it('a denied ref still renders nothing, even with other parts failed', () => {
