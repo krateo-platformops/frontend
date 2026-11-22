@@ -35,3 +35,9 @@ jobs:
     with:
       chart_version: ${{ github.event.inputs.chart_version || '' }}
       app_version: ${{ github.event.inputs.app_version || '' }}
+      # Required since the shared workflow's 2.0.0 (krateo-platformops/.github 77bcf7f, 2026-11-22):
+      # which krateo-blueprints index channel these charts go to. `none`: frontend, frontend-crds and
+      # builder-gate are platform components the installer pins from ghcr.io/krateo-platformops/charts,
+      # never blueprints, pages or operators in the krateo-blueprints index. Without the input GitHub
+      # refused to start the run (startup_failure), and 1.8.70 shipped its image and none of its charts.
+      index_channel: none
