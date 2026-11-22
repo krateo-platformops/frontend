@@ -2,8 +2,12 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+// The session resume comes from the transport in context (signed in), never from an import.
 const raiseSessionExpired = vi.fn<() => Promise<'logout' | 'resumed'>>()
-vi.mock('../../utils/sessionResume', () => ({ raiseSessionExpired: () => raiseSessionExpired() }))
+let signedIn = true
+vi.mock('../../transport/widgetTransport', () => ({
+  useWidgetTransport: () => (signedIn ? { session: { resume: () => raiseSessionExpired() } } : {}),
+}))
 
 import { ParentRefetchContext } from '../../context/ParentRefetchContext'
 import type { RefFailure, ResourcesRefs } from '../../types/Widget'
@@ -37,6 +41,7 @@ const NONE: ResourcesRefs = { items: [] }
 afterEach(() => {
   cleanup()
   raiseSessionExpired.mockReset()
+  signedIn = true
 })
 
 describe('failureKind: keyed on snowplow\'s structured cause, never its message', () => {
@@ -121,6 +126,13 @@ describe('RefChild with a failed part', () => {
     view(REFUSED_401)
     fireEvent.click(screen.getByRole('button', { name: /sign in again/i }))
     await vi.waitFor(() => { expect(refetch).toHaveBeenCalledOnce() })
+  })
+
+  it('a 401 on a public page (no session): the heading, and no Sign in again', () => {
+    signedIn = false
+    render(<RefChild failedRefs={{ nav: REFUSED_401 }} resourceRefId='nav' resourcesRefs={NONE} />)
+    expect(screen.getByText('Your sign-in wasn’t accepted for this part')).toBeTruthy()
+    expect(screen.queryByRole('button')).toBeNull()
   })
 
   it('a denied ref still renders nothing, even with other parts failed', () => {

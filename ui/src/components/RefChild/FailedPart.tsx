@@ -18,8 +18,8 @@ import { Button, Tooltip, Typography } from 'antd'
 import { useContext } from 'react'
 
 import { ParentRefetchContext } from '../../context/ParentRefetchContext'
+import { useWidgetTransport } from '../../transport/widgetTransport'
 import type { RefFailure } from '../../types/Widget'
-import { raiseSessionExpired } from '../../utils/sessionResume'
 
 import styles from './FailedPart.module.css'
 
@@ -63,9 +63,14 @@ const FailedPart = ({ density = 'block', failure, title }: { density?: 'block' |
   const refetch = useContext(ParentRefetchContext)
   const kind = failureKind(failure)
   const message = failure.message || 'This part could not be loaded.'
-  // A 401 on the part: the portal's session-expired flow, then re-read the parent once resumed.
+  // A 401 on the part: the in-place session resume, then re-read the parent once resumed. Taken from
+  // the transport in context, NEVER imported: FailedPart renders on public pages too, and the resume
+  // must stay unreachable from them (transport/tokenReach.test.ts). The anonymous transport has no
+  // `session`, so a public page shows no Sign in again (there is no session to resume).
+  const { session } = useWidgetTransport()
   const signInAgain = async () => {
-    const outcome = await raiseSessionExpired()
+    if (!session) { return }
+    const outcome = await session.resume()
     if (outcome === 'resumed') { refetch?.() }
   }
 
@@ -89,7 +94,7 @@ const FailedPart = ({ density = 'block', failure, title }: { density?: 'block' |
       <Typography.Text type='secondary'>{message}</Typography.Text>
       {kind === 'permanent' && <Typography.Text className={styles.facts} type='secondary'>{[failure.code, whoFixes(failure)].filter(Boolean).join(' · ')}</Typography.Text>}
       {kind === 'transient' && refetch && <Button icon={<ReloadOutlined />} onClick={() => { refetch() }} size='small'>Try again</Button>}
-      {kind === 'signin' && (
+      {kind === 'signin' && session && (
         <Button
           icon={<LoginOutlined />}
           onClick={() => { void signInAgain() }}
