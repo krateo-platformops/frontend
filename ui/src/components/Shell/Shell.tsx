@@ -20,6 +20,7 @@ import ThemeToggle from '../ThemeToggle'
 import UserMenu from '../UserMenu'
 import WidgetRenderer from '../WidgetRenderer'
 
+import NavRoutesPrefetch from './NavRoutesPrefetch'
 import styles from './Shell.module.css'
 import { ShellSlotsProvider } from './ShellSlots'
 
@@ -149,6 +150,8 @@ export const ShellRoute = () => {
                   picker and focus included. Only the routed content (the `content` slot above)
                   is page. */}
               <WidgetScopeProvider scope='chrome'>
+                {/* The route map, read in parallel with INIT rather than after the sider renders. */}
+                <NavRoutesPrefetch />
                 <WidgetRenderer key='shell' widgetEndpoint={config!.api.INIT} />
               </WidgetScopeProvider>
             </AgentikoShell>
