@@ -1007,6 +1007,25 @@ spec:
                         - alert
                         - text
                       type: string
+                    notices:
+                      description: 'info notices shown above the fields of a schema form, after `notice`: each an Alert with a title, optional paragraphs, and optional details text in a collapsed Details section (e.g. the blueprint form''s note that its inputs were inferred from the chart''s default values, with the provider''s condition message as the details)'
+                      items:
+                        properties:
+                          description:
+                            description: paragraphs under the title, in order
+                            items:
+                              type: string
+                            type: array
+                          details:
+                            description: text shown verbatim, in monospace, when the reader opens Details (e.g. a controller's condition message)
+                            type: string
+                          title:
+                            description: the notice's one-line title
+                            type: string
+                        required:
+                          - title
+                        type: object
+                      type: array
                     objectFields:
                       description: configuration for object fields in the form
                       items:
