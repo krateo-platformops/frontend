@@ -153,3 +153,24 @@ describe('neither set: nothing changes', () => {
     })
   }
 })
+
+describe('a sider snowplow reported as failed (>= 1.12.75)', () => {
+  it('reads "Navigation unavailable" with snowplow\'s message, where the menu would be', () => {
+    setViewportWidth(1400)
+    const failure = {
+      code: 424,
+      details: { causes: [{ reason: 'TypeNotInstalled' }] },
+      message: 'The type menus (widgets.templates.krateo.io/v1beta1) is not installed on this cluster.',
+    }
+    const refs: ResourcesRefs = { items: [ref('brand', LOGO)] }
+    render(
+      <ShellSlotsProvider value={shellSlots}>
+        <Layout failedRefs={{ 'sider-content': failure }} resourcesRefs={refs} uid='app-shell' widgetData={widgetData({})} />
+      </ShellSlotsProvider>,
+    )
+    const sider = document.querySelector<HTMLElement>('.ant-layout-has-sider > .ant-layout-sider')!
+    expect(sider.textContent).toContain('Navigation unavailable')
+    expect(sider.textContent).toContain(failure.message)
+    expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull()
+  })
+})

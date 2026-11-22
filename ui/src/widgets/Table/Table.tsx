@@ -73,7 +73,7 @@ type FireRowAction = (actionId: string, row: unknown) => Promise<void>
 const fromRowActions = new WeakSet<Event>()
 const markFromRowActions = (event: { nativeEvent: Event }) => { fromRowActions.add(event.nativeEvent) }
 
-const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData> & { fireRowAction?: FireRowAction }) => {
+const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, resourcesRefs, serverPagination, uid, widgetData }: WidgetProps<TableWidgetData> & { fireRowAction?: FireRowAction }) => {
   const { bordered, columns, dataSource, fitContent, pagination, prefix, resizableColumns, rowActions, rowActionsDisplay, rowNavigateTo, size } = widgetData
   const data = dataSource ?? []
   const { getFilteredData } = useFilter()
@@ -139,7 +139,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
       case 'icon':
         return <TableCellTooltip display='inline' label={{ name: tooltip, role: 'img' }} title={tooltip}>{node}</TableCellTooltip>
       case 'widget':
-        if (cell.resourceRefId && refChildState(cell.resourceRefId, resourcesRefs, deniedRefIds) !== 'ok') { return node }
+        if (cell.resourceRefId && refChildState(cell.resourceRefId, resourcesRefs, deniedRefIds, failedRefs) !== 'ok') { return node }
         return <TableCellTooltip display='inline' title={tooltip}>{node}</TableCellTooltip>
       default:
         return <TableCellTooltip display='inline' title={tooltip}>{node}</TableCellTooltip>
@@ -446,8 +446,8 @@ const TableView = ({ deniedRefIds, exportRequestFor, fireRowAction, resourcesRef
 
               return (
                 <RefChild
-                  deniedRefIds={deniedRefIds}
-                  density='inline'
+                  deniedRefIds={deniedRefIds} density='inline'
+                  failedRefs={failedRefs}
                   label='cell'
                   resourceRefId={resourceRefId}
                   resourcesRefs={resourcesRefs}

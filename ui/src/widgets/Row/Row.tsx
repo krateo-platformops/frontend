@@ -19,7 +19,7 @@ const justifyContentMap: Record<
   right: 'flex-end',
 }
 
-const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWidgetData>) => {
+const Row = ({ deniedRefIds, failedRefs, resourcesRefs, uid, widgetData }: WidgetProps<RowWidgetData>) => {
   const { alignment, items } = widgetData
 
   // X8 — layout maths runs on the children that SURVIVE, not the ones declared. A denied ref
@@ -36,7 +36,7 @@ const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWi
   // for a Form child a refetch wipes the user's dirty state.
   const visibleItems = items
     .map((item, index) => ({ index, item }))
-    .filter(({ item }) => refChildState(item.resourceRefId, resourcesRefs, deniedRefIds) !== 'denied')
+    .filter(({ item }) => refChildState(item.resourceRefId, resourcesRefs, deniedRefIds, failedRefs) !== 'denied')
 
   // A Row with nothing to show is not there. It rendered an empty `<div>` all the same, and inside a
   // vertical Flex that is one more gap on the page. A Row whose `items` a template resolves to `[]`
@@ -81,7 +81,7 @@ const Row = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<RowWi
                 xxl={xxl}
               >
                 <RefChild
-                  deniedRefIds={deniedRefIds}
+                  deniedRefIds={deniedRefIds} failedRefs={failedRefs}
                   key={`${uid}-${index}`}
                   label='column'
                   resourceRefId={resourceRefId}

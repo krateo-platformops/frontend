@@ -57,7 +57,7 @@ const BADGE_STATUS_COLOR: Record<string, string> = {
   warning: 'warning',
 }
 
-const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetProps<CardWidgetData>) => {
+const Card = ({ deniedRefIds, failedRefs, resourcesRefs, uid, widget, widgetData }: WidgetProps<CardWidgetData>) => {
   const { notification } = useApp()
   const { handleAction, isActionLoading } = useHandleAction()
 
@@ -252,7 +252,7 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
           <div className={`${styles.body} ${icon && !headerLeft ? styles.clearsIcon : ''}`}>
             {bodyItems.map(({ index, item: { resourceRefId } }) => (
               <RefChild
-                deniedRefIds={deniedRefIds}
+                deniedRefIds={deniedRefIds} failedRefs={failedRefs}
                 key={`${uid}-${index}`}
                 label='card item'
                 resourceRefId={resourceRefId}
@@ -274,7 +274,7 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
       <div className={styles.afterCard}>
         {slotItems.map(({ index, item: { resourceRefId } }) => (
           <RefChild
-            deniedRefIds={deniedRefIds}
+            deniedRefIds={deniedRefIds} failedRefs={failedRefs}
             key={`${uid}-${index}`}
             label='card item'
             resourceRefId={resourceRefId}
