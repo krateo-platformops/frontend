@@ -29,7 +29,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "the page title (H1). The one required field — a page header without a title is not a page header"
+              "description": "the page title (H1). The one required field \u2014 a page header without a title is not a page header"
             },
             "counter": {
               "type": "integer",
@@ -38,11 +38,11 @@
             },
             "counterLabel": {
               "type": "string",
-              "description": "the noun the counter counts, rendered inside the same brackets (e.g. '23 blueprints'). Use it when WHAT is being counted changes — a bare '(23)' beside a filtered catalog does not say 23 of what"
+              "description": "the noun the counter counts, rendered inside the same brackets (e.g. '23 blueprints'). Use it when WHAT is being counted changes \u2014 a bare '(23)' beside a filtered catalog does not say 23 of what"
             },
             "subtitle": {
               "type": "string",
-              "description": "one line of supporting context below the title. Must NOT restate the title — say it once per page"
+              "description": "one line of supporting context below the title. Must NOT restate the title \u2014 say it once per page"
             },
             "tags": {
               "type": "array",
@@ -75,8 +75,11 @@
               }
             },
             "progress": {
-              "type": "object",
-              "description": "something on this page is in progress (an analysis, a check): one line under the title saying since when, with the elapsed minutes ticking in the browser while `live` is true. No ETA. The page itself updates when the state changes; this line only keeps the wait visible.",
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "something on this page is in progress (an analysis, a check): one line under the title saying since when, with the elapsed minutes ticking in the browser while `live` is true. No ETA. The page itself updates when the state changes; this line only keeps the wait visible. null means no progress line: a RESTAction that has nothing in progress sends null, because a widgetDataTemplate cannot leave the path unset (snowplow writes \"\" for no output) and the CRD must admit what it then writes.",
               "required": [
                 "label",
                 "since"
@@ -97,7 +100,7 @@
                 },
                 "hint": {
                   "type": "string",
-                  "description": "one muted line under it while live, e.g. \"Usually 2–3 min; longer when the model is rate-limited.\""
+                  "description": "one muted line under it while live, e.g. \"Usually 2\u20133 min; longer when the model is rate-limited.\""
                 }
               }
             },
@@ -305,7 +308,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
         }
       },
       "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."
