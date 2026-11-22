@@ -67,6 +67,7 @@ import PageHeader from '../src/widgets/PageHeader/PageHeader'
 import { getWidgetModule } from '../src/widgets/registry'
 import Table, { type TableWidgetData } from '../src/widgets/Table/Table'
 
+import { failedParts } from './failedPartsFixture'
 import { formGuideLines } from './formGuideLinesFixture'
 import { welcomeCards } from './welcomeCardsFixture'
 
@@ -593,6 +594,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'architecture-cards': architectureCards,
   'architecture-graph': () => <ArchitectureGraphFixture />,
   'architecture-names': architectureNames,
+  'failed-parts': failedParts,
   'focus-ring': focusRing,
   'form-guide-lines': formGuideLines,
   'graph-zoom': () => <GraphZoomFixture />,

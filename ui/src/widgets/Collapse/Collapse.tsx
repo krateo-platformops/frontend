@@ -60,12 +60,12 @@ export const cappedBody = (panel: Pick<Panel, 'cap' | 'dataSource' | 'footer'>):
  * renders the header as a button with `aria-expanded`, toggled by Enter, so its accessible name is
  * the title AND the count.
  */
-const Collapse = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetProps<CollapseWidgetData>) => {
+const Collapse = ({ deniedRefIds, failedRefs, resourcesRefs, uid, widget, widgetData }: WidgetProps<CollapseWidgetData>) => {
   const { accordion, actions, bordered, defaultActiveKey, ghost, grid, itemTemplate, items, size } = widgetData
 
   const body = (panel: Panel, key: string) => {
     if (panel.resourceRefId) {
-      return <RefChild deniedRefIds={deniedRefIds} label='panel' resourceRefId={panel.resourceRefId} resourcesRefs={resourcesRefs} />
+      return <RefChild deniedRefIds={deniedRefIds} failedRefs={failedRefs} label='panel' resourceRefId={panel.resourceRefId} resourcesRefs={resourcesRefs} />
     }
     if (!panel.dataSource) { return null }
     const { footer, items: shown } = cappedBody(panel)

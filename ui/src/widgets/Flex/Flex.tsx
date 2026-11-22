@@ -7,7 +7,7 @@ import type { Flex as WidgetType } from './Flex.type'
 
 export type FlexWidgetData = WidgetType['spec']['widgetData']
 
-const Flex = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<FlexWidgetData>) => {
+const Flex = ({ deniedRefIds, failedRefs, resourcesRefs, uid, widgetData }: WidgetProps<FlexWidgetData>) => {
   const { align, ariaLabel, gap, items, justify, role, vertical, wrap } = widgetData
 
   // A Flex with no items renders NOTHING, not an empty box: a parent Flex's `gap` is applied
@@ -24,7 +24,7 @@ const Flex = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<Flex
     <AntdFlex align={align} aria-label={ariaLabel} gap={gap} justify={justify} key={uid} role={role} vertical={vertical} wrap={wrap}>
       {items.map(({ resourceRefId }, index) => (
         <RefChild
-          deniedRefIds={deniedRefIds}
+          deniedRefIds={deniedRefIds} failedRefs={failedRefs}
           key={`${uid}-${index}`}
           label='item'
           resourceRefId={resourceRefId}

@@ -1,8 +1,9 @@
-import { Suspense, useEffect, useLayoutEffect, useMemo } from 'react'
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo } from 'react'
 
 import { useConfigContext } from '../../context/ConfigContext'
 import { EMPTY_FRAGMENT_EXTRAS, fragmentKeysOf, pickFragment } from '../../context/pageFragment'
 import { FragmentExtrasProvider, PageRootReset, usePageRoot } from '../../context/PageRootContext'
+import { ParentRefetchContext } from '../../context/ParentRefetchContext'
 import { RenderChainProvider, inspectChain, useRenderChain } from '../../context/RenderChainContext'
 import { useErrorNotice } from '../../hooks/errorNotice'
 import { isWidgetArmed, isWidgetLiveRefreshEnabled } from '../../hooks/refreshSse'
@@ -13,6 +14,7 @@ import { getWidgetModule } from '../../widgets/registry'
 import { useFilter } from '../FiltesProvider/FiltersProvider'
 import { FreshnessBadge } from '../FreshnessBadge/FreshnessBadge'
 import { ScrollPagination } from '../Pagination/ScrollPagination'
+import { partitionRefs } from '../RefChild/partitionRefs'
 import { NavigationNotice } from '../WidgetPage/NavigationNotice'
 import { classifyRouteSourceFailure } from '../WidgetPage/routeSource'
 import { WidgetDependencyMissing, WidgetError, WidgetErrorBoundary, WidgetForbidden, WidgetLoading, WidgetNotFound, WidgetTimeout } from '../WidgetStates'
@@ -53,16 +55,20 @@ const parseWidget = (
     status: { resourcesRefs, widgetData },
   } = widget
 
+  const partitioned = partitionRefs(resourcesRefs)
   const props = {
     // X4/X2: the filter below is what `navModel.isNavEntryAllowed` keys on, so it stays. The ids it
     // removes are carried alongside instead, so a container can tell a denied child from a typo'd
     // one without either of them becoming visible to the other's audience.
-    deniedRefIds: resourcesRefs?.items?.filter(({ allowed }) => !allowed).map(({ id }) => id) ?? [],
+    // A FAILED part (allowed: false WITH an error, snowplow >= 1.12.75) is not a denial: it is shown
+    // in its slot (RefChild → FailedPart), so it is kept out of deniedRefIds and passed by id instead.
+    deniedRefIds: partitioned.deniedRefIds,
     // The widget's own read, as an export request. The hook owns request assembly: it supplies
     // this widget's `extras` SEPARATELY from the URL, because POST /export takes extras in the
     // body, and it omits page/perPage so snowplow's own walk covers every row. A widget supplies
     // only the query built from its columns. Undefined when there is nothing to export from.
     exportRequestFor,
+    failedRefs: partitioned.failedRefs,
     resourcesRefs: { ...resourcesRefs, items: resourcesRefs?.items?.filter(({ allowed }) => allowed) ?? [] },
     // Classic server-side pager controls, threaded down to widgets that opt into
     // bounded pagination (e.g. the compositions Table). Undefined for all others.
@@ -128,6 +134,8 @@ const WidgetRenderer = ({ failureNotice, invisible = false, onLoadingChange, pre
   // window of its own; nothing in the SPA has one.
   const { exportRequestFor, isFetchingResourcesRefs, queryResult, serverPagination, timedOut, widgetId } = useWidgetQuery(widgetEndpoint)
   const { data: widget, dataUpdatedAt, error, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isLoading, isPending, isStale, refetch } = queryResult
+  // FailedPart's Try again: re-read this widget, whose status listed the failed child.
+  const retryParent = useCallback(() => { void refetch() }, [refetch])
 
   // Freshness signal fed to the FreshnessBadge overlaid on the rendered widget.
   // `liveArmed` is the HONEST arm-state: this widget currently has a live `/refreshes`
@@ -308,7 +316,10 @@ const WidgetRenderer = ({ failureNotice, invisible = false, onLoadingChange, pre
   // transiently-bad payload does not leave the widget permanently stuck on its first bad render.
   const renderedWidget = (
     <WidgetErrorBoundary resetKey={dataUpdatedAt} widgetId={`${kind} @ ${widgetEndpoint}`}>
-      {parseWidget(widget, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isFetchingResourcesRefs, serverPagination, exportRequestFor)}
+      {/* A child snowplow reported as failed is a line in THIS widget's status: retrying it re-reads this widget. */}
+      <ParentRefetchContext.Provider value={retryParent}>
+        {parseWidget(widget, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isFetchingResourcesRefs, serverPagination, exportRequestFor)}
+      </ParentRefetchContext.Provider>
     </WidgetErrorBoundary>
   )
 

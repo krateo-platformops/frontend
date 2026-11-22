@@ -1,9 +1,11 @@
 import { WarningOutlined } from '@ant-design/icons'
 import { Result, Tooltip, Typography } from 'antd'
 
-import type { ResourcesRefs } from '../../types/Widget'
+import type { RefFailure, ResourcesRefs } from '../../types/Widget'
 import { getEndpointUrl } from '../../utils/utils'
 import WidgetRenderer from '../WidgetRenderer'
+
+import FailedPart from './FailedPart'
 
 /**
  * X4 — one visible result for one authoring mistake, in every container.
@@ -34,6 +36,8 @@ export type RefChildProps = {
    * `inline` renders a compact marker — a Result inside a table cell would destroy row height.
    */
   density?: 'block' | 'inline'
+  /** Parts snowplow reported as failed, by id: shown in the slot (FailedPart), unlike a denial. */
+  failedRefs?: Record<string, RefFailure>
   /** What the author called this slot, e.g. 'tab' or 'column'. Names the thing that failed. */
   label?: string
   resourceRefId: string
@@ -52,16 +56,25 @@ export const refChildState = (
   resourceRefId: string,
   resourcesRefs: ResourcesRefs,
   deniedRefIds?: string[],
-): 'dangling' | 'denied' | 'ok' => {
+  failedRefs?: Record<string, RefFailure>,
+): 'dangling' | 'denied' | 'failed' | 'ok' => {
   if (getEndpointUrl(resourceRefId, resourcesRefs)) { return 'ok' }
+  // A failure keeps its slot, like a dangling ref and unlike a denial (FailedPart).
+  if (failedRefs?.[resourceRefId]) { return 'failed' }
   return deniedRefIds?.includes(resourceRefId) ? 'denied' : 'dangling'
 }
 
-const RefChild = ({ deniedRefIds, density = 'block', label = 'widget', resourceRefId, resourcesRefs }: RefChildProps) => {
+const RefChild = ({ deniedRefIds, density = 'block', failedRefs, label = 'widget', resourceRefId, resourcesRefs }: RefChildProps) => {
   const endpoint = getEndpointUrl(resourceRefId, resourcesRefs)
 
   if (endpoint) {
     return <WidgetRenderer widgetEndpoint={endpoint} />
+  }
+
+  // snowplow could not load it (a failure, not a denial): say so in the slot.
+  const failure = failedRefs?.[resourceRefId]
+  if (failure) {
+    return <FailedPart density={density} failure={failure} />
   }
 
   // X2: a denial reads as absence. Deliberately indistinguishable from the ref never existing.
