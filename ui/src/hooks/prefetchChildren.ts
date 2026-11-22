@@ -15,7 +15,8 @@
  *   - a paged child (its endpoint carries page/perPage): it keeps fetching on mount (v1);
  *   - a key already cached or in flight.
  * A failed prefetch is not retried here: it leaves an error entry, and the child's own query retries
- * on mount exactly as it does without a prefetch.
+ * on mount exactly as it does without a prefetch. A prefetched child prefetches its own children, so
+ * the whole first-render tree is in flight, each level as soon as its parent answers.
  */
 import type { QueryClient } from '@tanstack/react-query'
 
@@ -52,19 +53,30 @@ export const prefetchableChildEndpoints = (widget: Widget, search: URLSearchPara
 }
 
 /**
- * A child's page fetch for one read. The key (endpoint, child extras) determines the read; the base
- * URL and the transport are the query client's own, as in useWidgetQuery's fetchPage.
+ * A child's page fetch for one read, then `onAnswer` with what came back. The key (endpoint, child
+ * extras) determines the read; the base URL and the transport are the query client's own, as in
+ * useWidgetQuery's fetchPage.
  */
-const childPages = (read: WidgetRead) => ({ pageParam }: { pageParam: { page?: number; perPage?: number } }) => fetchWidgetPage(read, pageParam)
+const childPages = (read: WidgetRead, onAnswer: (widget: Widget) => void) => async ({ pageParam }: { pageParam: { page?: number; perPage?: number } }) => {
+  const widget = await fetchWidgetPage(read, pageParam)
+  onAnswer(widget)
+  return widget
+}
 
-/** Start the reads of `widget`'s first-render children. Fire and forget: nothing awaits it. */
 export const prefetchChildren = (queryClient: QueryClient, widget: Widget, context: ChildReadContext): void => {
-  for (const endpoint of prefetchableChildEndpoints(widget, context.search)) {
-    const queryKey = widgetQueryKey(endpoint, context.childExtrasParam)
-    if (queryClient.getQueryState(queryKey)) { continue }
-    const refreshWidgetId = context.liveRefresh ? JSON.stringify(queryKey) : undefined
-    const read: WidgetRead = { extrasInBody: context.extrasInBody, extrasParam: context.childExtrasParam, refreshWidgetId, transport: context.transport, url: `${context.baseUrl}${endpoint}` }
-    const initialPageParam: { page?: number; perPage?: number } = {}
-    void queryClient.prefetchInfiniteQuery({ initialPageParam, queryFn: childPages(read), queryKey, retry: false })
+  // A prefetched child prefetches ITS first-render children in turn, with the same context: only the
+  // page root changes the context it hands down, and the page root is never a prefetched child (the
+  // route reads it). Without this the gain stopped one level down (the landing's sider Flex was
+  // prefetched; its logo still waited a render).
+  const prefetch = (parent: Widget): void => {
+    for (const endpoint of prefetchableChildEndpoints(parent, context.search)) {
+      const queryKey = widgetQueryKey(endpoint, context.childExtrasParam)
+      if (queryClient.getQueryState(queryKey)) { continue }
+      const refreshWidgetId = context.liveRefresh ? JSON.stringify(queryKey) : undefined
+      const read: WidgetRead = { extrasInBody: context.extrasInBody, extrasParam: context.childExtrasParam, refreshWidgetId, transport: context.transport, url: `${context.baseUrl}${endpoint}` }
+      const initialPageParam: { page?: number; perPage?: number } = {}
+      void queryClient.prefetchInfiniteQuery({ initialPageParam, queryFn: childPages(read, prefetch), queryKey, retry: false })
+    }
   }
+  prefetch(widget)
 }

@@ -47,6 +47,18 @@ describe('prefetchChildren', () => {
     })
   })
 
+  it('a prefetched child prefetches its own children: the whole first-render tree is in flight', async () => {
+    const { context, queryClient } = setup()
+    const nested = flex([ref('leaf')])
+    const fetch = vi.fn((url: string) => {
+      const name = new URL(url).searchParams.get('name')
+      const body = name === 'mid' ? nested : { kind: 'Paragraph', metadata: { name } }
+      return Promise.resolve(new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' }, status: 200 }))
+    })
+    prefetchChildren(queryClient, flex([ref('mid')]), { ...context, transport: { fetch, onUnauthorized: vi.fn() } })
+    await vi.waitFor(() => { expect(fetch.mock.calls.map(([url]) => new URL(url).searchParams.get('name'))).toEqual(['mid', 'leaf']) })
+  })
+
   it('skips a denied ref, a failed part, a non-GET ref and a paged child', () => {
     const widget = flex([
       ref('ok'),
