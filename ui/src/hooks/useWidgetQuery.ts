@@ -7,8 +7,8 @@ import { useParams, useSearchParams } from 'react-router'
 
 import { isTimeoutError } from '../components/WidgetStates'
 import { useConfigContext } from '../context/ConfigContext'
-import { EMPTY_FRAGMENT_EXTRAS } from '../context/pageFragment'
-import { useFragmentExtras } from '../context/PageRootContext'
+import { EMPTY_FRAGMENT_EXTRAS, fragmentKeysOf, pickFragment } from '../context/pageFragment'
+import { useFragmentExtras, usePageRoot } from '../context/PageRootContext'
 import { useWidgetScope } from '../context/WidgetScopeContext'
 import { useWidgetTransport } from '../transport/widgetTransport'
 import { getUserInfo } from '../utils/getUserInfo'
@@ -254,10 +254,13 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // its reads either — it would also tell the RESTActions who is looking.
   const injectIdentity = !config?.api.SNOWPLOW_IDENTITY_INJECTION && transport.identity === 'signed-in'
   const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, callerExtras, fragmentExtras)
-  // What a child rendered by RefChild sends: the same envelope without this widget's caller extras
-  // (a child carries none). The children prefetch keys their reads with it (./prefetchChildren).
-  const childExtrasParam = callerExtras ? buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, EMPTY_CALLER_EXTRAS, fragmentExtras) : extrasParam
   const queryClient = useQueryClient()
+  // The PAGE ROOT hands its children the fragment extras its own answer declares (WidgetRenderer:
+  // FragmentExtrasProvider value=pickFragment(pageRoot.fragment, fragmentKeysOf(root))), so the
+  // children prefetch must read them with those, not with the root's (none: the root is read before
+  // its declaration is known). Every other widget hands its own on unchanged.
+  const pageRoot = usePageRoot()
+  const isPageRoot = !!pageRoot && pageRoot.endpoint === widgetEndpoint
 
   const widgetFullUrl = `${config!.api.SNOWPLOW_API_BASE_URL}${widgetEndpoint}`
   // The widget's `/call` query, for its export (`exportRequestFor`); null when it is not a /call read.
@@ -333,11 +336,15 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   async function fetchPage(pageParam: { page?: number; perPage?: number }) {
     const read: WidgetRead = { extrasInBody, extrasParam, refreshWidgetId: refreshEnabled ? widgetId : undefined, transport, url: widgetFullUrl }
     const widget = await fetchWidgetPage(read, pageParam)
+    // What a child rendered by RefChild sends: this widget's envelope without its caller extras (a
+    // child carries none), with the fragment extras the child will be handed.
+    const childFragment = isPageRoot && pageRoot && typeof widget.status === 'object' ? pickFragment(pageRoot.fragment, fragmentKeysOf(widget)) : fragmentExtras
+    const childExtrasInBody = Object.keys(childFragment).length > 0
     prefetchChildren(queryClient, widget, {
       baseUrl: config!.api.SNOWPLOW_API_BASE_URL,
-      childExtrasParam,
-      extrasInBody,
-      liveRefresh: refreshEnabled,
+      childExtrasParam: buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, EMPTY_CALLER_EXTRAS, childFragment),
+      extrasInBody: childExtrasInBody,
+      liveRefresh: isWidgetLiveRefreshEnabled(config) && transport.live && !childExtrasInBody,
       search: widgetSearchParams,
       transport,
     })

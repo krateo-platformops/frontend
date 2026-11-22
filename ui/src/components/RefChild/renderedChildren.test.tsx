@@ -55,12 +55,14 @@ const refsFor = (ids: string[]): ResourcesRefs => ({
   items: ids.map((id) => ({ allowed: true, id, path: `/call?resource=x&name=${id}`, payload: {}, verb: 'GET' as const })),
 })
 
-const mount = (Widget: ComponentType<never>, widgetData: Record<string, unknown>, ids: string[]) => {
+type AnyWidget = ComponentType<Record<string, unknown>>
+
+const mount = (Widget: AnyWidget, widgetData: Record<string, unknown>, ids: string[]) => {
   render(
     <MemoryRouter>
       <App>
         <ShellSlotsProvider value={{ content: null, header: null }}>
-          <Widget {...({ resourcesRefs: refsFor(ids), uid: 'w1', widget: {}, widgetData } as never)} />
+          <Widget resourcesRefs={refsFor(ids)} uid='w1' widget={{}} widgetData={widgetData} />
         </ShellSlotsProvider>
       </App>
     </MemoryRouter>,
@@ -74,16 +76,16 @@ const declared = (kind: string, widgetData: Record<string, unknown>) =>
 const child = (resourceRefId: string) => ({ resourceRefId })
 const widgetCell = (id: string) => [{ kind: 'widget', resourceRefId: id, valueKey: 'w' }]
 
-const CASES: Array<{ kind: string; Widget: ComponentType<never>; data: Record<string, unknown>; ids: string[]; search?: string; want: string[] }> = [
-  { Widget: Flex as never, data: { items: [child('a'), child('b')] }, ids: ['a', 'b'], kind: 'Flex', want: ['a', 'b'] },
-  { Widget: Col as never, data: { items: [child('a'), child('b')] }, ids: ['a', 'b'], kind: 'Col', want: ['a', 'b'] },
-  { Widget: Row as never, data: { items: [child('a'), child('b')] }, ids: ['a', 'b'], kind: 'Row', want: ['a', 'b'] },
-  { Widget: Card as never, data: { cover: 'cov', extraRefId: 'ext', footer: [child('foot')], items: [child('a'), child('b')] }, ids: ['a', 'b', 'cov', 'ext', 'foot'], kind: 'Card', want: ['a', 'b', 'cov', 'ext', 'foot'] },
-  { Widget: Collapse as never, data: { items: [{ key: 'open', label: 'Open', resourceRefId: 'shown', status: 'warn' }, { key: 'shut', label: 'Shut', resourceRefId: 'folded' }] }, ids: ['folded', 'shown'], kind: 'Collapse', want: ['shown'] },
-  { Widget: Tabs as never, data: { items: [{ label: 'One', resourceRefId: 'first' }, { label: 'Two', resourceRefId: 'second' }] }, ids: ['first', 'second'], kind: 'Tabs', want: ['first'] },
-  { Widget: Tabs as never, data: { items: [{ label: 'One', resourceRefId: 'first' }, { label: 'Two', resourceRefId: 'second' }] }, ids: ['first', 'second'], kind: 'Tabs', search: '?tab=two', want: ['second'] },
-  { Widget: Table as never, data: { allowedResources: [], columns: [{ title: 'W', valueKey: 'w' }], dataSource: [widgetCell('r1'), widgetCell('r2'), widgetCell('r3')], pagination: { pageSize: 2 } }, ids: ['r1', 'r2', 'r3'], kind: 'Table', want: ['r1', 'r2'] },
-  { Widget: Layout as never, data: { content: 'body', hasSider: true, header: 'top', sider: { header: 'logo', resourceRefId: 'nav', width: 236 } }, ids: ['body', 'logo', 'nav', 'top'], kind: 'Layout', want: ['body', 'logo', 'nav', 'top'] },
+const CASES: Array<{ kind: string; Widget: AnyWidget; data: Record<string, unknown>; ids: string[]; search?: string; want: string[] }> = [
+  { Widget: Flex as unknown as AnyWidget, data: { items: [child('a'), child('b')] }, ids: ['a', 'b'], kind: 'Flex', want: ['a', 'b'] },
+  { Widget: Col as unknown as AnyWidget, data: { items: [child('a'), child('b')] }, ids: ['a', 'b'], kind: 'Col', want: ['a', 'b'] },
+  { Widget: Row as unknown as AnyWidget, data: { items: [child('a'), child('b')] }, ids: ['a', 'b'], kind: 'Row', want: ['a', 'b'] },
+  { Widget: Card as unknown as AnyWidget, data: { cover: 'cov', extraRefId: 'ext', footer: [child('foot')], items: [child('a'), child('b')] }, ids: ['a', 'b', 'cov', 'ext', 'foot'], kind: 'Card', want: ['a', 'b', 'cov', 'ext', 'foot'] },
+  { Widget: Collapse as unknown as AnyWidget, data: { items: [{ key: 'open', label: 'Open', resourceRefId: 'shown', status: 'warn' }, { key: 'shut', label: 'Shut', resourceRefId: 'folded' }] }, ids: ['folded', 'shown'], kind: 'Collapse', want: ['shown'] },
+  { Widget: Tabs as unknown as AnyWidget, data: { items: [{ label: 'One', resourceRefId: 'first' }, { label: 'Two', resourceRefId: 'second' }] }, ids: ['first', 'second'], kind: 'Tabs', want: ['first'] },
+  { Widget: Tabs as unknown as AnyWidget, data: { items: [{ label: 'One', resourceRefId: 'first' }, { label: 'Two', resourceRefId: 'second' }] }, ids: ['first', 'second'], kind: 'Tabs', search: '?tab=two', want: ['second'] },
+  { Widget: Table as unknown as AnyWidget, data: { allowedResources: [], columns: [{ title: 'W', valueKey: 'w' }], dataSource: [widgetCell('r1'), widgetCell('r2'), widgetCell('r3')], pagination: { pageSize: 2 } }, ids: ['r1', 'r2', 'r3'], kind: 'Table', want: ['r1', 'r2'] },
+  { Widget: Layout as unknown as AnyWidget, data: { content: 'body', hasSider: true, header: 'top', sider: { header: 'logo', resourceRefId: 'nav', width: 236 } }, ids: ['body', 'logo', 'nav', 'top'], kind: 'Layout', want: ['body', 'logo', 'nav', 'top'] },
 ]
 
 describe('renderedChildRefIds names exactly what each container mounts on first render', () => {
