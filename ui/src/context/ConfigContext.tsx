@@ -137,6 +137,10 @@ export interface Config {
     EVENTS_API_BASE_URL: string
     EVENTS_PUSH_API_BASE_URL: string
     INIT: string
+    /** The navigation Menu's `/call` endpoint. When set, the shell reads it at mount, in parallel with
+     * INIT, and registers the routes from it before the sidebar renders (components/Shell/NavRoutesPrefetch).
+     * Unset: the Menu stays the only route source, as before. */
+    NAV?: string
     TERMINAL_SOCKET_URL: string
     /** Kill-switch for snowplow's per-widget live-refresh SSE (`/refreshes`), which makes
      * widgets push-update when their backing cluster object changes (see hooks/refreshSse.ts).

@@ -186,6 +186,12 @@ config:
   # Entry point: the app-shell Layout (antd-pure INIT→Layout convention).
   # NavMenu + RoutesLoader were removed (#15/#18) — routing is data via the sidebar Menu.
   INIT: /call?resource=layouts&apiVersion=widgets.templates.krateo.io/v1beta1&name=app-shell&namespace=krateo-system
+  # The navigation Menu (the sidebar's, portal's sidebar-nav): read at mount, in parallel with INIT, so
+  # the routes and the `/` redirect are known before the sidebar renders and the page request does not
+  # wait for it (snowplow bench run 30: the dashboard request started 215 ms after the shell's last
+  # response). The Menu then renders from the same cached read. "" turns it off: the Menu stays the
+  # only route source.
+  NAV: /call?resource=menus&apiVersion=widgets.templates.krateo.io/v1beta1&name=sidebar-nav&namespace=krateo-system
   # Browser OpenTelemetry collector endpoint. Empty by default: the browser OTel
   # SDK stays OFF until a non-empty endpoint is set (frontend gates on config.api.OTEL_COLLECTOR_URL).
   OTEL_COLLECTOR_URL: ""
