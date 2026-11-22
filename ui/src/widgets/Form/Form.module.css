@@ -291,11 +291,11 @@
 }
 
 .noticeDetails {
-  margin: 0;
   font-family: var(--font-mono);
   font-size: var(--krateo-text-caption);
+  margin: 0;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
-  word-break: break-word;
 }
 
 /* `noticeVariant: text`: the notice as one muted line (antd Typography secondary). Two classes, to
