@@ -34,7 +34,8 @@ const widget = (kind: string, name: string, widgetData: Record<string, unknown>,
 
 const fixtures: Record<string, unknown> = {
   'app-shell': widget('Layout', 'app-shell', { hasSider: true, sider: { resourceRefId: 'sider' } }, [ref('sider', 'flexes', 'sider-content')]),
-  hello: widget('Paragraph', 'hello', { text: 'Dashboard' }),
+  // Its own text, not the Menu item's label: waiting on "Dashboard" could be met by the sidebar alone.
+  hello: widget('Paragraph', 'hello', { text: 'The dashboard page body' }),
   'page-dashboard': widget('Flex', 'page-dashboard', { allowedResources: ['paragraphs'], items: [{ resourceRefId: 'hello' }] }, [ref('hello', 'paragraphs', 'hello')]),
   'sidebar-nav': widget('Menu', 'sidebar-nav', { items: [{ label: 'Dashboard', order: 1, path: '/dashboard', resourceRefId: 'page' }] }, [ref('page', 'flexes', 'page-dashboard')]),
   'sider-content': widget('Flex', 'sider-content', { allowedResources: ['menus'], items: [{ resourceRefId: 'nav' }], vertical: true }, [ref('nav', 'menus', 'sidebar-nav')]),
@@ -68,8 +69,10 @@ const land = async (page: Page, nav: string): Promise<Record<string, Timing[]>> 
   })
   t0 = Date.now()
   await page.goto('/')
-  await expect(page.getByText('Dashboard', { exact: true }).last()).toBeVisible()
+  // The PAGE has rendered (its own paragraph), so the page request has been made and recorded.
+  await expect(page.getByText('The dashboard page body')).toBeVisible()
   await expect(page).toHaveURL(/\/dashboard$/)
+  expect(Object.keys(timings).sort(), 'every widget on the path was read').toEqual(['app-shell', 'hello', 'page-dashboard', 'sidebar-nav', 'sider-content'])
   // Every stubbed read has answered before anything is measured (a timing read mid-flight is 0).
   await expect.poll(() => Object.values(timings).flat().every((timing) => timing.end > 0)).toBe(true)
   return timings
