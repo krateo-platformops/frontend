@@ -174,6 +174,11 @@ export const ListView = ({
     listClassName = styles.chipList
   } else if (isStatStrip) {
     listClassName = styles.statList
+  } else if (bordered && grid) {
+    // A bordered list of grid tiles (the dashboard's Welcome block): antd's bordered-list item
+    // padding is for rows, and inside a grid column it narrowed every card by 32px and left the
+    // tiles touching the header line (UX review round 3). borderedGrid spaces them evenly.
+    listClassName = styles.borderedGrid
   }
 
   // COMPOSED CHILDREN → the page's health rollup.

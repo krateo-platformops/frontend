@@ -493,3 +493,21 @@
     transition: none;
   }
 }
+
+/* A bordered list of grid tiles (`bordered` + `grid`: the dashboard's Welcome block). antd's
+   bordered list pads every ITEM inline (0 16px) for row lists; in a grid that padding sits inside
+   each column, so a 354px column held a 306px card, and the list body had no top padding while each
+   item kept an 8px bottom margin: the tiles touched the header's line, with 9px under them (UX review
+   round 3: "the boxes' margins aren't uniform; at the top they overlap the header's line").
+   Here the items fill their columns, and the body pads 16px above and at the sides, matching the
+   header's 16px inset; each item keeps a 16px bottom margin, the grid gutter, which is also the space
+   under the last row, so above equals below. Measured by visual/welcomeCards.spec.ts. The doubled
+   class outranks antd's `.ant-list-bordered .ant-list-item`. */
+.borderedGrid:global(.ant-list-bordered) :global(.ant-spin-container) {
+  padding: var(--spacing-md) var(--spacing-md) 0;
+}
+
+.borderedGrid:global(.ant-list-bordered) :global(.ant-list-item) {
+  margin-block-end: var(--spacing-md);
+  padding-inline: 0;
+}
