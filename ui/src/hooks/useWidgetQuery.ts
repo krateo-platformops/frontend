@@ -10,67 +10,22 @@ import { useConfigContext } from '../context/ConfigContext'
 import { EMPTY_FRAGMENT_EXTRAS } from '../context/pageFragment'
 import { useFragmentExtras } from '../context/PageRootContext'
 import { useWidgetScope } from '../context/WidgetScopeContext'
-import { type TransportFetch, useWidgetTransport } from '../transport/widgetTransport'
-import type { Widget } from '../types/Widget'
+import { useWidgetTransport } from '../transport/widgetTransport'
 import { getUserInfo } from '../utils/getUserInfo'
 import { getCallReadQuery, getExportEndpoint } from '../utils/utils'
 
 import type { WatchMatcher } from './liveRefresh'
-import { getRefreshEntry, isWidgetLiveRefreshEnabled, recordRefreshHeaders, wasRefetchEventTriggered } from './refreshSse'
+import { getRefreshEntry, isWidgetLiveRefreshEnabled, wasRefetchEventTriggered } from './refreshSse'
 import { useLiveWatch } from './useLiveRefresh'
 import { useWidgetLiveRefresh } from './useWidgetLiveRefresh'
+import { fetchWidgetPage, type WidgetRead, widgetQueryKey } from './widgetRequest'
+
+// Moved to ./widgetRequest (one read, shared with the children prefetch); re-exported for importers.
+export { readWithBodyExtras, WidgetFetchError } from './widgetRequest'
 
 function parseNumberParam(param: string | null) {
   const parsed = param ? parseInt(param) : undefined
   return isNaN(parsed!) ? undefined : parsed
-}
-
-/** Error carrying the HTTP status so retry logic can tell transient from permanent failures. */
-export class WidgetFetchError extends Error {
-  status?: number
-  /** The backend's OWN explanation, when the failure response carried one. */
-  detail?: string
-  constructor(message: string, status?: number, detail?: string) {
-    super(message)
-    this.name = 'WidgetFetchError'
-    this.status = status
-    this.detail = detail
-  }
-}
-
-/**
- * Best-effort read of a failure response's body for the backend's own message.
- *
- * Previously only `res.status` + `res.statusText` reached the UI — a generic HTTP phrase like
- * "Forbidden" — and the body was dropped on the floor, so whatever snowplow said about WHY was
- * never seen by anyone. The body is read once here (the response is being discarded anyway) and
- * the message hoisted onto the error.
- *
- * Deliberately total: a non-JSON body, an empty body, or a body that cannot be read must never
- * turn a failed fetch into a DIFFERENT failure — we are already on the error path.
- */
-/**
- * The error body, read ONCE.
- *
- * It returns the parsed object as well as the display message because a 401's step-up
- * discriminator lives in `details.causes[0].reason` (snowplow#1029) and a Response body cannot be
- * read twice — the previous version parsed the JSON, kept only the message and threw the object
- * away, so classifying a 401 would have needed a second read that is guaranteed to fail.
- */
-const readErrorBody = async (res: Response): Promise<{ body: unknown; detail: string | undefined }> => {
-  try {
-    const text = await res.text()
-    if (!text) { return { body: null, detail: undefined } }
-    try {
-      const parsed = JSON.parse(text) as Record<string, unknown>
-      const message = parsed.message ?? parsed.error ?? parsed.reason
-      if (typeof message === 'string' && message) { return { body: parsed, detail: message.slice(0, 300) } }
-      return { body: parsed, detail: text.slice(0, 300) }
-    } catch { /* not JSON — fall through to the raw text */ }
-    return { body: null, detail: text.slice(0, 300) }
-  } catch {
-    return { body: null, detail: undefined }
-  }
 }
 
 export const MAX_WIDGET_FETCH_RETRIES = 3
@@ -261,27 +216,6 @@ export const boundedWindow = (
   defaultPageSize: number | undefined,
 ): number | undefined => endpointPerPage ?? defaultPageSize
 
-/**
- * A widget read with its extras in the BODY: POST /call/read, every other parameter left on the
- * query. Used only when the extras carry the page's fragment values, which must reach no URL.
- *
- * Refuses an endpoint that is not a `/call` — there is no body-carrying form of anything else, and
- * falling back to the query would put the values in the very URL this exists to keep them out of.
- */
-export const readWithBodyExtras = (read: TransportFetch, requestUrl: URL, extrasParam: string): Promise<Response> => {
-  const url = new URL(requestUrl.toString())
-  if (!url.pathname.endsWith('/call')) {
-    throw new WidgetFetchError(`A widget with fragment extras must read through /call, not ${url.pathname}`)
-  }
-  url.pathname = `${url.pathname}/read`
-  url.searchParams.delete('extras')
-  return read(url.toString(), {
-    body: JSON.stringify({ extras: extrasParam ? JSON.parse(extrasParam) as unknown : {} }),
-    headers: { 'Content-Type': 'application/json' },
-    method: 'POST',
-  })
-}
-
 export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOptions = {}) => {
   const { config } = useConfigContext()
   // The credential, if any, is the transport's (transport/widgetTransport.ts): signed in inside the
@@ -386,54 +320,12 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   const initialPerPage = usesClassicPager ? boundedPerPage : endpointPerPage
   const initialPage = usesClassicPager ? serverPage : endpointPage
 
-  async function fetchWidget({ page, perPage }: { page?: number; perPage?: number }) {
-    /* set new page and perPage to the original requestUrl with updated values */
-    if (typeof page === 'number') {
-      requestUrl.searchParams.set('page', page.toString())
-    }
-    if (typeof perPage === 'number') {
-      requestUrl.searchParams.set('perPage', perPage.toString())
-    }
-    if (extrasParam && !extrasInBody) {
-      requestUrl.searchParams.set('extras', extrasParam)
-    }
-
-    const urlString = requestUrl.toString()
-
-    // console.log({
-    //   kind: url.searchParams.get('resource'),
-    //   page: url.searchParams.get('page'),
-    //   perPage: url.searchParams.get('perPage'),
-    //   urlString,
-    // })
-
-    const res = extrasInBody ? await readWithBodyExtras(transport.fetch, requestUrl, extrasParam) : await transport.fetch(urlString)
-
-    if (!res.ok) {
-      // ONE read of the body, shared by the 401 classification and the thrown detail.
-      const { body, detail } = await readErrorBody(res)
-      if (res.status === 401) {
-        // The transport decides what a 401 means. Signed in: an expired/invalid token, so the
-        // IN-PLACE session-resume modal (components/SessionResume), with the cause snowplow named
-        // in the body (snowplow#1029) — concurrent 401s coalesce into one resume, and a successful
-        // re-auth invalidates every query so this widget refetches with the fresh token.
-        // Anonymous: public serving is off on this install, which the public page reports once for
-        // the whole page — never a sign-in prompt, and never a redirect.
-        transport.onUnauthorized(body)
-      }
-      throw new WidgetFetchError(`Widget fetch failed: ${res.status} ${res.statusText}`, res.status, detail)
-    }
-
-    // Capture the live-refresh coordination headers from THIS response (so coords +
-    // key always match the request that produced them). No-op / cleared when the
-    // headers are absent (cache-off, RBAC-skipped, or a snowplow without the class
-    // header). `requestUrl.searchParams` already carries the page/perPage/extras used.
-    if (refreshEnabled) {
-      recordRefreshHeaders(widgetId, requestUrl.searchParams, res.headers)
-    }
-
-    const widget = (await res.json()) as Widget
-    return widget
+  // The read this widget's query makes (./widgetRequest), the same one a parent's prefetch makes. The
+  // key is (endpoint, extras[, page]); the read is a function of those plus the install's base URL
+  // and the transport in context, exactly as the inline fetch it replaces was.
+  function fetchPage(pageParam: { page?: number; perPage?: number }) {
+    const read: WidgetRead = { extrasInBody, extrasParam, refreshWidgetId: refreshEnabled ? widgetId : undefined, transport, url: widgetFullUrl }
+    return fetchWidgetPage(read, pageParam)
   }
 
   const queryResult = useInfiniteQuery({
@@ -441,10 +333,8 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     // distinct, independently-cached query (jumping pages re-inits the infinite
     // query with the new page as its only page). Non-paged widgets keep the
     // stable 3-tuple key so their cache identity is unchanged.
-    queryKey: usesClassicPager
-      ? ['widgets', widgetEndpoint, extrasParam, serverPage]
-      : ['widgets', widgetEndpoint, extrasParam],
-    queryFn: ({ pageParam }) => fetchWidget(pageParam),
+    queryKey: widgetQueryKey(widgetEndpoint, extrasParam, usesClassicPager ? serverPage : undefined),
+    queryFn: ({ pageParam }) => fetchPage(pageParam),
     // Override the global `retry: false` for widget data: a backend that is not
     // ready yet should keep showing a loading state and retry, not flash the
     // error "red cross" on first paint. See shouldRetryWidgetFetch.
@@ -600,7 +490,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
         // The PATH is snowplow's /export, not the widget's /call: a POST to /call is snowplow's write
         // passthrough (a create on the widget's resource, answered 400 by the apiserver). Everything
         // else stays on the query: the widget's own identifying params, verbatim from its endpoint
-        // (NOT from `requestUrl`, which fetchWidget mutates with page/perPage/extras) less any
+        // (NOT from a request URL, which fetchWidgetPage sets page/perPage/extras on) less any
         // page/perPage window the endpoint itself carries (getExportEndpoint), plus the export's
         // (`format`, `path`, `fields`, repeated `header`, `title`).
         url: `${config!.api.SNOWPLOW_API_BASE_URL}${getExportEndpoint(exportReadQuery, exportQuery)}`,
