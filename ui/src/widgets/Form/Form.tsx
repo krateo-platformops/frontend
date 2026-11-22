@@ -1,6 +1,6 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Alert, Button, Descriptions, Form as AntdForm, Result, Space, Spin, Tag, Typography } from 'antd'
+import { Alert, Button, Collapse, Descriptions, Form as AntdForm, Result, Space, Spin, Tag, Typography } from 'antd'
 import useApp from 'antd/es/app/useApp'
 import dayjs from 'dayjs'
 import type { JSONSchema4 } from 'json-schema'
@@ -216,7 +216,7 @@ export const ReviewSummary = ({ agentKeys, optionLabels, schema, secretPaths, va
  * button runs the same submit action. Default (flag off) is unchanged.
  */
 const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>) => {
-  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, fieldChecks, fieldHelp, fieldInputs, hasFeedback, initialValues, items, layout, notice, noticeVariant, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, submitPost, suggestions, textareas, title, validationMessages } = widgetData
+  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, fieldChecks, fieldHelp, fieldInputs, hasFeedback, initialValues, items, layout, notice, noticeVariant, notices, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, submitPost, suggestions, textareas, title, validationMessages } = widgetData
   // Prefer `stringSchema` (the schema as a raw JSON STRING) when present: `JSON.parse`
   // preserves the object's key insertion order, so a server that hands us the blueprint's
   // values.schema.json verbatim (e.g. from the per-blueprint jsonschema ConfigMap, which
@@ -637,6 +637,29 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       : <Alert className={styles.notice} showIcon title={notice} type='info' />
   }
 
+  // `notices`: after `notice`, one info Alert each: a title, its paragraphs, and the details text
+  // (verbatim, monospace) behind a collapsed Details section.
+  const noticesNode = (notices ?? []).filter(({ title }) => typeof title === 'string' && title.trim()).map(({ description, details, title }, index) => (
+    <Alert
+      className={styles.notice}
+      data-form-notice={index}
+      description={(description?.length || details)
+        ? (
+          <>
+            {description?.map((paragraph, i) => <Typography.Paragraph className={styles.noticeParagraph} key={i}>{paragraph}</Typography.Paragraph>)}
+            {details
+              ? <Collapse ghost items={[{ children: <pre className={styles.noticeDetails}>{details}</pre>, key: 'details', label: 'Details' }]} size='small' />
+              : null}
+          </>
+        )
+        : undefined}
+      key={index}
+      showIcon
+      title={title}
+      type='info'
+    />
+  ))
+
   let footer: React.ReactNode = null
   if (shouldRenderButtonsInsideForm) {
     footer = reviewing ? reviewButtons : editButtons
@@ -672,6 +695,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
                 {/* What the schema's source could not carry — e.g. the blueprint formdef's CRD
                     fallback, which loses the authoring order of the fields. */}
                 {noticeNode}
+                {noticesNode}
                 <FailedFieldsContext.Provider value={failedFields}>
                   <FieldPresentationContext.Provider value={presentation}>
                     <FieldCheckContext.Provider value={checkEnv}>

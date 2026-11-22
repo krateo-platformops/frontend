@@ -825,6 +825,24 @@ export interface Form {
        */
       noticeVariant?: 'alert' | 'text'
       /**
+       * info notices shown above the fields of a schema form, after `notice`: each an Alert with a title, optional paragraphs, and optional details text in a collapsed Details section (e.g. the blueprint form's note that its inputs were inferred from the chart's default values, with the provider's condition message as the details)
+       */
+      notices?: {
+        /**
+         * the notice's one-line title
+         */
+        title: string
+        /**
+         * paragraphs under the title, in order
+         */
+        description?: string[]
+        /**
+         * text shown verbatim, in monospace, when the reader opens Details (e.g. a controller's condition message)
+         */
+        details?: string
+        [k: string]: unknown
+      }[]
+      /**
        * configuration for object fields in the form
        */
       objectFields?: {

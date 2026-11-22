@@ -285,6 +285,19 @@
   margin-bottom: var(--spacing-md);
 }
 
+/* `widgetData.notices`: paragraphs under a notice's title, and its verbatim details. */
+.noticeParagraph:global(.ant-typography) {
+  margin-bottom: var(--spacing-xs);
+}
+
+.noticeDetails {
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 /* `noticeVariant: text`: the notice as one muted line (antd Typography secondary). Two classes, to
    outrank antd's own `div.ant-typography` margin. */
 .form .noticeText {
