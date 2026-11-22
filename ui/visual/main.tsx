@@ -68,6 +68,7 @@ import { getWidgetModule } from '../src/widgets/registry'
 import Table, { type TableWidgetData } from '../src/widgets/Table/Table'
 
 import { formGuideLines } from './formGuideLinesFixture'
+import { welcomeCards } from './welcomeCardsFixture'
 
 const examples = import.meta.glob<string>('../src/examples/widgets/*/*.example.yaml', { eager: true, import: 'default', query: '?raw' })
 
@@ -607,6 +608,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'table-cell-tooltip': () => <Table resourcesRefs={{ items: [] }} uid='fixture' widget={{} as never} widgetData={spansTable} />,
   'table-row-actions': tableRowActions,
   'table-virtual-alignment': tableVirtualAlignment,
+  'welcome-cards': welcomeCards,
 }
 
 const missing = <pre data-testid='missing'>{`no renderable example ${doc} in ${folder}`}</pre>
