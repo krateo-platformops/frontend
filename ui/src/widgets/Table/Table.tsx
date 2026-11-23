@@ -412,7 +412,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
               // replaces a single derived "Healthy/Drift" Tag, so every condition shows honestly.
               // Passed as a JSON string ([{type,status,color}]) in `stringValue` (avoids widening
               // the `arrayValue: string[]` cell type). The per-condition `color` is computed
-              // SERVER-SIDE in the RESTAction jq (True=cyan / False=crimson) — same nothing-hardcoded
+              // SERVER-SIDE in jq (True=green / False=red / Unknown=gray, never cyan) — same nothing-hardcoded
               // pattern as the sibling `bar` cell's railState colour; the widget never maps
               // status→colour itself. A CR predating the field degrades gracefully to neutral gray.
               let conds: { color?: string; status?: string; type?: string }[] = []
