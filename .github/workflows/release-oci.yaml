@@ -36,7 +36,7 @@ jobs:
     # 1.9.3, with no dangling symlink, so package-and-push gets past "Prepare all required actions"
     # (proven by a caller dry run, alert-provider run 45083740900). NOT b030d3f, which cannot package.
     # 1.8.70 was republished on 1.1.0 (f6185ef) while this was broken.
-    uses: krateo-platformops/.github/.github/workflows/release-oci.yaml@7da11cb60cee5cbfc7d9e8c9328692807b43cefd # main 2026-11-22
+    uses: krateo-platformops/.github/.github/workflows/release-oci.yaml@7da11cb60cee5cbfc7d9e8c9328692807b43cefd # 2.0.0
     permissions:
       contents: read
       packages: write
