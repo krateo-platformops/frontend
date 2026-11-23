@@ -104,6 +104,13 @@ describe('Form — notices', () => {
     expect(container.querySelector('pre')?.textContent).toBe(INFERRED.details)
   })
 
+  it('`type: warning` draws a warning; no type draws info', () => {
+    const { container } = render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={{ ...widgetData(FIELDS), notices: [{ title: 'Refused', type: 'warning' }, { title: 'Just so you know' }] }} />)
+    const alerts = [...container.querySelectorAll('.ant-alert')]
+    expect(alerts.map((alert) => alert.classList.contains('ant-alert-warning'))).toEqual([true, false])
+    expect(alerts.map((alert) => alert.classList.contains('ant-alert-info'))).toEqual([false, true])
+  })
+
   it('draws a title-only notice without a description, and skips one with a blank title', () => {
     const { container } = render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={{ ...widgetData(FIELDS), notices: [{ title: 'Only a title' }, { title: '  ' }] }} />)
     const alerts = container.querySelectorAll('.ant-alert')

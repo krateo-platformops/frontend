@@ -637,9 +637,9 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       : <Alert className={styles.notice} showIcon title={notice} type='info' />
   }
 
-  // `notices`: after `notice`, one info Alert each: a title, its paragraphs, and the details text
-  // (verbatim, monospace) behind a collapsed Details section.
-  const noticesNode = (notices ?? []).filter(({ title }) => typeof title === 'string' && title.trim()).map(({ description, details, title }, index) => (
+  // `notices`: after `notice`, one Alert each, info or (`type: warning`) warning: a title, its
+  // paragraphs, and the details text (verbatim, monospace) behind a collapsed Details section.
+  const noticesNode = (notices ?? []).filter(({ title }) => typeof title === 'string' && title.trim()).map(({ description, details, title, type }, index) => (
     <Alert
       className={styles.notice}
       data-form-notice={index}
@@ -656,7 +656,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       key={index}
       showIcon
       title={title}
-      type='info'
+      type={type === 'warning' ? 'warning' : 'info'}
     />
   ))
 
