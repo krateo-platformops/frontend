@@ -8,7 +8,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { useEffect } from 'react'
-import { Outlet } from 'react-router'
+import { Outlet, useMatches } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AppInitializer } from './App'
@@ -16,11 +16,13 @@ import { createRoute, useRoutesContext } from './context/RoutesContext'
 import { RoutesProvider } from './context/RoutesProvider'
 
 const mounts = { page: 0, shell: 0 }
+let shellMatches: string[] = []
 
 vi.mock('./context/ConfigContext', () => ({ useConfigContext: () => ({ config: {}, isLoading: false }) }))
 vi.mock('./components/Shell', () => {
   const ShellStub = () => {
     useEffect(() => { mounts.shell += 1 }, [])
+    shellMatches = useMatches().map(({ pathname }) => pathname)
     return <Outlet />
   }
   return { default: ShellStub }
@@ -68,6 +70,13 @@ describe('the router is built once; registered routes re-match the page and remo
     act(() => { register([createRoute(COMPOSITION)]) })
     expect(await screen.findByText('page /call?resource=flexes&name=shop&namespace=team-a')).toBeTruthy()
     expect(mounts.shell, 'the shell was not remounted by the registration').toBe(1)
+  })
+
+  it('the shell still sees the full address through useMatches, which the breadcrumb reads', async () => {
+    mount()
+    act(() => { register([createRoute(COMPOSITION)]) })
+    await screen.findByText('page /call?resource=flexes&name=shop&namespace=team-a')
+    expect(shellMatches.find((pathname) => pathname !== '/')).toBe('/compositions/team-a/shop')
   })
 
   it('registering the same routes again, or another one, leaves the shell and the page mounted', async () => {
