@@ -148,6 +148,9 @@ spec:
                       description: the label/value pairs to display
                       items:
                         properties:
+                          href:
+                            description: 'makes the value a link: a page of this app (`/blueprints/ns/name`) opens through the router in the same tab; anything else opens in a new tab'
+                            type: string
                           label:
                             description: the label of the item
                             type: string

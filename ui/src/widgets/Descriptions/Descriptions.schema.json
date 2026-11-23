@@ -41,6 +41,10 @@
                   "value"
                 ],
                 "properties": {
+                  "href": {
+                    "type": "string",
+                    "description": "makes the value a link: a page of this app (`/blueprints/ns/name`) opens through the router in the same tab; anything else opens in a new tab"
+                  },
                   "label": {
                     "type": "string",
                     "description": "the label of the item"
@@ -49,13 +53,13 @@
                     "type": "string",
                     "description": "(variant:form only) the section this property is grouped under — e.g. a nested object's top-level key; empty/absent = the ungrouped top section"
                   },
-                  "value": {
-                    "type": "string",
-                    "description": "the value of the item (rendered as the antd Descriptions item children)"
-                  },
                   "span": {
                     "type": "integer",
                     "description": "how many columns this item spans (antd Descriptions item `span`)"
+                  },
+                  "value": {
+                    "type": "string",
+                    "description": "the value of the item (rendered as the antd Descriptions item children)"
                   }
                 }
               }
