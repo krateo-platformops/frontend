@@ -53,7 +53,7 @@ export interface Table {
          */
         valueKey: string
         /**
-         * type of cell value. `tag` renders the stringValue as a colored antd Tag (use the cell `color`). `bar` renders a reconciliation-rail Progress gauge (stringValue = percent 0-100, `color` = bar/state color, amber target-tick at 100%). `conditions` renders `arrayValue` (an array of {type,status}) as small status pills, each coloured cyan (True) / crimson (False).
+         * type of cell value. `tag` renders the stringValue as a colored antd Tag (use the cell `color`). `bar` renders a reconciliation-rail Progress gauge (stringValue = percent 0-100, `color` = bar/state color, amber target-tick at 100%). `conditions` renders `stringValue` (a JSON array of {type,status,color}) as small pills, one per entry: `type` is the text, `color` is painted as sent (gray when absent) and `status` is never mapped to a colour. Send green (health), red (failure), orange (transitional) or gray (unknown); cyan is for brand and interaction, never a status.
          */
         kind: 'jsonSchemaType' | 'icon' | 'widget' | 'tag' | 'bar' | 'conditions'
         /**
