@@ -28,7 +28,7 @@ const answer = (name: string) => new Response(JSON.stringify({ kind: 'Paragraph'
 const setup = () => {
   const fetch = vi.fn((url: string) => Promise.resolve(answer(new URL(url).searchParams.get('name') ?? '')))
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000 } } })
-  const context = { baseUrl: BASE, childExtrasParam: '{"q":"x"}', extrasInBody: false, liveRefresh: false, search: new URLSearchParams(), transport: { fetch, onUnauthorized: vi.fn() } }
+  const context = { baseUrl: BASE, childExtrasParam: '{"q":"x"}', extrasInBody: false, isWanted: () => true, liveRefresh: false, search: new URLSearchParams(), transport: { fetch, onUnauthorized: vi.fn() } }
   return { context, fetch, queryClient }
 }
 
@@ -57,6 +57,22 @@ describe('prefetchChildren', () => {
     })
     prefetchChildren(queryClient, flex([ref('mid')]), { ...context, transport: { fetch, onUnauthorized: vi.fn() } })
     await vi.waitFor(() => { expect(fetch.mock.calls.map(([url]) => new URL(url).searchParams.get('name'))).toEqual(['mid', 'leaf']) })
+  })
+
+  it('reads nothing for a widget no longer displayed, and stops a cascade under it', async () => {
+    const { context, queryClient } = setup()
+    let wanted = true
+    const nested = flex([ref('leaf')])
+    const fetch = vi.fn((url: string) => {
+      const name = new URL(url).searchParams.get('name')
+      // The page is left while `mid` is in flight.
+      wanted = false
+      return Promise.resolve(new Response(JSON.stringify(name === 'mid' ? nested : { kind: 'Paragraph' }), { headers: { 'content-type': 'application/json' }, status: 200 }))
+    })
+    prefetchChildren(queryClient, flex([ref('a')]), { ...context, isWanted: () => false })
+    prefetchChildren(queryClient, flex([ref('mid')]), { ...context, isWanted: () => wanted, transport: { fetch, onUnauthorized: vi.fn() } })
+    await vi.waitFor(() => { expect(queryClient.getQueryState(widgetQueryKey('/call?resource=x&name=mid', '{"q":"x"}'))?.status).toBe('success') })
+    expect(fetch.mock.calls.map(([url]) => new URL(url).searchParams.get('name'))).toEqual(['mid'])
   })
 
   it('skips a denied ref, a failed part, a non-GET ref and a paged child', () => {

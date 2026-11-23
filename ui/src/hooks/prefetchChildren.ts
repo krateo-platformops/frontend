@@ -36,6 +36,13 @@ export interface ChildReadContext {
   /** The search params the parent's widgets see (Tabs reads `?tab=` from them). */
   readonly search: URLSearchParams
   readonly transport: Pick<WidgetTransport, 'fetch' | 'onUnauthorized'>
+  /**
+   * Whether the widget whose answer started this is still displayed (its query has an observer).
+   * Checked before every level, so a page left before its answers arrive starts no reads for it, and
+   * a cascade under it stops. Without it a prefetch outlived its page: the next page (a test's next
+   * case) saw a read it never asked for.
+   */
+  readonly isWanted: () => boolean
 }
 
 const PAGED = /[?&](page|perPage)=/
@@ -69,6 +76,7 @@ export const prefetchChildren = (queryClient: QueryClient, widget: Widget, conte
   // route reads it). Without this the gain stopped one level down (the landing's sider Flex was
   // prefetched; its logo still waited a render).
   const prefetch = (parent: Widget): void => {
+    if (!context.isWanted()) { return }
     for (const endpoint of prefetchableChildEndpoints(parent, context.search)) {
       const queryKey = widgetQueryKey(endpoint, context.childExtrasParam)
       if (queryClient.getQueryState(queryKey)) { continue }

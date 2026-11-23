@@ -51,16 +51,6 @@ const land = async (page: Page, nav: string): Promise<Record<string, Timing[]>> 
   await page.addInitScript((token) => {
     window.localStorage.setItem('K_user', JSON.stringify({ accessToken: token, user: { displayName: 'Ada', username: 'ada' } }))
   }, TOKEN)
-  // When the shell's Layout and the page's Flex first reach the DOM, on the page's own clock
-  // (performance.now), so request order can be read against render without a timing threshold.
-  await page.addInitScript(() => {
-    const seen: Record<string, number> = {}
-    ;(window as unknown as { __appeared: Record<string, number> }).__appeared = seen
-    new MutationObserver(() => {
-      if (seen.layout === undefined && document.querySelector('.ant-layout')) { seen.layout = performance.now() }
-      if (seen.pageFlex === undefined && document.querySelector('.ant-layout-content .ant-flex')) { seen.pageFlex = performance.now() }
-    }).observe(document, { childList: true, subtree: true })
-  })
   await page.route('**/config/config.json', (route) => route.fulfill({
     body: JSON.stringify({
       api: { AUTHN_API_BASE_URL: `${snowplow}/authn`, EVENTS_API_BASE_URL: `${snowplow}/events`, EVENTS_PUSH_API_BASE_URL: `${snowplow}/events`, INIT, NAV: nav, SNOWPLOW_API_BASE_URL: snowplow },
@@ -108,22 +98,13 @@ test('control: without NAV, the page waits for the shell, its sider Flex and the
   expect(timings['page-dashboard'][0].start, 'the page is read only after the Menu answers').toBeGreaterThan(timings['sidebar-nav'][0].end)
 })
 
-// Prefetch children on answer (hooks/prefetchChildren.ts): a container's first-render children are
-// requested as its answer arrives, BEFORE it renders; without it a child's query starts only once the
-// child has mounted, after its parent is in the DOM. Read as an ORDER on the page's own clock (request
-// start from resource timing, render from a MutationObserver), so a loaded machine cannot flip it. And
-// still one read per widget: the prefetch fills the cache entry the child's own query reads.
-test('a container\'s children are requested before it renders, and each widget is read once', async ({ page }) => {
+// Prefetch children on answer (hooks/prefetchChildren.ts) must not cost a read: the prefetch fills the
+// entry each child's own query reads, so every widget on the landing is still read exactly once. That
+// the prefetch happens at all is proven deterministically in hooks/useWidgetQuery.prefetch.test.tsx: an
+// order test here (request start against first DOM insertion) passed WITHOUT the prefetch too, so it
+// could not tell the two apart, and a timing threshold failed under load.
+test('each widget on the landing is read exactly once', async ({ page }) => {
   const timings = await land(page, NAV)
-  const order = await page.evaluate(() => {
-    const startOf = (name: string) => performance.getEntriesByType('resource').find((entry) => entry.name.includes(`name=${name}&`) || entry.name.endsWith(`name=${name}`))?.startTime
-    const { layout, pageFlex } = (window as unknown as { __appeared: Record<string, number> }).__appeared
-    return { hello: startOf('hello'), layout, pageFlex, sider: startOf('sider-content') }
-  })
-  expect(order.sider, 'the sider Flex was requested').toBeDefined()
-  expect(order.hello, 'the page Paragraph was requested').toBeDefined()
-  expect(order.sider!, `the Layout's sider Flex requested at ${order.sider} ms, the Layout drawn at ${order.layout} ms`).toBeLessThan(order.layout)
-  expect(order.hello!, `the page's Paragraph requested at ${order.hello} ms, the page Flex drawn at ${order.pageFlex} ms`).toBeLessThan(order.pageFlex)
   for (const [name, reads] of Object.entries(timings)) {
     expect(reads, `${name} is read once`).toHaveLength(1)
   }

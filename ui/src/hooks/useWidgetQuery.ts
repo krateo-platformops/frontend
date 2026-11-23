@@ -340,7 +340,10 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     // child carries none), with the fragment extras the child will be handed.
     const childFragment = isPageRoot && pageRoot && typeof widget.status === 'object' ? pickFragment(pageRoot.fragment, fragmentKeysOf(widget)) : fragmentExtras
     const childExtrasInBody = Object.keys(childFragment).length > 0
+    // This widget's own query: still observed means still displayed (see ChildReadContext.isWanted).
+    const ownKey = widgetQueryKey(widgetEndpoint, extrasParam, usesClassicPager ? serverPage : undefined)
     prefetchChildren(queryClient, widget, {
+      isWanted: () => (queryClient.getQueryCache().find({ exact: true, queryKey: ownKey })?.getObserversCount() ?? 0) > 0,
       baseUrl: config!.api.SNOWPLOW_API_BASE_URL,
       childExtrasParam: buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, EMPTY_CALLER_EXTRAS, childFragment),
       extrasInBody: childExtrasInBody,
