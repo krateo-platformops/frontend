@@ -1,5 +1,5 @@
 import type { AppRoute } from '../../context/RoutesContext'
-import type { ResourcesRefs } from '../../types/Widget'
+import type { RefFailure, ResourcesRefs } from '../../types/Widget'
 import { getResourceEndpoint, getResourceRef } from '../../utils/utils'
 
 /** A folded nav entry on `Menu.widgetData.items` (inline nav data). */
@@ -83,6 +83,11 @@ export interface InlineNavItem {
 
 /** Antd Menu entry data (icon resolved to JSX by the component). */
 export interface NavEntry {
+  /**
+   * snowplow could not CHECK this entry (its ref came back `allowed: false` with an `error`), which is
+   * not a denial: the entry stays, marked, and opens its page, whose own read decides (frontend#533).
+   */
+  failure?: RefFailure
   group?: string
   iconName?: string
   key: string
@@ -127,6 +132,10 @@ export const resolveContentEndpoint = (
   })
 }
 
+/** No ref was allowed and none denied: no judgement was made about any entry (frontend#295, #533). */
+const nothingWasChecked = (resourcesRefs: ResourcesRefs, deniedRefIds: readonly string[]): boolean =>
+  !resourcesRefs?.items?.length && deniedRefIds.length === 0
+
 /**
  * RBAC visibility gate for a sidebar entry. snowplow resolves each nav item's
  * page widget AS THE USER and stamps `allowed` on the matching `resourcesRefs`
@@ -143,15 +152,22 @@ export const resolveContentEndpoint = (
  * FAIL-OPEN only for items with NO `resourceRefId` (route-only / convention
  * `page-<slug>` pages) — those carry no ref to gate on and stay visible; RBAC-driven
  * nav therefore requires each gated page to carry a `resourceRefId`.
+ *
+ * A FAILED ref (`failedRefs`, snowplow >= 1.12.75) is neither: snowplow could not look the page's type
+ * up, so nobody was allowed or denied anything. WidgetRenderer keeps it out of `deniedRefIds`, so
+ * without `failedRefs` here it read as a denial beside other answers, and as "nothing was evaluated"
+ * alone. The entry stays (frontend#533).
  */
 const isNavEntryAllowed = (
   item: InlineNavItem,
   resourcesRefs: ResourcesRefs,
-  deniedRefIds: readonly string[] = [],
+  deniedRefIds: readonly string[],
+  failedRefs: Readonly<Record<string, RefFailure>>,
 ): boolean => {
   if (!item.resourceRefId) { return true }
   // ref present == survived WidgetRenderer's allowed-filter == user may GET the page.
   if (resourcesRefs?.items?.some(({ id }) => id === item.resourceRefId)) { return true }
+  if (failedRefs[item.resourceRefId]) { return true }
 
   // The ref is ABSENT, and absence alone cannot say why. WidgetRenderer drops `allowed: false`
   // refs before the Menu sees them (WidgetRenderer.tsx), so at this layer these are identical:
@@ -168,8 +184,7 @@ const isNavEntryAllowed = (
   //
   // Deliberately NOT a blanket fail-open: with any denied ref present, evaluation demonstrably
   // happened, so an absent ref means denied and stays hidden (frontend#295).
-  const nothingWasEvaluated = !resourcesRefs?.items?.length && deniedRefIds.length === 0
-  if (nothingWasEvaluated) {
+  if (nothingWasChecked(resourcesRefs, deniedRefIds)) {
     // Loud on purpose: the fallback saved the page, but a nav RESTAction that resolved no refs at
     // all is always a defect upstream — and since portal#225 it also means the prewarm walker got
     // nothing to descend, so the cache is cold for every page below the nav.
@@ -198,7 +213,8 @@ export const buildNavModel = (
   resourcesRefs: ResourcesRefs,
   namespace: string = '',
   deniedRefIds: readonly string[] = [],
-): { entries: NavEntry[]; routes: AppRoute[] } => {
+  failedRefs: Readonly<Record<string, RefFailure>> = {},
+): { entries: NavEntry[]; routes: AppRoute[]; unchecked?: RefFailure[] } => {
   const sorted = [...items].sort((left, right) => (left.order ?? 100) - (right.order ?? 100))
 
   // `linkOnly` is filtered out here and ONLY here: such an item still reaches `entries` below like
@@ -214,15 +230,24 @@ export const buildNavModel = (
       title: item.label,
     }))
 
+  // Every entry that has a ref to check, when NONE of them was checked: the failures snowplow reported,
+  // or an empty list when it returned no refs at all. Undefined as soon as one was answered.
+  const gated = sorted.filter((item) => item.label && item.path && item.resourceRefId)
+  const unchecked = gated.length > 0 && nothingWasChecked(resourcesRefs, deniedRefIds)
+    ? gated.flatMap((item) => failedRefs[item.resourceRefId ?? ''] ?? [])
+    : undefined
+
   const entries: NavEntry[] = sorted.flatMap((item, idx): NavEntry[] => {
     if (item.type === 'divider') {
       return [{ key: `divider-${item.order ?? idx}`, type: 'divider' as const }]
     }
-    if (item.label && item.path && isNavEntryAllowed(item, resourcesRefs, deniedRefIds)) {
-      return [{ group: item.group || undefined, iconName: item.icon, key: item.path, label: item.label }]
+    if (item.label && item.path && isNavEntryAllowed(item, resourcesRefs, deniedRefIds, failedRefs)) {
+      // One notice speaks for every entry when none was checked; a mark on each would repeat it.
+      const failure = unchecked || !item.resourceRefId ? undefined : failedRefs[item.resourceRefId]
+      return [{ ...(failure ? { failure } : {}), group: item.group || undefined, iconName: item.icon, key: item.path, label: item.label }]
     }
     return []
   })
 
-  return { entries, routes }
+  return { entries, routes, ...(unchecked ? { unchecked } : {}) }
 }

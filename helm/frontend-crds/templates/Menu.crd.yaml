@@ -160,6 +160,9 @@ spec:
                           label:
                             description: menu entry label; omit for a route-only (hidden) item
                             type: string
+                          namespace:
+                            description: the namespace the page lives in, used when its address comes from the flexes/page-<slug> convention; omit for the portal's own namespace. A resourceRefId that resolved wins over it
+                            type: string
                           order:
                             default: 100
                             description: sort weight for the entry

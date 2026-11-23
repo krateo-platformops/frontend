@@ -263,6 +263,8 @@ const KRATEO_BASE: Record<string, string> = {
   'nav-item-active': sidebarNav.itemActive,
   'nav-item-selected-bar': sidebarNav.selectedBar,
   'nav-group': sidebarNav.group,
+  'nav-unchecked': sidebarNav.unchecked,
+  'nav-broken': sidebarNav.broken,
 }
 
 /**

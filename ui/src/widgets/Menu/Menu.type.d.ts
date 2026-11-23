@@ -56,6 +56,10 @@ export interface Menu {
          */
         page?: string
         /**
+         * the namespace the page lives in, used when its address comes from the flexes/page-<slug> convention; omit for the portal's own namespace. A resourceRefId that resolved wins over it
+         */
+        namespace?: string
+        /**
          * sidebar section the entry belongs to (a page's krateo.io/nav-group). Consecutive entries with the same group render under one heading with this name; an entry without one has no heading
          */
         group?: string

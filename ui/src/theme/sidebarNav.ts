@@ -17,4 +17,8 @@ export const sidebarNav = {
   // A section heading (a page's `krateo.io/nav-group`): white at 55%, a step below the items'
   // 62%, so it reads as a label for them rather than as one of them.
   group: 'rgba(255, 255, 255, 0.55)',
+  // The mark on an entry snowplow could not check (frontend#533): the dark palette's orange and error
+  // in both modes, like the rail they sit on. `unchecked` can pass on a retry; `broken` cannot.
+  unchecked: '#FFAA00',
+  broken: '#F84C4C',
 } as const

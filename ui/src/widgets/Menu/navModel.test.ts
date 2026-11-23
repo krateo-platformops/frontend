@@ -112,6 +112,46 @@ describe('Menu navModel', () => {
     spy.mockRestore()
   })
 
+  describe('a ref snowplow could not check (frontend#533): shown, never read as denied or allowed', () => {
+    const items = ['a', 'b', 'c'].map((id, order) => ({ label: id, order, path: `/${id}`, resourceRefId: id }))
+    const allowedRef = (id: string) => ({ allowed: true, id, path: `/call?name=${id}`, payload: {}, verb: 'GET' as const })
+    const failure = { code: 424, message: 'The type flexes (widgets.templates.krateo.io/v1beta1) is not installed on this cluster.' }
+    const build = (allowed: string[], denied: string[], failed: string[]) =>
+      buildNavModel(items, { items: allowed.map(allowedRef) }, 'ns', denied, Object.fromEntries(failed.map((id) => [id, failure])))
+
+    it('beside an answer: the failed entry stays, with its failure; the denied one stays hidden', () => {
+      const { entries, unchecked } = build(['a'], ['c'], ['b'])
+      expect(entries.map(({ failure: why, label }) => [label, why])).toEqual([['a', undefined], ['b', failure]])
+      expect(unchecked).toBeUndefined()
+    })
+
+    it('beside denials only: a denial is a judgement, so only the failed entry shows, marked', () => {
+      const { entries, unchecked } = build([], ['b', 'c'], ['a'])
+      expect(entries.map(({ failure: why, label }) => [label, why])).toEqual([['a', failure]])
+      expect(unchecked).toBeUndefined()
+    })
+
+    it('all failed: every entry plain, and one notice carries the failures', () => {
+      const { entries, unchecked } = build([], [], ['a', 'b', 'c'])
+      expect(entries.map(({ failure: why, label }) => [label, why])).toEqual([['a', undefined], ['b', undefined], ['c', undefined]])
+      expect(unchecked).toEqual([failure, failure, failure])
+    })
+
+    it('no refs at all (frontend#295): every entry, and the notice, with no failure to name', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      expect(build([], [], []).unchecked).toEqual([])
+    })
+
+    it('a nav whose entries carry no ref has nothing to check: no notice', () => {
+      expect(buildNavModel([{ label: 'Marketplace', path: '/marketplace' }], { items: [] }).unchecked).toBeUndefined()
+    })
+
+    it('opens its page at the address the item spells, since a failed ref carries no path', () => {
+      const { routes } = buildNavModel([{ label: 'Reviews', namespace: 'krateo-reviews', page: 'reviews', path: '/reviews', resourceRefId: 'page-reviews' }], { items: [] }, 'krateo-system', ['x'], { 'page-reviews': failure })
+      expect(routes[0].endpoint).toBe('/call?resource=flexes&apiVersion=widgets.templates.krateo.io/v1beta1&name=page-reviews&namespace=krateo-reviews')
+    })
+  })
+
   it('still HIDES a denied entry when some refs resolved — a partial deny is a real judgement', () => {
     // The guard must not weaken the case the gate exists for. Here evaluation plainly happened:
     // one ref survived, one was denied. The denied one stays hidden.

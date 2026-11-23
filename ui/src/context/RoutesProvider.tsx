@@ -133,7 +133,10 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setMenuRoutes((prev) => {
       const unchanged = prev.length === newRoutes.length
         && prev.every((route, index) =>
-          route.path === newRoutes[index].path && route.resourceRefId === newRoutes[index].resourceRefId)
+          route.path === newRoutes[index].path && route.resourceRefId === newRoutes[index].resourceRefId
+          // The address can change under the same path: a ref snowplow could not check carries none, and
+          // resolves once a retry succeeds (frontend#533).
+          && route.endpoint === newRoutes[index].endpoint && route.resourceRef?.path === newRoutes[index].resourceRef?.path)
       return unchanged ? prev : newRoutes
     })
   }, [])

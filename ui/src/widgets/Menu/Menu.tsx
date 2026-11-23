@@ -2,7 +2,7 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Menu as AntdMenu } from 'antd'
 import type { ItemType } from 'antd/es/menu/interface'
-import { useEffect, useMemo } from 'react'
+import { type FocusEvent, type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import { useConfigContext } from '../../context/ConfigContext'
@@ -14,6 +14,7 @@ import { carryScopeParams, navigateOrExternal } from '../../utils/navigation'
 import styles from './Menu.module.css'
 import type { Menu as WidgetType } from './Menu.type'
 import { navItemProps, navRootProps } from './navAnchor'
+import { FailedNavIcon, FailedNavLabel, NavUncheckedNotice } from './NavFailure'
 import { buildNavModel, type InlineNavItem, type NavEntry } from './navModel'
 
 export type MenuWidgetData = WidgetType['spec']['widgetData']
@@ -25,7 +26,7 @@ export type MenuWidgetData = WidgetType['spec']['widgetData']
  * divider, stay at the top level and end the run, so a nav whose items carry no groups renders
  * exactly as it did before groups existed.
  */
-const toMenuItems = (entries: NavEntry[]): ItemType[] => {
+const toMenuItems = (entries: NavEntry[], explained: string | undefined, explain: (key: string | undefined, target?: Element) => void): ItemType[] => {
   const items: ItemType[] = []
   let run: { children: ItemType[]; name: string } | undefined
   for (const entry of entries) {
@@ -34,6 +35,7 @@ const toMenuItems = (entries: NavEntry[]): ItemType[] => {
       items.push({ key: entry.key, type: 'divider' })
       continue
     }
+    const { failure } = entry
     const item: ItemType = {
       // Our own anchor for the label, so the Agentiko tour can spotlight this row without
       // reading antd's class names (navAnchor.ts).
@@ -41,6 +43,15 @@ const toMenuItems = (entries: NavEntry[]): ItemType[] => {
       icon: entry.iconName ? <FontAwesomeIcon icon={entry.iconName as IconProp} /> : undefined,
       key: entry.key,
       label: entry.label,
+      // An entry snowplow could not check: marked, and explained on hover or focus of its row.
+      ...(failure && {
+        icon: <FailedNavIcon failure={failure} iconName={entry.iconName} />,
+        label: <FailedNavLabel failure={failure} label={entry.label ?? ''} open={explained === entry.key} />,
+        onBlur: () => { explain(undefined) },
+        onFocus: (event: FocusEvent) => { explain(entry.key, event.currentTarget) },
+        onMouseEnter: ({ domEvent }: { domEvent: MouseEvent }) => { explain(entry.key, domEvent.currentTarget) },
+        onMouseLeave: () => { explain(undefined) },
+      }),
     }
     if (!entry.group) {
       run = undefined
@@ -55,7 +66,7 @@ const toMenuItems = (entries: NavEntry[]): ItemType[] => {
   return items
 }
 
-export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<MenuWidgetData>) {
+export function Menu({ deniedRefIds, failedRefs, resourcesRefs, uid, widgetData }: WidgetProps<MenuWidgetData>) {
   const { items: navItems = [], mode, theme } = widgetData
   const location = useLocation()
   const navigate = useNavigate()
@@ -66,10 +77,17 @@ export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetPro
   // Nav data is inline on widgetData.items (the folded form) — the single route source.
   // `deniedRefIds` rides along so the gate can tell "this ref was denied" from "no ref was
   // evaluated at all"; without it an upstream failure deletes the whole sidebar (frontend#295).
-  const { entries, routes } = useMemo(
-    () => buildNavModel(navItems as InlineNavItem[], resourcesRefs, namespace, deniedRefIds),
-    [navItems, resourcesRefs, namespace, deniedRefIds]
+  // `failedRefs` are the refs snowplow could not check: shown and marked, never hidden (#533).
+  const { entries, routes, unchecked } = useMemo(
+    () => buildNavModel(navItems as InlineNavItem[], resourcesRefs, namespace, deniedRefIds, failedRefs),
+    [navItems, resourcesRefs, namespace, deniedRefIds, failedRefs]
   )
+  // The failed entry whose explanation is open. Not in the collapsed icon rail: antd's own tooltip
+  // shows the label there, and the label carries the explanation.
+  const [explained, setExplained] = useState<string>()
+  const explain = useCallback((key: string | undefined, target?: Element) => {
+    setExplained(target?.closest('.ant-menu-inline-collapsed') ? undefined : key)
+  }, [])
 
   useEffect(() => {
     if (routes.length > 0) {
@@ -89,7 +107,7 @@ export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetPro
     }
   }, [location.pathname, menuRoutes, navigate])
 
-  const menuItems: ItemType[] = useMemo(() => toMenuItems(entries), [entries])
+  const menuItems: ItemType[] = useMemo(() => toMenuItems(entries, explained, explain), [entries, explained, explain])
 
   // Highlight the nav item whose path is the longest prefix of the current route, so
   // child routes (e.g. /compositions/:namespace, /compositions/:namespace/:name, the
@@ -107,7 +125,7 @@ export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetPro
 
   const [firstNavKey] = navKeys
 
-  return (
+  const nav = (
     <AntdMenu
       {...navRootProps}
       className={styles.menu}
@@ -132,5 +150,12 @@ export function Menu({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetPro
       // it opens on focus too. Outside a collapsed Sider antd shows no tooltip at all.
       tooltip={{ trigger: ['hover', 'focus'] }}
     />
+  )
+  if (!unchecked) { return nav }
+  return (
+    <>
+      <NavUncheckedNotice failures={unchecked} />
+      {nav}
+    </>
   )
 }

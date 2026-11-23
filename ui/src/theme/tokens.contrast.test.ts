@@ -417,6 +417,13 @@ describe('Sidebar nav — every label, heading and the selected bar on the rail'
       expect(contrastRatio(opaqueOver(sidebarNav.item, rail), rail)).toBeGreaterThanOrEqual(4.5)
     })
 
+    it(`${mode}: the marks on an entry that could not be checked are >= 3:1 on the rail and the selected row`, () => {
+      for (const mark of [sidebarNav.unchecked, sidebarNav.broken]) {
+        expect(contrastRatio(mark, rail)).toBeGreaterThanOrEqual(3)
+        expect(contrastRatio(mark, selectedRow)).toBeGreaterThanOrEqual(3)
+      }
+    })
+
     it(`${mode}: a group heading on the rail is >= 4.5:1, and quieter than an item`, () => {
       const heading = opaqueOver(sidebarNav.group, rail)
       expect(contrastRatio(heading, rail)).toBeGreaterThanOrEqual(4.5)
