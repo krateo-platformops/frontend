@@ -78,6 +78,19 @@ describe('RoutesContext — the builder routes follow the cluster read', () => {
   })
 })
 
+describe('RoutesContext — the menu routes follow their addresses', () => {
+  const route = (path?: string) => ({ endpoint: path ?? '/call?name=page-x', path: '/x', resourceRef: path ? { allowed: true, id: 'x', path, payload: {}, verb: 'GET' as const } : undefined, resourceRefId: 'x' })
+  it('a ref that resolves on a retry replaces the address; equal content keeps the same list', () => {
+    mount()
+    act(() => { context!.updateMenuRoutes([route()]) })
+    const unresolved = context!.menuRoutes
+    act(() => { context!.updateMenuRoutes([route()]) })
+    expect(context!.menuRoutes).toBe(unresolved)
+    act(() => { context!.updateMenuRoutes([route('/call?name=page-x&namespace=team')]) })
+    expect(context!.menuRoutes[0].resourceRef?.path).toBe('/call?name=page-x&namespace=team')
+  })
+})
+
 describe('RoutesContext — a re-read with the same Builders never replaces the builder routes', () => {
   it('neither `loading` nor a re-install of the same (name, route) set touches the routes', () => {
     mount()

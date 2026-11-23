@@ -1,0 +1,130 @@
+/* Sidebar entries snowplow could not check (NavFailure.tsx). Colours are mode-invariant, like the rail. */
+.unchecked {
+  color: var(--krateo-nav-unchecked);
+}
+
+.broken {
+  color: var(--krateo-nav-broken);
+}
+
+.label {
+  align-items: center;
+  display: flex;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mark {
+  flex: none;
+}
+
+/* The explanation, for a screen reader reading the row after its name. antd's collapsed tooltip draws
+   the label itself, so there the explanation is shown after the name. */
+.why {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+:global(.ant-menu-inline-collapsed-tooltip) {
+  .label {
+    display: block;
+  }
+
+  .mark {
+    display: none;
+  }
+
+  .why {
+    clip-path: none;
+    height: auto;
+    position: static;
+    white-space: normal;
+    width: auto;
+  }
+}
+
+/* The icon keeps the row's own colour and the other rows' size (Menu.module.css); only its dot takes
+   the tone. */
+.icon {
+  position: relative;
+}
+
+.glyph {
+  height: var(--spacing-md);
+  width: var(--spacing-md);
+}
+
+:global(.ant-menu-inline-collapsed) .icon[data-tone="broken"]::after {
+  background: var(--krateo-nav-broken);
+}
+
+:global(.ant-menu-inline-collapsed) .icon::after {
+  background: var(--krateo-nav-unchecked);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--krateo-nav-gradient-start);
+  content: "";
+  height: var(--spacing-sm);
+  position: absolute;
+  right: calc(-1 * var(--spacing-xsm));
+  top: 0;
+  width: var(--spacing-sm);
+}
+
+.notice {
+  align-items: start;
+  border: 1px solid var(--krateo-nav-unchecked);
+  border-radius: var(--radius-md);
+  color: var(--krateo-nav-item-active);
+  display: grid;
+  gap: var(--spacing-sm);
+  grid-template-columns: auto 1fr;
+  margin-bottom: var(--spacing-smd);
+  padding: var(--spacing-smd);
+}
+
+.noticeIcon {
+  margin-top: var(--spacing-xsm);
+}
+
+.noticeText {
+  font-size: var(--krateo-text-body-sm);
+}
+
+/* On the rail, which is black in both modes: the theme's own button inks are for a panel. */
+.noticeAction,
+.noticeAction:hover,
+.noticeAction:focus-visible {
+  background: transparent !important;
+  border-color: var(--krateo-nav-item) !important;
+  color: var(--krateo-nav-item-active) !important;
+  grid-column: 2;
+  justify-self: start;
+}
+
+/* The icon rail has room for the mark, whose tooltip carries the sentence, and the action's icon. */
+:global(.ant-layout-sider-collapsed) .notice {
+  grid-template-columns: auto;
+  justify-content: center;
+  justify-items: center;
+  padding: var(--spacing-sm) 0;
+}
+
+:global(.ant-layout-sider-collapsed) .noticeText {
+  display: none;
+}
+
+:global(.ant-layout-sider-collapsed) .noticeAction {
+  grid-column: 1;
+  justify-self: center;
+}
