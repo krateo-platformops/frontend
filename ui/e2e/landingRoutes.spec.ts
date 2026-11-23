@@ -16,7 +16,10 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const TOKEN = 'SYNTHETIC-TOKEN-never-leaves'
-const DELAY = 80
+// Each stubbed answer takes DELAY ms: a network round trip, longer than a render. At 80 ms the CI runner's
+// route render (111 ms measured) outlasted one answer: with the children prefetch the sider's Flex
+// answers one DELAY after the shell, and the page lost a race against a render, not against a round.
+const DELAY = 200
 const api = 'widgets.templates.krateo.io/v1beta1'
 const ref = (id: string, resource: string, name: string) => ({
   allowed: true, id, path: `/call?resource=${resource}&apiVersion=${api}&name=${name}&namespace=krateo-system`, payload: {}, verb: 'GET',
