@@ -28,6 +28,10 @@ export interface Descriptions {
        */
       items: {
         /**
+         * makes the value a link: a page of this app (`/blueprints/ns/name`) opens through the router in the same tab; anything else opens in a new tab
+         */
+        href?: string
+        /**
          * the label of the item
          */
         label: string
@@ -36,13 +40,13 @@ export interface Descriptions {
          */
         section?: string
         /**
-         * the value of the item (rendered as the antd Descriptions item children)
-         */
-        value: string
-        /**
          * how many columns this item spans (antd Descriptions item `span`)
          */
         span?: number
+        /**
+         * the value of the item (rendered as the antd Descriptions item children)
+         */
+        value: string
       }[]
       /**
        * the size of the description list

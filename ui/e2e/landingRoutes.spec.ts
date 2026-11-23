@@ -16,7 +16,10 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const TOKEN = 'SYNTHETIC-TOKEN-never-leaves'
-const DELAY = 80
+// Each stubbed answer takes DELAY ms: a network round trip, longer than a render. At 80 ms the CI runner's
+// route render (111 ms measured) outlasted one answer: with the children prefetch the sider's Flex
+// answers one DELAY after the shell, and the page lost a race against a render, not against a round.
+const DELAY = 200
 const api = 'widgets.templates.krateo.io/v1beta1'
 const ref = (id: string, resource: string, name: string) => ({
   allowed: true, id, path: `/call?resource=${resource}&apiVersion=${api}&name=${name}&namespace=krateo-system`, payload: {}, verb: 'GET',
@@ -85,9 +88,9 @@ const afterShell = (timings: Record<string, Timing[]>, name: string) => timings[
 test('with NAV, the page is requested in the same round as the shell\'s own children', async ({ page }) => {
   const timings = await land(page, NAV)
   const pageAt = afterShell(timings, 'page-dashboard')
-  const siderAt = afterShell(timings, 'sider-content')
-  // One render after the shell answers, the shell asks for its children AND (routes known) the page.
-  expect(pageAt, `page requested ${pageAt} ms after the shell answered; the sider's Flex ${siderAt} ms`).toBeLessThanOrEqual(siderAt + 25)
+  // In the same round as the shell's own children: the page is asked for before the sider's Flex,
+  // asked for in that round, has answered (each answer takes DELAY ms).
+  expect(timings['page-dashboard'][0].start, `page requested ${pageAt} ms after the shell answered, after the sider's Flex answered`).toBeLessThan(timings['sider-content'][0].end)
   expect(timings['sidebar-nav'][0].start, 'the Menu is read alongside the shell').toBeLessThanOrEqual(timings['app-shell'][0].start + 25)
   expect(timings['sidebar-nav'], 'the Menu is read once; the sider renders it from that read').toHaveLength(1)
 })
@@ -96,4 +99,16 @@ test('control: without NAV, the page waits for the shell, its sider Flex and the
   const timings = await land(page, '')
   expect(timings['sidebar-nav'][0].start, 'the Menu is read only after the sider Flex answers').toBeGreaterThan(timings['sider-content'][0].end)
   expect(timings['page-dashboard'][0].start, 'the page is read only after the Menu answers').toBeGreaterThan(timings['sidebar-nav'][0].end)
+})
+
+// Prefetch children on answer (hooks/prefetchChildren.ts) must not cost a read: the prefetch fills the
+// entry each child's own query reads, so every widget on the landing is still read exactly once. That
+// the prefetch happens at all is proven deterministically in hooks/useWidgetQuery.prefetch.test.tsx: an
+// order test here (request start against first DOM insertion) passed WITHOUT the prefetch too, so it
+// could not tell the two apart, and a timing threshold failed under load.
+test('each widget on the landing is read exactly once', async ({ page }) => {
+  const timings = await land(page, NAV)
+  for (const [name, reads] of Object.entries(timings)) {
+    expect(reads, `${name} is read once`).toHaveLength(1)
+  }
 })
