@@ -26,12 +26,14 @@ export interface AppRoute {
 
 export interface RoutesContextType {
   menuRoutes: AppRoute[]
+  /** The whole route table, the shell's children included. The router is built once and serves the
+   * shell's children from here (descendant routes, RoutesProvider.tsx), so a change re-matches the
+   * page and remounts nothing above it. */
   routes: RouteObject[]
   isLoading: boolean
   updateMenuRoutes: (newRoutes: AppRoute[]) => void
   registerRoutes: (routes: RouteObject[]) => void
   reloadRoutes: () => Promise<void>
-  routerVersion: number
 }
 
 export const RoutesContext = createContext<RoutesContextType | undefined>(undefined)

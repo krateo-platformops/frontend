@@ -55,11 +55,9 @@ describe('RoutesContext — the builder routes follow the cluster read', () => {
     })
     mount()
     expect(shellPaths()).toEqual(['/profile', '*'])
-    const version = context!.routerVersion
     act(() => { installBuilders(fixtureBuilders()) })
     expect(shellPaths()).toEqual(['/profile', ...BUILDER_PATHS, '*'])
     // The router is rebuilt, so the path the person is already on now resolves to its composer.
-    expect(context!.routerVersion).toBeGreaterThan(version)
   })
 
   it('a failed read mounts no builder route — the catch-all then says why (WidgetPage)', () => {
@@ -80,24 +78,20 @@ describe('RoutesContext — the builder routes follow the cluster read', () => {
   })
 })
 
-describe('RoutesContext — a re-read with the same Builders never rebuilds the router', () => {
-  it('neither `loading` nor a re-install of the same (name, route) set touches the routes or routerVersion', () => {
+describe('RoutesContext — a re-read with the same Builders never replaces the builder routes', () => {
+  it('neither `loading` nor a re-install of the same (name, route) set touches the routes', () => {
     mount()
     const { routes } = context!
-    const version = context!.routerVersion
     act(() => { markBuildersLoading() })
     act(() => { installBuilders(fixtureBuilders()) })
-    // A RouterProvider remount (routerVersion) would drop Agentiko's held draft and its streams.
-    expect(context!.routerVersion).toBe(version)
+    // A new table re-matches the shell's children, and a replaced route object remounts the composer it serves.
     expect(context!.routes).toBe(routes)
   })
 
-  it('a changed set does rebuild them', () => {
+  it('a changed set does replace them', () => {
     mount()
-    const version = context!.routerVersion
     const [portal, blueprint] = fixtureBuilders().builders
     act(() => { installBuilders({ builders: [portal, blueprint], problems: [] }) })
     expect(shellPaths()).toEqual(['/profile', '/portal-builder/compose', '/blueprint-builder/compose', '*'])
-    expect(context!.routerVersion).toBeGreaterThan(version)
   })
 })

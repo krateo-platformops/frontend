@@ -57,7 +57,7 @@ export interface AgentikoMessage {
   /**
    * How the user asked the turn this message belongs to (voice spec FR 67). Stamped on the
    * assistant bubble at Send so the transcript RECORDS which turns were asked by voice —
-   * through a routerVersion remount, a thread switch and a page reload.
+   * through a remount, a thread switch and a page reload.
    *
    * It is a record, NOT the value speak-back reads. The live decision travels down the
    * provider's per-turn frame closure (`send` → `applyFrame` → `finalize`), so it cannot be

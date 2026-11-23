@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * Regression guard for #37 — "Open Drawer closes spontaneously (reloadRoutes/Shell remount resets
- * Drawer isOpen state)". The Drawer is mounted inside the ShellRoute subtree, which React remounts on
- * every router-version bump (<RouterProvider key={routerVersion}>) or Layout refresh. With isOpen in a
+ * Drawer isOpen state)". The Drawer is mounted inside the ShellRoute subtree, which React remounts on a
+ * Layout refresh (and, until frontend 1.8.75, on every router-version bump). With isOpen in a
  * local useState that remount reset it to false and the open drawer vanished. Open-state now lives in a
  * module store, so unmounting + remounting the component keeps it open — proven below by NOT re-opening
  * it after the remount.
@@ -29,7 +29,7 @@ describe('Drawer — #37 open-state survives remount', () => {
     act(() => { openDrawer({ title: 'Deploy to fleet', widgetEndpoint: '/call?name=deploy' }) })
     expect(screen.queryByText('Deploy to fleet')).not.toBeNull()
 
-    // Simulate the ShellRoute remount (router-version bump). We do NOT call openDrawer again.
+    // Simulate the ShellRoute remount. We do NOT call openDrawer again.
     unmount()
     render(<Drawer />)
 

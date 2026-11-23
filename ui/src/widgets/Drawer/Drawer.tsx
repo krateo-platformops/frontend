@@ -15,11 +15,11 @@ interface DrawerProps {
 
 // --- module-level open-state store (survives every React remount). #37 -----------------------------
 // The Drawer is mounted inside the ShellRoute subtree, which React unmounts+remounts whenever the
-// router version bumps (registerRoutes -> <RouterProvider key={routerVersion}>) or the server-driven
-// Layout refreshes. A React `useState` for isOpen would reset to false on any such remount, so an open
-// drawer (e.g. Deploy-to-fleet) would vanish under the user within ~30-90s. Keeping {isOpen, properties}
-// OUTSIDE the React tree means no remount at any level can close it — the component re-reads the live
-// store on mount. Mirrors the Notifications drawer store (NotificationsContext.tsx).
+// server-driven Layout refreshes (and, until frontend 1.8.75, on every route registration through
+// <RouterProvider key={routerVersion}>; the router is now built once). A React `useState` for isOpen
+// would reset to false on any such remount, so an open drawer (e.g. Deploy-to-fleet) would vanish
+// under the user within ~30-90s. Keeping {isOpen, properties} OUTSIDE the React tree means no
+// remount at any level can close it — the component re-reads the live store on mount. Mirrors the Notifications drawer store (NotificationsContext.tsx).
 interface DrawerState {
   isOpen: boolean
   properties: DrawerProps | null

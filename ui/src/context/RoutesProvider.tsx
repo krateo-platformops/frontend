@@ -5,7 +5,7 @@
  */
 import { useQueryClient } from '@tanstack/react-query'
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import type { NonIndexRouteObject, RouteObject } from 'react-router'
+import { type NonIndexRouteObject, type RouteObject, useRoutes } from 'react-router'
 
 import { currentBuilderRegistry, subscribeBuilders } from '../builders/builderRegistry'
 import { builderRoutes, builderRoutesSignature, mergeShellChildren, replaceBuilderRoutes } from '../builders/host/builderRoutes'
@@ -17,7 +17,7 @@ import Logout from '../pages/Logout'
 import Profile from '../pages/Profile'
 import PublicRoute, { isPublicPath, PUBLIC_ROUTE_PATHS } from '../public/PublicPage'
 
-import { type AppRoute, RoutesContext } from './RoutesContext'
+import { type AppRoute, RoutesContext, useRoutesContext } from './RoutesContext'
 
 // The authenticated area is a single persistent shell (the `Layout` widget from
 // config INIT) rendered as a pathless layout route; every content route is a
@@ -25,6 +25,15 @@ import { type AppRoute, RoutesContext } from './RoutesContext'
 // (no chrome). Logout is a static route on purpose: it's the recovery escape hatch,
 // so it must resolve even when the snowplow-driven shell pages fail to render.
 // Dynamic routes are inserted into the shell's children by registerRoutes.
+//
+// ONE ROUTER FOR THE APP'S LIFE. The router is built once from ROUTER_ROUTES, where the shell has a
+// single `*` child: ShellRoutes, which serves the shell's children from this table through
+// react-router's `useRoutes` (descendant routes). A route registered later changes only what that
+// element matches; the shell, the Menu and Agentiko stay mounted. Before frontend 1.8.75 the router
+// was rebuilt and `<RouterProvider key={routerVersion}>` remounted the whole tree on every
+// registration, which put the landing's page request behind a full re-render.
+// `routes` (the context) stays the whole logical table: the X5 spans match the TEMPLATED route
+// against it (otel/route.ts), and it is what ShellRoutes serves.
 //
 // The PUBLIC pages (public/PublicPage.tsx) sit outside the shell too, for a stronger reason than
 // chrome: the shell is what provides the signed-in transport, so a page rendered outside it reads
@@ -43,6 +52,13 @@ const outsidePublicSpace = (routes: RouteObject[], source: string): RouteObject[
   console.warn(`[routes] ignored the ${source} route "${route.path}": /public/… addresses belong to public pages, outside the signed-in shell.`)
   return false
 })
+
+/** The shell's children, served as descendant routes: re-matched whenever the table changes. */
+const ShellRoutes = () => {
+  const { routes } = useRoutesContext()
+  const shell = routes.find((route) => route.id === SHELL_ROUTE_ID) as NonIndexRouteObject | undefined
+  return useRoutes(shell?.children ?? [])
+}
 
 const defaultRoutes: RouteObject[] = [
   { element: <Login />, path: '/login' },
@@ -68,9 +84,15 @@ const defaultRoutes: RouteObject[] = [
   },
 ]
 
+/**
+ * What the router is built from, once (App.tsx): the table above with the shell's children replaced
+ * by ShellRoutes, which serves them, as the context's `routes` holds them at each render.
+ */
+export const ROUTER_ROUTES: RouteObject[] = defaultRoutes.map((route) => (route.id === SHELL_ROUTE_ID
+  ? { ...(route as NonIndexRouteObject), children: [{ element: <ShellRoutes />, path: '*' }] }
+  : route))
+
 export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // use to force re-render the router when a new route is added
-  const [routerVersion, setRouterVersion] = useState(0)
   const [routes, setRoutes] = useState<RouteObject[]>(defaultRoutes)
   const [menuRoutes, setMenuRoutes] = useState<AppRoute[]>([])
   const [isLoading] = useState(false)
@@ -79,9 +101,9 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // The Builders arrive after sign-in, from the cluster. Subscribed to the REGISTRY OBJECT, which
   // changes only when the Builders do — never on a `loading` status. And the routes are replaced only
-  // when the set of (id, path) they mount changes: rebuilding them bumps routerVersion, a full
-  // RouterProvider remount that would drop Agentiko's held draft and its streams. A re-read with the
-  // same Builders reaches each composer through BuilderRouteHost instead.
+  // when the set of (id, path) they mount changes: a replaced route is a new route object, which
+  // remounts the composer it serves. A re-read with the same Builders reaches each composer through
+  // BuilderRouteHost instead.
   const registry = useSyncExternalStore(subscribeBuilders, currentBuilderRegistry)
   const mountedSignature = useRef('')
   useEffect(() => {
@@ -98,7 +120,6 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (replaced === children) { return prevRoutes }
       const updatedRoutes = [...prevRoutes]
       updatedRoutes[shellIndex] = { ...shell, children: replaced }
-      setRouterVersion((prev) => prev + 1)
       return updatedRoutes
     })
   }, [registry])
@@ -142,7 +163,6 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const updatedRoutes = [...prevRoutes]
       updatedRoutes[shellIndex] = { ...shell, children: mergedChildren }
-      setRouterVersion((prev) => prev + 1)
       return updatedRoutes
     })
   }, [])
@@ -154,7 +174,6 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         menuRoutes,
         registerRoutes,
         reloadRoutes,
-        routerVersion,
         routes,
         updateMenuRoutes,
       }}
