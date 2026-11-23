@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { App as AntdApp, Spin } from 'antd'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 
 import '../index.css'
@@ -18,7 +18,7 @@ import { onPreviewApplied } from './components/Agentiko/previewApplied'
 import FiltersProvider from './components/FiltesProvider/FiltersProvider'
 import { ConfigProvider, useConfigContext } from './context/ConfigContext'
 import { useRoutesContext } from './context/RoutesContext'
-import { RoutesProvider } from './context/RoutesProvider'
+import { ROUTER_ROUTES, RoutesProvider } from './context/RoutesProvider'
 
 library.add(fab, fas, far)
 
@@ -32,8 +32,8 @@ const queryClient = new QueryClient({
   },
 })
 
-const AppInitializer: React.FC = () => {
-  const { isLoading: isRoutesLoading, routerVersion, routes } = useRoutesContext()
+export const AppInitializer: React.FC = () => {
+  const { isLoading: isRoutesLoading } = useRoutesContext()
   const { isLoading: isConfigLoading } = useConfigContext()
 
   // A preview apply changes what the sandbox SERVES without changing the URL the rendered pane
@@ -43,10 +43,9 @@ const AppInitializer: React.FC = () => {
     void queryClient.invalidateQueries({ queryKey: ['widgets'] })
   }), [])
 
-  // Use useMemo to recreate router only when routes or routeVersion changes
-  const router = useMemo(() => {
-    return createBrowserRouter(routes)
-  }, [routes])
+  // Built ONCE for the app's life: the routes registered later are served by the shell's descendant
+  // routes (RoutesProvider.tsx), so registering one never rebuilds the router or remounts the tree.
+  const [router] = useState(() => createBrowserRouter(ROUTER_ROUTES))
 
   if (isRoutesLoading || isConfigLoading) {
     return (
@@ -56,7 +55,7 @@ const AppInitializer: React.FC = () => {
     )
   }
 
-  return <RouterProvider key={routerVersion} router={router} />
+  return <RouterProvider router={router} />
 }
 
 const App: React.FC = () => {

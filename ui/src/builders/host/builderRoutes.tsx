@@ -55,7 +55,7 @@ const lastErrorOf = (): string | undefined => {
 /**
  * A builder route's element: the composer for the Builder of that NAME, looked up live. The route is
  * mounted once per (name, route) and never rebuilt for a re-read (RoutesContext), so a re-read that
- * changes the Builder's spec reaches the composer here, as a prop, without remounting the router. It
+ * changes the Builder's spec reaches the composer here, as a prop, without replacing its route. It
  * re-renders only when that Builder object or a re-read error changes — never on `loading`.
  */
 export const BuilderRouteHost = ({ name }: { name: string }) => {

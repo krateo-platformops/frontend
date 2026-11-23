@@ -4,11 +4,13 @@
  *
  * WHY THIS EXISTS (two reasons, one store):
  *
- * 1. REMOUNT SURVIVAL. The draft used to live in `AgentikoRail`'s `useState`. The rail
- *    hangs under `<RouterProvider key={routerVersion}>` (App.tsx), so a routes-as-data
- *    reload remounts it and resets every `useState` — silently wiping a half-written
- *    question. Same failure the transcript had, same fix: a module-level singleton read
- *    through `useSyncExternalStore` (see conversationStore.ts's header for the full story).
+ * 1. REMOUNT SURVIVAL. The draft used to live in `AgentikoRail`'s `useState`. Until
+ *    frontend 1.8.75 the rail hung under `<RouterProvider key={routerVersion}>`, so every route
+ *    registration remounted it and reset every `useState`, silently wiping a half-written
+ *    question. The router is now built once (descendant routes, RoutesProvider.tsx), so route
+ *    registration no longer remounts it. The draft stays here for any remount that remains, the
+ *    same fix as the transcript: a module-level singleton read through `useSyncExternalStore`
+ *    (see conversationStore.ts's header for the full story).
  *
  * 2. PROVENANCE, for speak-back. Agentiko speaks an answer back ONLY when the question
  *    was asked BY VOICE — concretely, when the composer text was composed PURELY of

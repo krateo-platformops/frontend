@@ -114,8 +114,7 @@ describe('the page twin, and a store that holds nothing', () => {
   })
 
   it('steps left over with NOTHING held belong to no draft — the first proposal drops them', () => {
-    // The history is module state and the store is the provider's: a provider remount (every
-    // nav-route registration remounts the router) empties the store and keeps the steps.
+    // The history is module state and the store is the provider's: a provider remount empties the store and keeps the steps.
     draftHistory.push({ files: { 'templates/flex.page-old.yaml': 'kind: Flex' }, kind: 'page' })
     recordPagePreview(flex('page-new'), createBlueprintDraftStore(), createBlueprintGate())
     expect(draftHistory.depth()).toBe(0)

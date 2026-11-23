@@ -525,7 +525,7 @@ describe('remount survival (FR 42) — the store is module-level for exactly thi
     await settle()
     tick(1200)
 
-    // A routerVersion bump: every subscriber goes away and comes back. The store does not.
+    // A remount: every subscriber goes away and comes back. The store does not.
     const unsubscribe = store.subscribe(() => undefined)
     unsubscribe()
     expect(store.getSnapshot().phase).toBe('listening')

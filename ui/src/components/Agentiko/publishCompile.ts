@@ -102,7 +102,7 @@ export const heldDraftIdentity = (held: BlueprintDraftHeld | null): string | nul
  * what the history is for.
  *
  * Replacing NOTHING counts as different. The history is module state and the store is the
- * provider's, so a provider remount (every nav-route registration remounts the router) empties the
+ * provider's, so a provider remount (each nav-route registration did, until frontend 1.8.75) empties the
  * store and keeps the steps — which belong to no draft at all.
  */
 const forgetOtherDraftsHistory = (replaced: string | null, held: BlueprintDraftHeld): void => {

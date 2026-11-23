@@ -81,7 +81,7 @@ describe('draft provenance', () => {
 })
 
 describe('remount survival', () => {
-  it('notifies subscribers and keeps text AND provenance across a re-read (the routerVersion remount)', () => {
+  it('notifies subscribers and keeps text AND provenance across a re-read (a remount)', () => {
     const store = createComposerDraftStore()
     let notifications = 0
     const unsubscribe = store.subscribe(() => { notifications += 1 })

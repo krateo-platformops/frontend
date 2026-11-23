@@ -158,11 +158,11 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
 
   const [open, setOpen] = useState(false)
   // The DURABLE conversation (transcript + thread identity) is held in a module-level
-  // store, NOT component state, so it survives a provider remount. AgentikoProvider is
-  // mounted under `<RouterProvider key={routerVersion}>`; a routerVersion bump (the
-  // routes-as-data reload) remounts this subtree and would reset any useState to its
-  // initial value — silently wiping the chat when navigating onto a freshly-registered
-  // route (e.g. a composition-detail page). Reading via useSyncExternalStore re-hydrates
+  // store, NOT component state, so it survives a provider remount. Until frontend 1.8.75 every
+  // route registration remounted this subtree (`<RouterProvider key={routerVersion}>`) and
+  // reset any useState, silently wiping the chat on a freshly-registered route (e.g. a
+  // composition-detail page). The router is now built once (descendant routes,
+  // RoutesProvider.tsx), so that remount is gone; the store covers any that remains. Reading via useSyncExternalStore re-hydrates
   // from the SURVIVING store on remount. The transcript is folded through the store's
   // `setMessages` (same value-or-updater setState contract), called directly as a stable
   // module member below — so it is NOT a hook dependency and the fold code is unchanged.
@@ -246,13 +246,15 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     approvalRef.current?.governor.dispose()
     // Provider unmount closes the microphone AND stops speech (voice spec FR 44).
     //
-    // READ THIS BEFORE "FIXING" IT TO SATISFY FR 42. A routerVersion remount runs this
-    // cleanup too — React cannot tell a remount from a real unmount — so capture does NOT
-    // in fact survive a routes-as-data reload, and FR 42's "keeps capture running" clause
-    // is unmet in the app (the store-level test passes because it drives the store
-    // directly). Deleting this line does not fix that: `open` is still `useState(false)`
+    // READ THIS BEFORE "FIXING" IT TO SATISFY FR 42. Any remount runs this cleanup too —
+    // React cannot tell a remount from a real unmount. Until frontend 1.8.75 every route
+    // registration remounted the provider, so capture did not survive a routes-as-data
+    // reload; the router is now built once and route registration no longer remounts it.
+    // FR 42's "keeps capture running" clause has not been re-measured in the app since (the
+    // store-level test drives the store directly). For any remount that remains, deleting
+    // this line does not help: `open` is still `useState(false)`
     // below, so the rail comes back COLLAPSED, and `useVoiceWiring`'s collapse teardown
-    // cancels capture on the way in regardless. Surviving the remount for real means
+    // cancels capture on the way in regardless. Surviving a remount for real means
     // moving `open` into a module-level store as well, so the rail returns open with its
     // meter, timer and Cancel visible. Until then this line is the honest backstop: better
     // a dictation cut short than a microphone left live behind a rail that came back shut.

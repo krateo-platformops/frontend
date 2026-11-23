@@ -12,10 +12,10 @@
  *   the first zero would end at first paint, which the contract explicitly forbids, and the span
  *   would still look perfectly healthy. So the case below drives the real sequence
  *   (0 → in flight → 0) and a second one proves the hold is what makes it wait.
- * - `useDocumentLoadSpan` must report ONCE PER DOCUMENT, and the guard has to be module-level
- *   because `RouterProvider` is keyed on `routerVersion` — registering a route set remounts the
- *   whole tree, and a ref would report a second document load for a document that never reloaded.
- *   That is asserted by remounting.
+ * - `useDocumentLoadSpan` must report ONCE PER DOCUMENT, and the guard is module-level
+ *   so that no remount of the shell reports a second document load for a document that never
+ *   reloaded (until frontend 1.8.75 every route registration remounted the whole tree). That is
+ *   asserted by remounting.
  *
  * `useIsFetching` is mocked, deliberately and narrowly: react-query's own counting is not the
  * subject (`WidgetPage.test.tsx` mocks it for the same reason), the hook's reaction to the count
@@ -180,9 +180,9 @@ describe('useDocumentLoadSpan', () => {
     act(() => { page.unmount() })
   })
 
-  it('and NOT again when the shell remounts — a route-set change is not a document load', () => {
+  it('and NOT again when the shell remounts — a remount is not a document load', () => {
     // This case depends on the one above having run: the guard is per document, which in a test
-    // process is per module. Remounting is what `RouterProvider key={routerVersion}` does.
+    // process is per module.
     const page = render(<Document pathname='/dashboard' />)
 
     expect(recorded).toHaveLength(0)

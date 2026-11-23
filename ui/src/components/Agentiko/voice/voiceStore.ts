@@ -2,14 +2,15 @@
  * VOICE STORE — the dictation session, at module scope. Voice spec FR 42–45, 62, 63.
  *
  * WHY MODULE-LEVEL, exactly as `conversationStore.ts` and `composerDraftStore.ts` are.
- * The rail hangs under `<RouterProvider key={routerVersion}>`; a routes-as-data reload
- * remounts that whole subtree and resets every `useState`. Mid-dictation that would kill
+ * Any remount of the rail resets every `useState` (until frontend 1.8.75 every route
+ * registration remounted it, through `<RouterProvider key={routerVersion}>`; the router is
+ * now built once). Mid-dictation that would kill
  * the microphone with no UI left to stop it, or orphan an in-flight upload whose result
  * has nowhere to land. So the live `MediaStream`, the recorder handle and the in-flight
  * `AbortController` all live OUT HERE, and a rail that re-mounts while this store is
  * `listening` re-hydrates into `listening` with the same timer (FR 42, 63).
  *
- * KNOWN GAP, stated plainly: end to end in the app that remount still ENDS the dictation,
+ * KNOWN GAP, stated plainly: end to end in the app a remount still ENDS the dictation,
  * because two things outside this file kill it on the way through — `AgentikoProvider`'s
  * unmount cleanup, and the rail's `open` flag, which is component state and so comes back
  * `false`, firing the collapse teardown. Closing the gap means making `open` survive the
