@@ -13,14 +13,24 @@ permissions:
   contents: read
 
 jobs:
+  # Every `uses:` is pinned to a commit SHA (Diego, 2026-11-23): 1.8.70's release path changed with no
+  # commit here when the shared release-oci gained a required input on @main. scripts/lint-pinned-uses.py
+  # refuses a tag or a branch, and runs its own control first.
+  pinned-uses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5 @ 2026-11-23
+      - name: Every uses is pinned to a commit SHA
+        run: python3 scripts/lint-pinned-uses.py
+
   lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5 @ 2026-11-23
 
       - name: Install Helm
-        uses: azure/setup-helm@v5.0.0
+        uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0 @ 2026-11-23
         with:
           version: v3.19.0
 

@@ -49,9 +49,9 @@ jobs:
   drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5 @ 2026-11-23
       - name: Set up Go for the CRD generator
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5 @ 2026-11-23
         with:
           # From crdgen/go.mod, not a literal. The krateoctl install this replaced carried a
           # version pinned by hand in THREE workflows with a comment in each saying "if one moves,
@@ -59,7 +59,7 @@ jobs:
           # the single place its toolchain floor is declared.
           go-version-file: crdgen/go.mod
           cache-dependency-path: crdgen/go.sum
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 @ 2026-11-23
         with:
           # Matches ui/Dockerfile's build stage (node:24.2.0-alpine3.22). CI validating on an
           # older Node than the one that produces the artifact is backwards, and it was also what
@@ -99,7 +99,7 @@ jobs:
       # exercised offline by TestTightenings in the step above, so no clause depends on this step
       # running.
       - name: Install Helm for the baseline pull
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4 @ 2026-11-23
         with:
           version: v3.19.0
       - name: Assert no widget CRD became stricter than the PINNED one
