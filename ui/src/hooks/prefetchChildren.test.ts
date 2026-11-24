@@ -10,6 +10,7 @@ import type { Widget } from '../types/Widget'
 import { prefetchableChildEndpoints, prefetchChildren } from './prefetchChildren'
 import { recordRefreshHeaders } from './refreshSse'
 import { widgetQueryKey } from './widgetRequest'
+import { MAX_WIDGET_FETCH_RETRIES } from './widgetRetry'
 
 vi.mock('./refreshSse', () => ({ recordRefreshHeaders: vi.fn() }))
 
@@ -73,6 +74,54 @@ describe('prefetchChildren', () => {
     prefetchChildren(queryClient, flex([ref('mid')]), { ...context, isWanted: () => wanted, transport: { fetch, onUnauthorized: vi.fn() } })
     await vi.waitFor(() => { expect(queryClient.getQueryState(widgetQueryKey('/call?resource=x&name=mid', '{"q":"x"}'))?.status).toBe('success') })
     expect(fetch.mock.calls.map(([url]) => new URL(url).searchParams.get('name'))).toEqual(['mid'])
+  })
+
+  describe('a failed read follows the widget query’s own retry policy', () => {
+    afterEach(() => { vi.useRealTimers() })
+
+    const failing = (status: number, times: number) => {
+      let left = times
+      return vi.fn((url: string) => {
+        left -= 1
+        return Promise.resolve(left >= 0 ? new Response('{}', { status }) : answer(new URL(url).searchParams.get('name') ?? ''))
+      })
+    }
+    const run = async (fetch: ReturnType<typeof failing>, isWanted = () => true) => {
+      vi.useFakeTimers()
+      const { context, queryClient } = setup()
+      prefetchChildren(queryClient, flex([ref('a')]), { ...context, isWanted, transport: { fetch, onUnauthorized: vi.fn() } })
+      await vi.advanceTimersByTimeAsync(20_000)
+      return queryClient.getQueryState(widgetQueryKey('/call?resource=x&name=a', '{"q":"x"}'))
+    }
+
+    it.each([503, 404])('a %s is read again until it answers', async (status) => {
+      const fetch = failing(status, 2)
+      expect((await run(fetch))?.status).toBe('success')
+      expect(fetch).toHaveBeenCalledTimes(3)
+    })
+
+    it('gives up after as many tries as the widget’s own query', async () => {
+      const fetch = failing(503, 99)
+      expect((await run(fetch))?.status).toBe('error')
+      expect(fetch).toHaveBeenCalledTimes(1 + MAX_WIDGET_FETCH_RETRIES)
+    })
+
+    it('a 403 is not retried', async () => {
+      const fetch = failing(403, 99)
+      await run(fetch)
+      expect(fetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('a page that was left is not read again', async () => {
+      const fetch = failing(503, 99)
+      let wanted = true
+      fetch.mockImplementationOnce(() => {
+        wanted = false
+        return Promise.resolve(new Response('{}', { status: 503 }))
+      })
+      await run(fetch, () => wanted)
+      expect(fetch).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('skips a denied ref, a failed part, a non-GET ref and a paged child', () => {

@@ -3,11 +3,12 @@
 
 import { useInfiniteQuery, useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 
 import { isTimeoutError } from '../components/WidgetStates'
 import { useConfigContext } from '../context/ConfigContext'
 import { EMPTY_FRAGMENT_EXTRAS, fragmentKeysOf, pickFragment } from '../context/pageFragment'
+import { usePageParams } from '../context/PageParamsContext'
 import { useFragmentExtras, usePageRoot } from '../context/PageRootContext'
 import { useWidgetScope } from '../context/WidgetScopeContext'
 import { useWidgetTransport } from '../transport/widgetTransport'
@@ -20,57 +21,17 @@ import { getRefreshEntry, isWidgetLiveRefreshEnabled, wasRefetchEventTriggered }
 import { useLiveWatch } from './useLiveRefresh'
 import { useWidgetLiveRefresh } from './useWidgetLiveRefresh'
 import { fetchWidgetPage, type WidgetRead, widgetQueryKey } from './widgetRequest'
+import { shouldRetryWidgetFetch, widgetFetchRetryDelay } from './widgetRetry'
 
 // Moved to ./widgetRequest (one read, shared with the children prefetch); re-exported for importers.
 export { readWithBodyExtras, WidgetFetchError } from './widgetRequest'
+// The retry policy moved to ./widgetRetry, which the children's prefetch uses too; re-exported for its importers.
+export { MAX_WIDGET_FETCH_RETRIES, shouldRetryWidgetFetch, widgetFetchRetryDelay } from './widgetRetry'
 
 function parseNumberParam(param: string | null) {
   const parsed = param ? parseInt(param) : undefined
   return isNaN(parsed!) ? undefined : parsed
 }
-
-export const MAX_WIDGET_FETCH_RETRIES = 3
-
-/**
- * Whether a failed widget fetch should be retried. The global QueryClient sets
- * `retry: false`, so without this a backend that has not answered yet (network
- * error / 5xx during startup) lands immediately in the error state — the
- * "red cross on initial render". We retry transient failures and never permanent
- * client errors.
- *
- * 404 is treated as TRANSIENT here: right after a page load/refresh snowplow can
- * answer 404 for a widget endpoint while its informer cache is still cold (the CR
- * exists but isn't listed yet) — that produced an "Error while rendering widget"
- * flash on first paint that recovered on the next fetch. Retrying 404 a few times
- * keeps the skeleton up until the cache warms; a genuinely-missing widget still
- * surfaces the error once the retries are exhausted. The other 4xx (400 bad
- * request, 401 auth, 403 forbidden) stay permanent — retrying them never helps.
- *
- * `eventTriggered` (#256) is the ONE exception, and it inverts only the 404 case. When the
- * refetch was triggered by a `refresh` frame, snowplow has just told us this object changed —
- * and from snowplow 1.12.6 a DELETE-semantics eviction publishes such a frame. A 404 answering
- * THAT is a confirmed delete, not a cold informer: the retries cannot discover anything new, and
- * at MAX_WIDGET_FETCH_RETRIES=3 with 700/1400/2800 ms backoff they cost 4 requests and ~4.9 s per
- * widget. On a bulk delete across a dense page that is a fourfold amplification of the very burst
- * the server's token bucket exists to pace. The render state for it already exists
- * (WidgetRenderer's WidgetNotFound), so failing fast shows the right thing sooner AND cheaper.
- *
- * The flag is read from the refresh transport through a single exported boolean
- * (`wasRefetchEventTriggered`) so this predicate stays pure and knows nothing about the stream.
- */
-export const shouldRetryWidgetFetch = (failureCount: number, error: unknown, eventTriggered = false): boolean => {
-  const status = (error as { status?: number } | null)?.status
-  if (typeof status === 'number' && status >= 400 && status < 500 && status !== 404) {
-    return false
-  }
-  if (status === 404 && eventTriggered) {
-    return false
-  }
-  return failureCount < MAX_WIDGET_FETCH_RETRIES
-}
-
-/** Exponential backoff (capped) between widget-fetch retries. */
-export const widgetFetchRetryDelay = (attemptIndex: number): number => Math.min(700 * 2 ** attemptIndex, 5000)
 
 /**
  * Build the `?extras=` JSON envelope snowplow forwards into the RESTAction jq dict
@@ -126,8 +87,12 @@ export const buildExtrasParam = (
   for (const [key, value] of Object.entries(fragmentExtras)) {
     extras[key] = value
   }
+  // A page's route inputs are its NAMED params. `*` is react-router's splat, and it is how the shell
+  // serves its pages (RoutesProvider: descendant routes under one `*`), not something a page declared:
+  // in the envelope it is an undeclared key, so snowplow declines to cache the read and gives it no
+  // live-refresh key (1.8.75 to 1.8.82 sent it on every page read).
   for (const [key, value] of Object.entries(routeParams)) {
-    if (value !== undefined) { extras[key] = value }
+    if (value !== undefined && key !== '*') { extras[key] = value }
   }
   // Volunteer identity only when snowplow does NOT inject it server-side (capability flag).
   //
@@ -223,9 +188,10 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // shell, anonymous everywhere else. This hook never reads a token itself.
   const transport = useWidgetTransport()
   const [searchParams] = useSearchParams()
-  const matchedParams = useParams()
-  // snowplow#777. react-router shares ONE params object across the matched branch, so a widget
-  // mounted ABOVE the outlet (the Shell's header chrome) sees the child route's params and the
+  // The OPEN PAGE's params, the same for the page and for a drawer or dialog over it (PageParamsContext).
+  const matchedParams = usePageParams()
+  // snowplow#777. Every widget in the shell can see the open page's params, so a widget mounted ABOVE
+  // the outlet (the Shell's header chrome) would carry the page's params and the
   // page's query string, reads neither, and has snowplow decline them — 74 declines in 7 days,
   // 33% of all logged /call declines, for a byte-identical body. A widget gets the route inputs
   // owned at or above its OWN level; chrome sits at the root layout and owns none.
