@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import { lintBlueprintDraft } from './blueprintDraft'
 import { judgeRender } from './blueprintRenderSandbox'
-import { chartReference, ownDefinitionProblems } from './ownDefinition'
+import { ownDefinitionProblems } from './ownDefinition'
 
 const CHART = {
   'Chart.yaml': 'apiVersion: v2\nname: my-bp\nversion: 0.1.0\ntype: application\n',
@@ -15,29 +15,6 @@ const CHART = {
 const cd = (chart: string, head = '') => `${head}apiVersion: core.krateo.io/v1alpha1\nkind: CompositionDefinition\nmetadata:\n  name: x\nspec:\n  chart:\n${chart}`
 const OWN = cd('    url: oci://ghcr.io/org/charts/my-bp\n    version: 0.1.0\n')
 const OTHER = cd('    url: oci://ghcr.io/org/charts/other\n    version: 1.0.0\n')
-
-describe('chartReference', () => {
-  const cases: [string, { repo?: string; url?: string }, ReturnType<typeof chartReference>][] = [
-    ['the OCI path', { url: 'oci://ghcr.io/org/charts/my-bp' }, 'own'],
-    ['a trailing slash', { url: 'oci://ghcr.io/org/charts/my-bp/' }, 'own'],
-    ['a tag', { url: 'oci://ghcr.io/org/charts/my-bp:1.2.3' }, 'own'],
-    ['a digest', { url: 'oci://ghcr.io/org/charts/my-bp@sha256:abc' }, 'own'],
-    ['a registry with a port', { url: 'oci://localhost:5000/charts/my-bp' }, 'own'],
-    ['the repo field', { repo: 'my-bp', url: 'https://charts.example.com' }, 'own'],
-    ['an archive', { url: 'https://example.com/my-bp-1.2.3.tgz?x=1' }, 'own'],
-    ['a pre-release archive', { url: 'https://example.com/my-bp-1.2.3-rc.1.tgz' }, 'own'],
-    ['another chart', { url: 'oci://ghcr.io/org/charts/other' }, 'other'],
-    ['a chart whose name starts the same', { url: 'oci://ghcr.io/org/charts/my-bp-extra' }, 'other'],
-    ['an archive whose name starts the same', { url: 'https://example.com/my-bp-extra-1.2.3.tgz' }, 'other'],
-    ['this name elsewhere in the path', { url: 'oci://ghcr.io/my-bp/charts/other' }, 'other'],
-    ['nothing named', {}, 'unknown'],
-    ['an empty url', { url: ' ' }, 'unknown'],
-    ['only another repo', { repo: 'other' }, 'other'],
-  ]
-  for (const [why, chart, want] of cases) {
-    it(why, () => { expect(chartReference(chart, 'my-bp')).toBe(want) })
-  }
-})
 
 describe('the lint, on literal template text', () => {
   const lint = (text: string, path = 'templates/x.yaml') => lintBlueprintDraft({ ...CHART, [path]: text }, 'blueprint')
@@ -50,6 +27,8 @@ describe('the lint, on literal template text', () => {
     ['second in the file', `kind: ConfigMap\n---\n${OWN}`],
     ['quoted', cd('    url: "oci://ghcr.io/org/charts/my-bp" # mine\n')],
     ['with a templated registry and a literal name', cd('    url: oci://{{ .Values.registry }}/charts/my-bp\n')],
+    ['with more of the path templated', cd('    url: oci://{{ .Values.registry }}/{{ .Values.org }}/my-bp:{{ .Values.tag }}\n')],
+    ['in another case', cd('    url: oci://ghcr.io/org/charts/My-BP\n')],
     ['named by repo', cd('    repo: my-bp\n    url: https://charts.example.com\n')],
     ['inside a condition, with template lines', cd('    {{- if .Values.a }}\n    url: oci://ghcr.io/org/charts/my-bp\n    {{- end }}\n', '{{- if .Values.b }}\n')],
   ]
@@ -63,6 +42,9 @@ describe('the lint, on literal template text', () => {
     ['a RESTAction', 'apiVersion: templates.krateo.io/v1\nkind: RESTAction\nmetadata: {name: x}\n'],
     ['a RestDefinition', 'apiVersion: ogen.krateo.io/v1alpha1\nkind: RestDefinition\nmetadata: {name: x}\n'],
     ['a name built from a template expression', cd('    url: oci://ghcr.io/org/charts/{{ .Chart.Name }}\n')],
+    ['a chart elsewhere in this one\u2019s repository', cd('    url: oci://ghcr.io/org/charts/my-bp\n    repo: other\n')],
+    ['an archive of another chart, whose repo is ignored', cd('    repo: my-bp\n    url: https://example.com/other-1.0.0.tgz\n')],
+    ['a url that is one expression', cd('    url: {{ .Values.url }}\n    repo: my-bp\n')],
     ['the kind of another group', OWN.replace('core.krateo.io', 'example.com')],
     ['the text inside a ConfigMap', `apiVersion: v1\nkind: ConfigMap\ndata:\n  x: |\n${OWN.split('\n').map((line) => `    ${line}`).join('\n')}`],
     ['a commented-out definition', OWN.split('\n').map((line) => `# ${line}`).join('\n')],
@@ -84,6 +66,14 @@ describe('a preview, on the rendered objects', () => {
   it('fails a render that registers its own chart, templated names included', () => {
     expect(judge([object(OTHER), object(OWN)])).toMatch(/^CompositionDefinition x: .*my-bp/)
   })
+  it('fails one whose definition is inside a list, with or without a kind of its own', () => {
+    const inList = (head: string, item: string) => `${head}items:\n  - ${item.trim().split('\n').join('\n    ')}\n`
+    const list = { ...object(inList('apiVersion: v1\nkind: List\n', OWN), 'v1'), kind: 'List' }
+    const bare = { ...object(inList('apiVersion: core.krateo.io/v1alpha1\nkind: CompositionDefinitionList\n', OWN.split('\n').slice(2).join('\n'))), kind: 'CompositionDefinitionList' }
+    expect(judge([list])).toMatch(/^CompositionDefinition x: /)
+    expect(judge([bare])).toMatch(/^CompositionDefinition x: /)
+  })
+  it('does not fail one whose chart no one can tell', () => { expect(judge([object(cd('    repo: my-bp\n'))])).toBeUndefined() })
   it('passes one that registers another chart', () => { expect(judge([object(OTHER)])).toBeUndefined() })
   it('keeps a render’s own error', () => { expect(judgeRender({ error: 'boom', objects: [object(OWN)] }, { rawTemplates: CHART }).error).toBe('boom') })
   it('does not judge a published chart’s dry run', () => { expect(judge([object(OWN)], { chart: { url: 'oci://x/charts/my-bp' } })).toBeUndefined() })
