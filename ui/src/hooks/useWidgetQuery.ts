@@ -3,11 +3,12 @@
 
 import { useInfiniteQuery, useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 
 import { isTimeoutError } from '../components/WidgetStates'
 import { useConfigContext } from '../context/ConfigContext'
 import { EMPTY_FRAGMENT_EXTRAS, fragmentKeysOf, pickFragment } from '../context/pageFragment'
+import { usePageParams } from '../context/PageParamsContext'
 import { useFragmentExtras, usePageRoot } from '../context/PageRootContext'
 import { useWidgetScope } from '../context/WidgetScopeContext'
 import { useWidgetTransport } from '../transport/widgetTransport'
@@ -227,9 +228,10 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // shell, anonymous everywhere else. This hook never reads a token itself.
   const transport = useWidgetTransport()
   const [searchParams] = useSearchParams()
-  const matchedParams = useParams()
-  // snowplow#777. react-router shares ONE params object across the matched branch, so a widget
-  // mounted ABOVE the outlet (the Shell's header chrome) sees the child route's params and the
+  // The OPEN PAGE's params, the same for the page and for a drawer or dialog over it (PageParamsContext).
+  const matchedParams = usePageParams()
+  // snowplow#777. Every widget in the shell can see the open page's params, so a widget mounted ABOVE
+  // the outlet (the Shell's header chrome) would carry the page's params and the
   // page's query string, reads neither, and has snowplow decline them — 74 declines in 7 days,
   // 33% of all logged /call declines, for a byte-identical body. A widget gets the route inputs
   // owned at or above its OWN level; chrome sits at the root layout and owns none.
