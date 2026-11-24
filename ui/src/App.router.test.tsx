@@ -21,10 +21,15 @@ let shellMatches: string[] = []
 
 vi.mock('./context/ConfigContext', () => ({ useConfigContext: () => ({ config: { api: { SNOWPLOW_API_BASE_URL: 'http://snowplow.test' } }, isLoading: false }) }))
 vi.mock('./components/Shell', () => {
+  // A drawer or dialog: beside the page, as the real Shell mounts them, and reading as they do.
+  const DrawerStub = () => {
+    useWidgetQuery('/call?resource=forms&name=edit')
+    return null
+  }
   const ShellStub = () => {
     useEffect(() => { mounts.shell += 1 }, [])
     shellMatches = useMatches().map(({ pathname }) => pathname)
-    return <Outlet />
+    return <><Outlet /><DrawerStub /></>
   }
   return { default: ShellStub }
 })
@@ -100,6 +105,20 @@ describe('the router is built once; registered routes re-match the page and remo
     await screen.findByText('page /call?resource=flexes&name=shop&namespace=team-a')
     await vi.waitFor(() => { expect(extrasOf('shop')).toHaveLength(1) })
     expect(JSON.parse(extrasOf('shop')[0])).toEqual({ name: 'shop', namespace: 'team-a' })
+  })
+
+  it('a drawer over the page reads with the page’s params, and with the next page’s after a navigation', async () => {
+    mount()
+    act(() => { register([createRoute(COMPOSITION)]) })
+    await screen.findByText('page /call?resource=flexes&name=shop&namespace=team-a')
+    await vi.waitFor(() => { expect(extrasOf('edit').at(-1)).toBe(extrasOf('shop')[0]) })
+    expect(JSON.parse(extrasOf('edit').at(-1) ?? '')).toEqual({ name: 'shop', namespace: 'team-a' })
+    act(() => {
+      window.history.pushState(null, '', '/compositions/team-b/desk')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await screen.findByText('page /call?resource=flexes&name=desk&namespace=team-b')
+    await vi.waitFor(() => { expect(JSON.parse(extrasOf('edit').at(-1) ?? '{}')).toEqual({ name: 'desk', namespace: 'team-b' }) })
   })
 
   it('a page at a fixed address carries no route params', async () => {
