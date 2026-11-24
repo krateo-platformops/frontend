@@ -169,6 +169,12 @@ spec:
                           disabled:
                             description: antd option `disabled`
                             type: boolean
+                          group:
+                            description: the heading this option is listed under (antd OptGroup). Options of one group are drawn together, groups in the order they first appear; options without one have no heading. One select lists every group's options alike
+                            type: string
+                          hint:
+                            description: 'what the value is called elsewhere, drawn muted at the row''s end and read with the label (a tenant''s namespace: "acme", "tenant-acme")'
+                            type: string
                           label:
                             description: option label (defaults to value)
                             type: string
@@ -200,6 +206,9 @@ spec:
                         - small
                         - middle
                         - large
+                      type: string
+                    summary:
+                      description: 'how several picked values read in the closed control, with {count} replaced ("{count} namespaces"); one reads as its label (URL-bound `mode: multiple` only). Absent, each picked value is a removable tag'
                       type: string
                   required:
                     - name

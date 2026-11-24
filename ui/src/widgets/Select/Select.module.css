@@ -126,6 +126,24 @@
   margin-left: auto;
 }
 
+.hintCount {
+  margin-left: var(--spacing-sm);
+}
+
+/* a group's rows line up with the ungrouped ones; its heading reads as the panel's own heading does */
+.checkPopup :global(.ant-select-item-option-grouped) {
+  padding-inline-start: 12px;
+}
+
+.checkPopup :global(.ant-select-item-group) {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .masterOn .optionCount {
   color: var(--primary-color);
 }
