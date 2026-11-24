@@ -1,21 +1,22 @@
 /**
  * Removes the author's own abandoned previews when they visit a builder (previewSweep.ts): once per
- * document, and only where a preview sandbox is configured.
+ * document, and only where a preview sandbox is configured. No router here: the shell says when a
+ * builder's page was visited (builders/builderVisit.ts).
  */
-import { useEffect } from 'react'
-import { useLocation } from 'react-router'
+import { useEffect, useSyncExternalStore } from 'react'
 
-import { isBuilderPath } from '../../builders/builderRegistry'
+import { hasVisitedBuilder, subscribeBuilderVisit } from '../../builders/builderVisit'
 import type { Config } from '../../context/ConfigContext'
+import { useWidgetTransport } from '../../transport/widgetTransport'
 
 import type { SandboxWriter } from './blueprintRenderSandbox'
 import { startPreviewSweep } from './previewSweep'
 
 export const usePreviewSweep = (heldPage: () => string | undefined, config: Config | undefined, writer: SandboxWriter | undefined): void => {
-  const { pathname } = useLocation()
+  const visited = useSyncExternalStore(subscribeBuilderVisit, hasVisitedBuilder)
+  const { fetch } = useWidgetTransport()
   const snowplowBaseUrl = config?.api.SNOWPLOW_API_BASE_URL
-  const onBuilder = isBuilderPath(pathname)
   useEffect(() => {
-    if (writer && snowplowBaseUrl && onBuilder) { startPreviewSweep({ heldPage, snowplowBaseUrl, writer }) }
-  }, [heldPage, onBuilder, snowplowBaseUrl, writer])
+    if (writer && snowplowBaseUrl && visited) { startPreviewSweep({ fetch, heldPage, snowplowBaseUrl, writer }) }
+  }, [fetch, heldPage, snowplowBaseUrl, visited, writer])
 }

@@ -2,6 +2,8 @@ import { Avatar, Grid } from 'antd'
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router'
 
+import { isBuilderPath } from '../../builders/builderRegistry'
+import { noteBuilderVisit } from '../../builders/builderVisit'
 import { ensureBuildersLoaded } from '../../builders/clusterBuilders'
 import { useConfigContext } from '../../context/ConfigContext'
 import { useRoutesContext } from '../../context/RoutesContext'
@@ -111,6 +113,12 @@ export const ShellRoute = () => {
       window.location.replace('/login')
     }
   }, [])
+
+  // Said once, for what runs without a router: the author's abandoned previews are cleared then.
+  const onBuilder = isBuilderPath(pathname)
+  useEffect(() => {
+    if (onBuilder) { noteBuilderVisit() }
+  }, [onBuilder])
 
   // The Builders are read from the cluster AS THE SIGNED-IN PERSON, once per sign-in: the shell mounts
   // after every sign-in, and a remount with the same session is a no-op (clusterBuilders.ts).

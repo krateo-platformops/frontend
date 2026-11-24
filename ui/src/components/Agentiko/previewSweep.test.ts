@@ -108,7 +108,7 @@ describe('the sweep', () => {
   const record = (name: string): Promise<RecordRead> => Promise.resolve({ ok: true, record: { files: {}, kind: 'page', name: name.replace('draft-page-admin-', ''), state: 'open', updatedAt: OLD, version: 1 } })
   let sandbox: { actions: unknown; widgets: unknown }
   const deps = (over: Partial<SweepDeps> = {}): SweepDeps => ({
-    heldPage: () => undefined, now: () => NOW, readRecord: record, snowplowBaseUrl: 'http://sp', username: () => ME, writer: { handleActionSet, sandboxNamespace: NS }, ...over,
+    fetch: (url: string) => fetch(url), heldPage: () => undefined, now: () => NOW, readRecord: record, snowplowBaseUrl: 'http://sp', username: () => ME, writer: { handleActionSet, sandboxNamespace: NS }, ...over,
   })
 
   beforeEach(() => {

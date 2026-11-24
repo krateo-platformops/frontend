@@ -17,7 +17,7 @@
  * removes nothing: a kept leftover costs a little space, a wrong delete costs someone their page.
  */
 import type { WriteOpResult } from '../../hooks/runRestSet'
-import { getAccessToken } from '../../utils/getAccessToken'
+import type { WidgetTransport } from '../../transport/widgetTransport'
 import { getUserInfo } from '../../utils/getUserInfo'
 
 import { legacyDeleteOps, sandboxReferencesOf, type SandboxTarget } from './adoptLegacyPage'
@@ -133,21 +133,13 @@ export const planPreviewSweep = (
   }
 }
 
-const authHeader = (): Record<string, string> => {
-  try {
-    return { Authorization: `Bearer ${getAccessToken()}` }
-  } catch {
-    return {}
-  }
-}
-
 /** snowplow's collection read, as the person: every object of a category, or null when it was not read. */
-const listCategory = async (base: string, namespace: string, category: string): Promise<Json[] | null> => {
+const listCategory = async (fetchAs: WidgetTransport['fetch'], base: string, namespace: string, category: string): Promise<Json[] | null> => {
   try {
     const url = new URL(`${base.replace(/\/+$/, '')}/list`)
     url.searchParams.set('category', category)
     url.searchParams.set('ns', namespace)
-    const response = await fetch(url.toString(), { headers: { ...authHeader() }, signal: AbortSignal.timeout(READ_TIMEOUT_MS) })
+    const response = await fetchAs(url.toString(), { signal: AbortSignal.timeout(READ_TIMEOUT_MS) })
     const items: unknown = response.ok ? await response.json() : null
     return Array.isArray(items) ? items.map(asRecord).filter((item) => item !== null) : null
   } catch {
@@ -156,6 +148,8 @@ const listCategory = async (base: string, namespace: string, category: string): 
 }
 
 export interface SweepDeps {
+  /** The signed-in transport's fetch: this module never reads the token (transport/tokenReach.test.ts). */
+  fetch: WidgetTransport['fetch']
   /** The page draft held in this tab, read when it matters: again right before deleting. */
   heldPage: () => string | undefined
   now?: () => number
@@ -172,8 +166,8 @@ export const sweepOwnPreviews = async (deps: SweepDeps): Promise<{ pages: string
   const owner = draftOwner((deps.username ?? (() => getUserInfo().username))())
   if (!snowplowBaseUrl || owner === UNKNOWN_OWNER) { return 'not signed in, or no snowplow' }
   const [widgets, actions] = await Promise.all([
-    listCategory(snowplowBaseUrl, sandboxNamespace, 'widgets'),
-    listCategory(snowplowBaseUrl, sandboxNamespace, 'actions'),
+    listCategory(deps.fetch, snowplowBaseUrl, sandboxNamespace, 'widgets'),
+    listCategory(deps.fetch, snowplowBaseUrl, sandboxNamespace, 'actions'),
   ])
   if (!widgets || !actions) { return 'the sandbox was not read' }
   const listed = [...widgets, ...actions.filter(({ kind }) => kind === RESTACTION_KIND)]
