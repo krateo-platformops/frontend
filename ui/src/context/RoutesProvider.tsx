@@ -17,6 +17,7 @@ import Logout from '../pages/Logout'
 import Profile from '../pages/Profile'
 import PublicRoute, { isPublicPath, PUBLIC_ROUTE_PATHS } from '../public/PublicPage'
 
+import { PageParamsProvider } from './PageParamsContext'
 import { type AppRoute, RoutesContext, useRoutesContext } from './RoutesContext'
 
 // The authenticated area is a single persistent shell (the `Layout` widget from
@@ -53,12 +54,20 @@ const outsidePublicSpace = (routes: RouteObject[], source: string): RouteObject[
   return false
 })
 
-/** The shell's children, served as descendant routes: re-matched whenever the table changes. */
-const ShellRoutes = () => {
+const NO_ROUTES: RouteObject[] = []
+
+/** The pages' routes: the shell's children in the live table. */
+const usePageRoutes = (): RouteObject[] => {
   const { routes } = useRoutesContext()
   const shell = routes.find((route) => route.id === SHELL_ROUTE_ID) as NonIndexRouteObject | undefined
-  return useRoutes(shell?.children ?? [])
+  return shell?.children ?? NO_ROUTES
 }
+
+/** The shell's children, served as descendant routes: re-matched whenever the table changes. */
+const ShellRoutes = () => useRoutes(usePageRoutes())
+
+/** The shell, which knows the open page's params: its drawers and dialogs sit above the routes that match them. */
+const ShellElement = () => <PageParamsProvider routes={usePageRoutes()}><ShellRoute /></PageParamsProvider>
 
 const defaultRoutes: RouteObject[] = [
   { element: <Login />, path: '/login' },
@@ -79,7 +88,7 @@ const defaultRoutes: RouteObject[] = [
       // the shell serves itself, and the navigation's routes replace a builder route at the same path.
       { element: <WidgetPage />, path: '*' },
     ],
-    element: <ShellRoute />,
+    element: <ShellElement />,
     id: SHELL_ROUTE_ID,
   },
 ]

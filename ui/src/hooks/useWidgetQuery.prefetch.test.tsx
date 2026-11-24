@@ -35,19 +35,20 @@ const answers: Record<string, unknown> = {
 const reads: string[] = []
 let release: () => void = () => undefined
 let holdParent = false
-const fetchMock = vi.fn(async (url: string) => {
+const answerOrHold = async (url: string) => {
   const name = new URL(url).searchParams.get('name') ?? ''
   reads.push(name)
   if (name === 'page' && holdParent) {
     await new Promise<void>((resolve) => { release = resolve })
   }
   return new Response(JSON.stringify(answers[name] ?? {}), { headers: { 'Content-Type': 'application/json' }, status: 200 })
-})
+}
+const fetchMock = vi.fn(answerOrHold)
 
 beforeEach(() => {
   reads.length = 0
   holdParent = false
-  fetchMock.mockClear()
+  fetchMock.mockReset().mockImplementation(answerOrHold)
   vi.stubGlobal('fetch', fetchMock)
 })
 afterEach(() => {
@@ -73,6 +74,33 @@ describe('useWidgetQuery prefetches a container\'s first-render children on its 
     const child = renderHook(() => useWidgetQuery(CHILD), { wrapper: harness(queryClient) })
     await waitFor(() => { expect(child.result.current.queryResult.data).toMatchObject({ metadata: { name: 'hello' } }) })
     expect(reads, 'the child found its answer in the cache: one read each').toEqual(['page', 'hello'])
+  })
+
+  it('a child that mounts while its prefetch is in flight is not failed by a backend that was not ready', async () => {
+    let failures = 1
+    fetchMock.mockImplementation((url: string) => {
+      const name = new URL(url).searchParams.get('name') ?? ''
+      reads.push(name)
+      if (name === 'hello' && failures > 0) {
+        failures -= 1
+        return new Promise((resolve) => {
+          release = () => { resolve(new Response('{}', { status: 503 })) }
+        })
+      }
+      return Promise.resolve(new Response(JSON.stringify(answers[name] ?? {}), { status: 200 }))
+    })
+    const queryClient = client()
+    renderHook(() => useWidgetQuery(PARENT), { wrapper: harness(queryClient) })
+    await waitFor(() => { expect(reads).toEqual(['page', 'hello']) })
+    const child = renderHook(() => useWidgetQuery(CHILD), { wrapper: harness(queryClient) })
+    const states: string[] = []
+    release()
+    await waitFor(() => {
+      states.push(child.result.current.queryResult.status)
+      expect(child.result.current.queryResult.data).toMatchObject({ metadata: { name: 'hello' } })
+    }, { timeout: 4000 })
+    expect(states, 'never shown as failed').not.toContain('error')
+    expect(reads).toEqual(['page', 'hello', 'hello'])
   })
 
   it('reads nothing for a container that was unmounted before its answer arrived', async () => {
