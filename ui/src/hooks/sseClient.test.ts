@@ -649,6 +649,66 @@ describe('sseClient — reconnect after a dropped stream', () => {
       expect(FakeStream.instances[1]?.headers.Authorization).toBe('Bearer tok-after-resume')
     })
 
+    it('does not ask again for a token it already saw refused: that is a dead credential, not a fresh expiry (#503)', async () => {
+      // The cycle: a stream 401s, the resume reports success, the reopen presents the SAME token and
+      // 401s again, and the resume is raised again, with nothing the person does ending it.
+      nextStatus = 401
+      let errors = 0
+      subscribeSse('u', 't', { onError: () => { errors += 1 }, onMessage: noop })
+      await settleF()
+      for (let round = 0; round < 4; round += 1) {
+        resume.settle[round]?.('resumed')
+        // eslint-disable-next-line no-await-in-loop -- each round is a consequence of the last
+        await settleF()
+      }
+      expect(resume.raises).toBe(1)
+      expect(FakeStream.instances).toHaveLength(2)
+      expect(errors).toBe(2)
+      // Failed, not wedged: a later subscribe opens a fresh connection.
+      nextStatus = 200
+      auth.token.current = 'tok-later'
+      subscribeSse('u', 't', { onMessage: noop })
+      await settleF()
+      expect(FakeStream.instances).toHaveLength(3)
+    })
+
+    it('still asks when a NEW token is refused too: each refusal of a different token is its own expiry', async () => {
+      nextStatus = 401
+      subscribeSse('u', 't', { onMessage: noop })
+      await settleF()
+      auth.token.current = 'tok-2'
+      resume.settle[0]?.('resumed')
+      await settleF()
+      expect(resume.raises).toBe(2)
+    })
+
+    it('a token that opened a stream is not held against it when it expires later', async () => {
+      nextStatus = 401
+      subscribeSse('u', 't', { onMessage: noop })
+      await settleF()
+      nextStatus = 200
+      auth.token.current = 'tok-2'
+      resume.settle[0]?.('resumed')
+      await settleF()
+      nextStatus = 401
+      FakeStream.instances[1]?.end()
+      await elapse(PAST_FIRST_STEP)
+      expect(resume.raises).toBe(2)
+    })
+
+    it('a refused token that later opens a stream may expire like any other', async () => {
+      nextStatus = 401
+      subscribeSse('u', 't', { onMessage: noop })
+      await settleF()
+      nextStatus = 200
+      resume.settle[0]?.('resumed')
+      await settleF()
+      nextStatus = 401
+      FakeStream.instances[1]?.end()
+      await elapse(PAST_FIRST_STEP)
+      expect(resume.raises).toBe(2)
+    })
+
     it('drops the connection when the user did not resume', async () => {
       nextStatus = 401
       subscribeSse('u', 't', { onMessage: noop })
