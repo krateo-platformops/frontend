@@ -120,6 +120,40 @@ describe('Listy rowVariant: statistic', () => {
     expect(value('Open incidents').style.color).toBe(probe.style.color)
   })
 
+  // `highlight` is the RESTAction's verdict. The tile must not work one out from its number or colour.
+  describe('highlight', () => {
+    const marked = [
+      { color: 'red', label: 'Coloured, not highlighted', mark: false, value: '7' },
+      { color: 'red', label: 'Highlighted zero', mark: true, value: '0' },
+      { color: '', label: 'Highlighted, no colour', mark: true, value: '3' },
+      { color: 'red', label: 'Not said', value: '9' },
+    ]
+    const byData: ItemTemplate = { color: { value: '{color}' }, highlight: '{mark}', primaryText: '{label}', rowVariant: 'statistic', secondaryText: '{value}' }
+    const border = (label: string) => tile(label).style.borderColor
+
+    it('draws the border exactly where it is true, whatever the value and the colour', () => {
+      renderStrip(byData, marked)
+      expect(marked.map(({ label }) => border(label) !== '')).toEqual([false, true, true, false])
+      expect(value('Coloured, not highlighted').style.color).not.toBe('')
+    })
+
+    it('in the tile\'s colour, or the text colour when it has none', () => {
+      renderStrip(byData, marked)
+      expect(border('Highlighted zero')).toContain(getColorCode('red'))
+      expect(border('Highlighted, no colour')).toContain('var(--text-color)')
+    })
+
+    it('a borderless tile has none', () => {
+      renderStrip({ ...byData, tileVariant: 'borderless' }, marked)
+      expect(marked.map(({ label }) => border(label))).toEqual(['', '', '', ''])
+    })
+
+    it('absent from the template: the border follows the colour, as before', () => {
+      renderStrip({ ...byData, highlight: undefined }, marked)
+      expect(marked.map(({ label }) => border(label) !== '')).toEqual([true, true, false, true])
+    })
+  })
+
   it('no `color` at all: every tile neutral (not the gray fallback)', () => {
     renderStrip({ ...template, color: undefined })
     for (const { label } of strip) {

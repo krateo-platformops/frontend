@@ -148,6 +148,10 @@ export interface Listy {
          */
         tileVariant?: 'outlined' | 'borderless'
         /**
+         * statistic rowVariant: {dot.path} to a boolean the RESTAction computes. true draws the tile's border in its `color` (in the text colour when it has none), anything else leaves the neutral border. The tile never reads its own value to decide. Absent: the border follows `color`. A borderless tile has no border to highlight
+         */
+        highlight?: string
+        /**
          * row layout: default (antd List.Item.Meta — avatar + stacked title/description) | tree (tight single-line mono Relations row: status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile — icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons — the Marketplace catalog grid) | chip (compact navigable filter pill — primaryText label + optional count, solid/amber when the item's active flag is set — the data-driven Marketplace facet chips; a chip whose data element carries `removable: true` is an applied filter: a trailing remove mark, the accessible name "Remove filter: <primaryText>", and its navigateTo is the URL without that value) | statistic (one tile of a stats strip: an antd Card holding an antd Statistic, primaryText the title, secondaryText the value, subPrimaryText a secondary caption; `color` tints the value and frame ONLY when it resolves, so the healthy majority stays neutral; without `grid` the tiles fill the row and reflow as it narrows)
          */
         rowVariant?: 'default' | 'tree' | 'card' | 'chip' | 'statistic'
