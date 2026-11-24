@@ -19,15 +19,23 @@ const asRecord = (value: unknown): Json | null =>
 const GROUP = /^core\.krateo\.io(?:\/|$)/
 const SEMVER_ARCHIVE = /^\d+\.\d+\.\d+[^/]*\.tgz$/
 
-/** Whether a CompositionDefinition's `spec.chart` names this chart: its repo, its OCI path, or its archive. */
-export const namesChart = (chart: { repo?: unknown; url?: unknown }, name: string): boolean => {
-  if (chart.repo === name) { return true }
-  if (typeof chart.url !== 'string') { return false }
+/**
+ * Whether a CompositionDefinition's `spec.chart` names this chart (its repo, its OCI path, or its archive),
+ * another, or none. `unknown` is for the caller to judge: core-provider's chart gate, which sees the final
+ * render, refuses it; a draft's empty value can look like it, so nothing here does.
+ */
+export const chartReference = (chart: { repo?: unknown; url?: unknown }, name: string): 'other' | 'own' | 'unknown' => {
+  if (chart.repo === name) { return 'own' }
+  const repo = typeof chart.repo === 'string' && chart.repo.trim() !== ''
+  if (typeof chart.url !== 'string' || !chart.url.trim()) { return repo ? 'other' : 'unknown' }
   const path = chart.url.trim().replace(/[?#].*$/, '').replace(/\/+$/, '')
   const last = path.slice(path.lastIndexOf('/') + 1)
   const bare = last.replace(/@.*$/, '').replace(/:[^:]*$/, '')
-  return bare === name || (last.startsWith(`${name}-`) && SEMVER_ARCHIVE.test(last.slice(name.length + 1)))
+  const archive = last.startsWith(`${name}-`) && SEMVER_ARCHIVE.test(last.slice(name.length + 1))
+  return bare === name || archive ? 'own' : 'other'
 }
+
+const namesChart = (chart: { repo?: unknown; url?: unknown }, name: string): boolean => chartReference(chart, name) === 'own'
 
 const problem = (where: string, name: string): string =>
   `${where}: this CompositionDefinition installs the chart it is part of (${name}), so a composition could rewrite or delete its own registration. Remove it: the portal writes compositiondefinition.yaml when you publish.`

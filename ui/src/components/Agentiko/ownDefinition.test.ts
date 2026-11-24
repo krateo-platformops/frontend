@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import { lintBlueprintDraft } from './blueprintDraft'
 import { judgeRender } from './blueprintRenderSandbox'
-import { namesChart, ownDefinitionProblems } from './ownDefinition'
+import { chartReference, ownDefinitionProblems } from './ownDefinition'
 
 const CHART = {
   'Chart.yaml': 'apiVersion: v2\nname: my-bp\nversion: 0.1.0\ntype: application\n',
@@ -16,24 +16,26 @@ const cd = (chart: string, head = '') => `${head}apiVersion: core.krateo.io/v1al
 const OWN = cd('    url: oci://ghcr.io/org/charts/my-bp\n    version: 0.1.0\n')
 const OTHER = cd('    url: oci://ghcr.io/org/charts/other\n    version: 1.0.0\n')
 
-describe('namesChart', () => {
-  const cases: [string, { repo?: string; url?: string }, boolean][] = [
-    ['the OCI path', { url: 'oci://ghcr.io/org/charts/my-bp' }, true],
-    ['a trailing slash', { url: 'oci://ghcr.io/org/charts/my-bp/' }, true],
-    ['a tag', { url: 'oci://ghcr.io/org/charts/my-bp:1.2.3' }, true],
-    ['a digest', { url: 'oci://ghcr.io/org/charts/my-bp@sha256:abc' }, true],
-    ['a registry with a port', { url: 'oci://localhost:5000/charts/my-bp' }, true],
-    ['the repo field', { repo: 'my-bp', url: 'https://charts.example.com' }, true],
-    ['an archive', { url: 'https://example.com/my-bp-1.2.3.tgz?x=1' }, true],
-    ['a pre-release archive', { url: 'https://example.com/my-bp-1.2.3-rc.1.tgz' }, true],
-    ['another chart', { url: 'oci://ghcr.io/org/charts/other' }, false],
-    ['a chart whose name starts the same', { url: 'oci://ghcr.io/org/charts/my-bp-extra' }, false],
-    ['an archive whose name starts the same', { url: 'https://example.com/my-bp-extra-1.2.3.tgz' }, false],
-    ['this name elsewhere in the path', { url: 'oci://ghcr.io/my-bp/charts/other' }, false],
-    ['nothing named', {}, false],
+describe('chartReference', () => {
+  const cases: [string, { repo?: string; url?: string }, ReturnType<typeof chartReference>][] = [
+    ['the OCI path', { url: 'oci://ghcr.io/org/charts/my-bp' }, 'own'],
+    ['a trailing slash', { url: 'oci://ghcr.io/org/charts/my-bp/' }, 'own'],
+    ['a tag', { url: 'oci://ghcr.io/org/charts/my-bp:1.2.3' }, 'own'],
+    ['a digest', { url: 'oci://ghcr.io/org/charts/my-bp@sha256:abc' }, 'own'],
+    ['a registry with a port', { url: 'oci://localhost:5000/charts/my-bp' }, 'own'],
+    ['the repo field', { repo: 'my-bp', url: 'https://charts.example.com' }, 'own'],
+    ['an archive', { url: 'https://example.com/my-bp-1.2.3.tgz?x=1' }, 'own'],
+    ['a pre-release archive', { url: 'https://example.com/my-bp-1.2.3-rc.1.tgz' }, 'own'],
+    ['another chart', { url: 'oci://ghcr.io/org/charts/other' }, 'other'],
+    ['a chart whose name starts the same', { url: 'oci://ghcr.io/org/charts/my-bp-extra' }, 'other'],
+    ['an archive whose name starts the same', { url: 'https://example.com/my-bp-extra-1.2.3.tgz' }, 'other'],
+    ['this name elsewhere in the path', { url: 'oci://ghcr.io/my-bp/charts/other' }, 'other'],
+    ['nothing named', {}, 'unknown'],
+    ['an empty url', { url: ' ' }, 'unknown'],
+    ['only another repo', { repo: 'other' }, 'other'],
   ]
   for (const [why, chart, want] of cases) {
-    it(why, () => { expect(namesChart(chart, 'my-bp')).toBe(want) })
+    it(why, () => { expect(chartReference(chart, 'my-bp')).toBe(want) })
   }
 })
 
