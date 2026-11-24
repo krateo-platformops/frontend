@@ -43,6 +43,18 @@ for p in / /login /compositions/team-a/web.v1 /compositions/team-a/shop /public/
 # Dots that are not a hidden file, and what a file extension cannot rule out (docs/configuration.md).
 for p in /secrets.env /proc/self/environ; do ask shell "$p"; done
 ask 200 /assets/index-abc.js; ask 200 /config/config.json; ask 404 /assets/missing.js; ask 400 /../../etc/passwd
+# Whether a browser may reuse an answer without asking: never the shell or the config (a roll changes them
+# under the same address), always a hashed asset, and nothing said for what the agents answer.
+cached() {
+  local want=$1 path=$2 got
+  got=$(curl -s --max-time 30 -o /dev/null -D - "$BASE$path" | tr -d '\r' | awk -F': ' 'tolower($1)=="cache-control"{print $2}')
+  if [ "$got" = "$want" ]; then echo "[PASS] $path cache-control -> ${got:-none}"; else echo "[FAIL] $path cache-control -> ${got:-none}, want ${want:-none}"; bad=$((bad + 1)); fi
+}
+for p in / /index.html /login /compositions/team-a/shop /config/config.json; do cached no-cache "$p"; done
+cached 'public, max-age=31536000, immutable' /assets/index-abc.js; cached '' /assets/missing.js; cached '' /agentiko/; cached '' /.env
+etag=$(curl -s -o /dev/null -D - "$BASE/compositions/team-a/shop" | tr -d '\r' | awk -F': ' 'tolower($1)=="etag"{print $2}')
+again=$(curl -s -o /dev/null -w '%{http_code}' -H "If-None-Match: $etag" "$BASE/compositions/team-a/shop")
+if [ -n "$etag" ] && [ "$again" = 304 ]; then echo "[PASS] an unchanged shell -> 304"; else echo "[FAIL] an unchanged shell -> $again (etag ${etag:-none})"; bad=$((bad + 1)); fi
 for a in agentiko autopilot; do
   ask "AGENT GET /api/a2a/krateo-system/$a/" "/$a/"
   ask "AGENT GET /api/a2a/krateo-system/$a/.well-known/agent-card.json" "/$a/.well-known/agent-card.json"
