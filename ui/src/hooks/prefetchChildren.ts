@@ -25,6 +25,7 @@ import type { WidgetTransport } from '../transport/widgetTransport'
 import type { Widget } from '../types/Widget'
 
 import { fetchWidgetPage, type WidgetRead, widgetQueryKey } from './widgetRequest'
+import { shouldRetryWidgetFetch, widgetFetchRetryDelay } from './widgetRetry'
 
 /** What a child's read shares with its parent's: the install, the transport, and the extras a widget with no caller extras sends. */
 export interface ChildReadContext {
@@ -83,7 +84,10 @@ export const prefetchChildren = (queryClient: QueryClient, widget: Widget, conte
       const refreshWidgetId = context.liveRefresh ? JSON.stringify(queryKey) : undefined
       const read: WidgetRead = { extrasInBody: context.extrasInBody, extrasParam: context.childExtrasParam, refreshWidgetId, transport: context.transport, url: `${context.baseUrl}${endpoint}` }
       const initialPageParam: { page?: number; perPage?: number } = {}
-      void queryClient.prefetchInfiniteQuery({ initialPageParam, queryFn: childPages(read, prefetch), queryKey, retry: false })
+      // The child's own retry policy (widgetRetry.ts): a child that mounts while this read is in flight
+      // joins it, and would otherwise show a backend that is not ready yet as a failure at once. Only while the page is displayed, like every other read started here.
+      const retry = (failureCount: number, error: unknown) => context.isWanted() && shouldRetryWidgetFetch(failureCount, error)
+      void queryClient.prefetchInfiniteQuery({ initialPageParam, queryFn: childPages(read, prefetch), queryKey, retry, retryDelay: widgetFetchRetryDelay })
     }
   }
   prefetch(widget)
