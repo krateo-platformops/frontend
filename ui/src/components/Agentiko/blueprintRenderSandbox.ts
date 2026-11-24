@@ -28,6 +28,8 @@ import type { SetDispatchOptions, WriteOpResult } from '../../hooks/runRestSet'
 import type { WriteOp } from '../BlastRadius/buildBlastRadius'
 
 import { buildSetOpPath, type ApplyResourceSetOp } from './applyResourceSet'
+import { CHART_YAML_PATH, chartYamlName } from './blueprintDraft'
+import { refuseOwnDefinition } from './ownDefinition'
 import {
   type BlueprintPreviewArgs,
   callBlueprintRenderRA,
@@ -148,6 +150,10 @@ export const renderDraftViaSandbox = async (
   return /^blueprint-render-draft RESTAction (responded|unreachable)/.test(answered.value.error ?? '') ? null : answered.value
 }
 
+/** A DRAFT's render must not register the draft's own chart (ownDefinition.ts). A published chart's dry run is only looked at. */
+export const judgeRender = (rendered: HelmRenderResult, args: BlueprintPreviewArgs): HelmRenderResult =>
+  (args.rawTemplates ? refuseOwnDefinition(rendered, chartYamlName(args.rawTemplates[CHART_YAML_PATH])) : rendered)
+
 /**
  * Render a blueprint preview: an inline draft through the sandbox when there is one, and the
  * ?extras RESTAction otherwise — a published chart's dry run (a URL, never large), or any draft the
@@ -162,8 +168,8 @@ export const renderBlueprint = async (
   if (writer && args.rawTemplates) {
     const viaSandbox = await renderDraftViaSandbox(snowplowBaseUrl, frontendNamespace, args, writer)
     if (viaSandbox) {
-      return viaSandbox
+      return judgeRender(viaSandbox, args)
     }
   }
-  return callBlueprintRenderRA(snowplowBaseUrl, frontendNamespace, args)
+  return judgeRender(await callBlueprintRenderRA(snowplowBaseUrl, frontendNamespace, args), args)
 }
