@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: jwt-sign-key
-  namespace: krateo-system
-type: Opaque
-stringData:
-  JWT_SIGN_KEY: AbbraCadabbra
