@@ -144,8 +144,8 @@ export const startDraft = (input: StartDraftInput): StartDraftResult => {
         // AND IT STAYS NOT-INTENT AFTER THE FIRST DROP. `placeChild` must append each child's
         // plural or the child will not render, so this list does not stay empty — it grows, and a
         // grown list read as a declaration is what locked a page to rows the moment a Row landed
-        // in it. The root is annotated as composer-derived for the same reason every container the
-        // composer creates is; see DERIVED_ALLOWED_ANNOTATION.
+        // in it. The root is annotated as builder-derived for the same reason every container the
+        // builder creates is; see DERIVED_ALLOWED_ANNOTATION.
         allowedResources: [],
         gap: 'middle',
         items: [{ resourceRefId: headerName }],

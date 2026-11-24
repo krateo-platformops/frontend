@@ -1,13 +1,13 @@
 /**
- * "Saved · HH:MM" — the composer header's word on the held draft's record (useDraftAutosave).
+ * "Saved · HH:MM" — the builder header's word on the held draft's record (useDraftAutosave).
  *
  * THREE STATES AND NOTHING ELSE. Saving while a write is in flight; Saved with the time of the last
  * write that LANDED; Not saved with the apiserver's reason when one did not — never silent, because
  * a person who believes their work is stored closes the tab. Before the first save, and when the
  * install has no sandbox to save into (`off`), it shows nothing: there is no claim to make yet.
  *
- * A composer shows only its OWN kind's status: a page held while the blueprint composer is open is
- * not this composer's draft, and its "Saved" would be read as the chart's.
+ * A builder shows only its OWN kind's status: a page held while the blueprint builder is open is
+ * not this builder's draft, and its "Saved" would be read as the chart's.
  */
 import { CheckOutlined } from '@ant-design/icons'
 

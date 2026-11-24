@@ -1,11 +1,11 @@
 /**
- * The two frames a composer's slots sit in, by the name its canvas plugin declares (T4, frontend#410).
+ * The two frames a builder's slots sit in, by the name its canvas plugin declares (T4, frontend#410).
  *
- * - `panes` — the Blueprint Composer's layout, and the host's default shape: an in-page head (eyebrow
+ * - `panes` — the Blueprint Builder's layout, and the host's default shape: an in-page head (eyebrow
  *   `<label> / Compose`, the draft's name and a mono meta line, the save indicator, the file-count and
  *   "Preview needed" pills, Preview · Undo · Publish · Close draft, Publish gated with its reason), then
  *   palette 200px | centre (canvas over the files pane) | side 300px, each pane its own scroller.
- * - `split` — the Page Composer's: a title and subtitle head with the actions under it, then palette
+ * - `split` — the Portal Builder's: a title and subtitle head with the actions under it, then palette
  *   | centre (canvas, a draggable SplitDivider, the live result below it — which Preview scrolls to)
  *   | the object tree. A page canvas grows with the page, and the live render wants the width.
  *

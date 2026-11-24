@@ -1,8 +1,8 @@
 /**
- * Whether the held draft's RECORD is saved — the one fact the composer header says about autosave.
+ * Whether the held draft's RECORD is saved — the one fact the builder header says about autosave.
  *
  * WHY MODULE STATE. The autosave lives in the provider (it hangs off the held-draft store), and the
- * composers are routes that do not sit under the provider's context. A tiny external store read
+ * builders are routes that do not sit under the provider's context. A tiny external store read
  * through useSyncExternalStore reaches both without threading a prop through the router, and it
  * survives a provider remount the same way the conversation store does.
  *
@@ -19,7 +19,7 @@ export type DraftSavePhase = 'off' | 'idle' | 'saving' | 'saved' | 'error'
 
 export interface DraftSaveStatus {
   phase: DraftSavePhase
-  /** The kind of the draft the phase is about — a composer shows only its own kind's status. */
+  /** The kind of the draft the phase is about — a builder shows only its own kind's status. */
   kind?: DraftKind
   /** RFC 3339 time of the last save that landed (phase `saved`). */
   savedAt?: string
@@ -56,7 +56,7 @@ export const useDraftSaveStatus = (): DraftSaveStatus =>
  * Whether closing the held draft of `kind` leaves it stored. A close writes any pending save before
  * the draft goes (useDraftAutosave), so a record that is saving, saved, or about to be is kept;
  * `off` (no sandbox) and `error` (the last save failed) mean the close loses the files, and the
- * composer's confirm must still say so.
+ * builder's confirm must still say so.
  */
 export const draftKeptOnClose = (status: DraftSaveStatus, kind: DraftKind): boolean =>
   status.kind === kind && (status.phase === 'idle' || status.phase === 'saving' || status.phase === 'saved')

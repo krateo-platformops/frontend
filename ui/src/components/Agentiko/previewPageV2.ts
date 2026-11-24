@@ -127,9 +127,9 @@ export const LIVE_PREVIEW_CAPTION
   = 'Live preview — the drafts are applied to the quarantined preview sandbox and rendered by the real server, with your identity and permissions. Closing this drawer removes them.'
 
 /**
- * The same explanation for the COMPOSER, which embeds the preview inline and has no drawer.
+ * The same explanation for the BUILDER, which embeds the preview inline and has no drawer.
  *
- * The sentence above ends "Closing this drawer removes them", and the composer was showing it
+ * The sentence above ends "Closing this drawer removes them", and the builder was showing it
  * verbatim in the lower half of its split — describing a control that is not on the reader's
  * screen. Theirs is "Close draft", and saying so is the difference between an explanation and a
  * puzzle.
@@ -186,7 +186,7 @@ const dispatchBestEffort = async (ops: readonly ApplyResourceSetOp[], deps: Prev
 /**
  * WHAT THIS TAB LAST APPLIED, per sandbox object: the base an in-place update diffs against.
  *
- * WHY, from the recordings. Every composer edit (a drop, a bind) re-applies the whole page. The
+ * WHY, from the recordings. Every builder edit (a drop, a bind) re-applies the whole page. The
  * apply used to DELETE every name it was about to write and then POST it again, and the rendered
  * page, still mounted on the same root endpoint and invalidated by the sweep's own write, refetched
  * in between: for seconds the Rendered tab showed `pageheaders … "page-…-header-…" not found` for a
@@ -364,7 +364,7 @@ const dispatchEntries = async (
 /**
  * A DISCARD, not a drawer close: delete whatever live preview is applied, whichever surface's
  * payload rendered it. The payload's own close is epoch-guarded and reaches only the render that
- * payload came with — a composer that mounted after the render was applied never had it.
+ * payload came with — a builder that mounted after the render was applied never had it.
  */
 export const discardPreviewSandbox = async (deps: PreviewPageV2Deps): Promise<void> => {
   appliedOf(deps.session).clear()
@@ -429,7 +429,7 @@ export const applyPreviewPageV2 = async (
   //
   // An EDIT NEVER DELETES WHAT IT KEEPS. The apply used to sweep (DELETE) every name it was about
   // to write and then POST them all again; the rendered page refetched in the gap and showed "Not
-  // found" cards for widgets the edit never touched (the composer re-applies on every drop and
+  // found" cards for widgets the edit never touched (the builder re-applies on every drop and
   // bind). Now each name this tab wrote last time is PATCHed in place, and each new name is POSTed,
   // before any PATCH, so a container never points at a child that is not there yet.
   //

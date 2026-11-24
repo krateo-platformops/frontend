@@ -113,7 +113,7 @@ describe('previewBlueprint', () => {
     const payload = openedPayload()
     expect(payload.title).toBe('Blueprint preview — aws-vpc')
     // A published chart's dry run holds nothing: an inspection, shown in the drawer, never adopted
-    // by a page composer and never written into by a Files-tab edit.
+    // by a portal builder and never written into by a Files-tab edit.
     expect(payload.builder).toBe('inspect')
     expect(payload.error).toBeUndefined()
     expect(payload.objects).toEqual([{ apiVersion: 'apps/v1', kind: 'Deployment', name: 'web', namespace: 'demo', yaml: 'kind: Deployment' }])
@@ -226,7 +226,7 @@ describe('previewPage — honest source preview, zero network', () => {
     expect(payload.objects).toHaveLength(2)
     expect(payload.objects?.[0]).toMatchObject({ kind: 'Flex', name: 'page-root', namespace: 'krateo-system' })
     expect(payload.caption).toContain('Source preview')
-    // A page is the one kind with no `builder` — the composer adopts exactly those.
+    // A page is the one kind with no `builder` — the Portal Builder adopts exactly those.
     expect(payload.builder).toBeUndefined()
     expect(chip).toEqual({ label: 'preview page (2 widgets)', readOnly: true, verb: 'previewPage' })
   })
@@ -371,7 +371,7 @@ describe('explainUpgradeImpact — the version-diff explain verb', () => {
 describe('describeResource — an inspection, not a draft', () => {
   it('opens the drawer tagged as an inspection, even when the CRD read fails', async () => {
     // A 404 is content, not a throw — and either way the payload must not read as a PAGE draft, or a
-    // mounted page composer adopts a CRD description as the page being authored.
+    // mounted portal builder adopts a CRD description as the page being authored.
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ json: () => Promise.resolve({}), ok: false, status: 404 })))
     await describeResourceSpec.apply(
       asProposal('describeResource', { gvr: { group: 'github.krateo.io', resource: 'repositories', version: 'v1alpha1' } }),

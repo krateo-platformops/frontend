@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * A PERSON starting and previewing a chart — the two steps the agent's previewBlueprint verb does in
- * one, split so the composer can hold a chart before anything has rendered it.
+ * one, split so the builder can hold a chart before anything has rendered it.
  *
  * What these pin, each a way the person's chart could be lost or published unrendered:
  *   - a start holds the tree BEFORE the render answers, and never arms it;

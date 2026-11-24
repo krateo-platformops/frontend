@@ -63,7 +63,7 @@ export interface TreeNode {
   bound: boolean
   /**
    * The RESTAction its `spec.apiRef` names, or null. This is where a RESTAction appears in the
-   * composer: beside the widget that reads it, never as a node of its own (see buildObjectTree).
+   * builder: beside the widget that reads it, never as a node of its own (see buildObjectTree).
    */
   dataSource: string | null
   /**
@@ -78,10 +78,10 @@ export interface TreeNode {
    */
   allowedResources: readonly string[] | null
   /**
-   * True when `allowedResources` was GROWN by the composer rather than written by an author.
+   * True when `allowedResources` was GROWN by the builder rather than written by an author.
    *
    * The list cannot say where it came from and the difference decides whether it is a rule. See
-   * DERIVED_ALLOWED_ANNOTATION in structureEdit — a container the composer created is annotated at
+   * DERIVED_ALLOWED_ANNOTATION in structureEdit — a container the builder created is annotated at
    * creation, and editing the file is how an author takes ownership of the declaration.
    */
   allowedDerived: boolean
@@ -136,7 +136,7 @@ interface ParsedObject {
   dataSource: string | null
   namespace: string | null
   allowedResources: readonly string[] | null
-  /** Whether that list was grown by the composer rather than declared — see the TreeNode field. */
+  /** Whether that list was grown by the builder rather than declared — see the TreeNode field. */
   allowedDerived: boolean
   /** Ordered children, each carrying BOTH the parent's id for it and the name it resolves to. */
   children: ChildRef[]

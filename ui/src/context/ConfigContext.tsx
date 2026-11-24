@@ -71,7 +71,7 @@ export interface AgentikoConfigValues {
    * `/chat/completions` on the agent gateway (the dedicated `/stt/v1` route when the
    * platform ships it, `<gateway>/llm/v1/chat/completions` otherwise). ITS PRESENCE IS
    * THE ON/OFF SWITCH (voice spec FR 4): absent or empty, the microphone control does
-   * not render and the composer's DOM is unchanged. Nothing is hard-coded — no default
+   * not render and the builder's DOM is unchanged. Nothing is hard-coded — no default
    * path, no derived origin — because the route is still with the platform team.
    * Dictation ALSO requires `isSecureContext`, so this key alone does not enable it. */
   VOICE_TRANSCRIBE_URL?: string
@@ -268,7 +268,7 @@ interface ConfigContextType {
  * Exported so a surface can read the config WITHOUT the throwing hook.
  *
  * `useConfigContext` throws when no provider is above it, which is right for a component that
- * cannot work without config. A route that merely degrades — the page composer loses its
+ * cannot work without config. A route that merely degrades — the portal builder loses its
  * widget-picker list and says so — must not take the whole page down instead, and must stay
  * mountable bare in tests, which is a property those tests deliberately assert.
  */

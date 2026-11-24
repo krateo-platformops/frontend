@@ -2,7 +2,7 @@
  * CONDITIONS — which values select the machine (mockup screens 8b/8c).
  *
  * A node with `when: .Values.x` renders only while that value is truthy, and an edge can carry its
- * own `when`. So the chart has one machine per combination of those values, and the composer, which
+ * own `when`. So the chart has one machine per combination of those values, and the builder, which
  * has no install's values, used to show only the one its defaults select. Each distinct path is a
  * CONDITION: it starts at what `values.yaml` gives (the machine a default install runs) and can be
  * switched to see the other variant. Switching is a VIEW, never an edit — nothing here writes.

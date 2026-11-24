@@ -1,6 +1,6 @@
 /**
  * The canvas's "… only" tag is shown only where it is true. The demo that caught it: a page started
- * in the composer, a Card dropped in, and the page Flex tagged "cards only" beside its PageHeader.
+ * in the builder, a Card dropped in, and the page Flex tagged "cards only" beside its PageHeader.
  */
 import { dump } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
@@ -14,7 +14,7 @@ import { startDraft } from './startDraft'
 
 const DUMP = { lineWidth: -1, noRefs: true } as const
 
-/** A started page, as the files the composer holds. */
+/** A started page, as the files the builder holds. */
 const startedPage = (slug: string): Record<string, string> => {
   const result = startDraft({ namespace: 'krateo-system', slug })
   if (!result.ok) { throw new Error(result.error) }
@@ -47,7 +47,7 @@ describe('containerTag', () => {
     const after = { ...before, ...(plan.created ? { [plan.created.path]: plan.created.content } : {}), ...plan.files }
 
     const page = find(after, 'page-demo-pb-21')
-    // The state the demo showed: the list the composer grew says `cards`, the page holds more.
+    // The state the demo showed: the list the builder grew says `cards`, the page holds more.
     expect(page.allowedResources).toEqual(['cards'])
     expect(page.children.map((child) => child.kind)).toEqual(['PageHeader', 'Card'])
     // And it is not a rule: the page still takes anything.

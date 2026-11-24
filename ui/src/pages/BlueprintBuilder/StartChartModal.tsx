@@ -17,7 +17,7 @@
  * THE ANSWER IS THE PROVIDER'S. Start emits the files on the chart-start bus and the provider holds
  * them — or refuses, and says why. A refusal (a draft is already open, the tree is over the cap)
  * stays in this modal, where the person can act on it; anything else means the chart is held, and
- * the composer takes over.
+ * the builder takes over.
  *
  * A REFUSAL IS HEARD, NOT ONLY SEEN. Each field names the text under it as its description and says
  * when it is invalid, and a refused Start moves focus to the first refused field — so a screen reader

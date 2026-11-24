@@ -1,12 +1,12 @@
 /**
- * The Blueprint Composer styles from tokens (T1, T4) — the Page Composer's design-token test, held
+ * The Blueprint Builder styles from tokens (T1, T4) — the Portal Builder's design-token test, held
  * to this directory, plus the one check its stylesheet needs that the CSS lint does not make.
  *
  * `design/lint/lint-css-tokens.py` reads `.module.css` for hex literals, off-scale spacing and
  * font sizes, and resolves a `var()` only inside a font-size. It never reads TSX, and it does not
  * ask whether a COLOUR var names anything: `var(--accentsoft-color)` — one letter's case away from
  * the real `--accentSoft-color` — would pass it and paint nothing, in both themes, silently. The
- * composer draws every state of the machine from those colour vars, so a dead one is a state the
+ * builder draws every state of the machine from those colour vars, so a dead one is a state the
  * canvas cannot show. Hence: every var() here, in TSX and CSS alike, must be one the theme emits.
  */
 import { readFileSync, readdirSync } from 'node:fs'

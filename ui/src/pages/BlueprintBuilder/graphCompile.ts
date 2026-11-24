@@ -21,7 +21,7 @@
  *              condition gateGen wraps an edge in, so the page and the gate read an edge alike.
  *   level      from deriveStates; `states` names every level (unnamed ones as `level-<n>`).
  * The composition's own coordinates come from the `global` block CDC adds to every render; they are
- * empty under `helm template` and in the composer's Preview, which is expected. `v` versions the
+ * empty under `helm template` and in the builder's Preview, which is expected. `v` versions the
  * JSON so the RESTAction that reads it can refuse a shape it does not know.
  *
  * THE BLOCK IS OWNED, like a gate block: it sits between two markers, and it is regenerated from the

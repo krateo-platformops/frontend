@@ -1,6 +1,6 @@
 /**
  * The Controller Builder's slot plugins (T8, frontend#412) — `openapi` (palette), `restdef-graph`
- * (canvas, in the `panes` frame the Blueprint Composer uses) and `restdef-mapping` (inspector) — each
+ * (canvas, in the `panes` frame the Blueprint Builder uses) and `restdef-mapping` (inspector) — each
  * drawing its part of the controller workbench (useControllerWorkbench). Registered by name in
  * builders/pluginRegistry.ts.
  */

@@ -1,4 +1,4 @@
-/* Blueprint Composer — a chart, its architecture graph, the machine that graph derives, and the
+/* Blueprint Builder — a chart, its architecture graph, the machine that graph derives, and the
    files a publish commits. Mockup screens 2, 3, 4, 5, 8, 9 and 10.
 
    TOKENS ONLY, and the mockup's own names map onto them one for one: --panel is --panelbg-color,
@@ -10,12 +10,12 @@
    The Architecture pane's own rules are in ArchitectureCanvas.module.css. */
 
 /* The page: one screen tall, the header fixed and the work area below it scrolling. `container-type`
-   for the same reason as the Page Composer: the width is set by the Agentiko rail, not the
+   for the same reason as the Portal Builder: the width is set by the Agentiko rail, not the
    viewport, so the two columns wrap on the space they actually have and no sixth breakpoint is
    invented (T6). */
 .page {
   box-sizing: border-box;
-  container-name: blueprint-composer;
+  container-name: blueprint-builder;
   container-type: inline-size;
   display: flex;
   flex-direction: column;
@@ -66,7 +66,7 @@
   overflow-wrap: anywhere;
 }
 
-/* The page title when no chart is open — the composer's own name, a step up the scale (screen 2). */
+/* The page title when no chart is open — the builder's own name, a step up the scale (screen 2). */
 .pageTitle {
   color: var(--text-color);
   font-size: var(--krateo-text-h2);
@@ -705,7 +705,7 @@
  * minimum: at 900 the canvas still has about 400px. A container query measures the content box, so
  * the page's padding is not part of the number.
  */
-@container blueprint-composer (min-width: 900px) {
+@container blueprint-builder (min-width: 900px) {
   .body {
     align-items: stretch;
     flex-wrap: nowrap;

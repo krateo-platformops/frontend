@@ -119,7 +119,7 @@ const forgetOtherDraftsHistory = (replaced: string | null, held: BlueprintDraftH
 export const blueprintChipRendered = (chip: { rendered?: boolean }): boolean => chip.rendered === true
 
 /**
- * FE-BP1/BP2, moved out of the provider so a preview a PERSON starts from the composer arms the
+ * FE-BP1/BP2, moved out of the provider so a preview a PERSON starts from the builder arms the
  * same gate a proposed one does. Holds the previewed tree (published bytes == previewed bytes) and
  * arms the blueprint gate for its Chart.yaml name — only when the draft is lint-clean AND the
  * render succeeded. `previewFailed` is the half the lint cannot see: a chart that fails

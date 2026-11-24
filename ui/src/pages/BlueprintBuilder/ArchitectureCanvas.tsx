@@ -204,7 +204,7 @@ export const ArchitectureCanvas = ({
       >
         <p className={canvas.canvasStateText}>
           There is no <code>{ARCHITECTURE_TEMPLATE_PATH}</code>, so there is no graph to draw and no states to step.
-          Charts written before the composer — or by an agent that did not write one — look like this. Chart files,
+          Charts written before the Blueprint Builder, or by an agent that did not write one, look like this. Chart files,
           Preview and Publish still work. Add the file to describe what the chart deploys and what waits for what;
           it starts empty, and adding it means previewing again before you publish.
         </p>
@@ -215,7 +215,7 @@ export const ArchitectureCanvas = ({
       <CanvasState action={openDescriptor} title='The architecture file carries no descriptor'>
         <p className={canvas.canvasStateText}>
           <code>{ARCHITECTURE_TEMPLATE_PATH}</code> is here, but not the <code>data.architecture</code> block the
-          composer and the composition detail page read the descriptor from. Put the block back in Chart files.
+          Blueprint Builder and the composition detail page read the descriptor from. Put the block back in Chart files.
         </p>
       </CanvasState>
     )

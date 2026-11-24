@@ -17,7 +17,7 @@ export const WidgetLoading = () => (
  * that can only describe a void sends the reader away to find the thing that fills it; the one
  * place a "start something" control belongs is inside the emptiness it resolves. Without the slot,
  * a surface needing that control had to hand-roll its own `<Empty>` — which is exactly the drift
- * C14 exists to prevent, and the Page Composer had already drifted that way.
+ * C14 exists to prevent, and the Portal Builder had already drifted that way.
  *
  * Optional, so every existing caller is unchanged and renders the same markup as before.
  */

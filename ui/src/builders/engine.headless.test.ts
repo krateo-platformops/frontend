@@ -1,7 +1,7 @@
 /**
  * THE ENGINE, HEADLESS, DRIVEN BY A STUB BUILDER (T2, frontend#408).
  *
- * No composer is mounted. A Builder that is NOT one of the fixtures — its own name, label, verbs,
+ * No page is mounted. A Builder that is NOT one of the fixtures — its own name, label, verbs,
  * lint list and destination keys — replaces the registry, and a draft goes start → edit → preview →
  * publish through the engine's own functions. Every assertion is something the stub's SPEC decided:
  * which verb publishes, where it goes, which lint refuses, what a refusal calls the builder. Were any

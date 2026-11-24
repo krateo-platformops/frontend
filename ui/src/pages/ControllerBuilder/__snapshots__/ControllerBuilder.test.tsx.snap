@@ -56,6 +56,74 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a controller gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Point at an OpenAPI document"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Give the document by URL or upload it. The builder lists the operations it describes."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Map operations to kinds"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "For each Kubernetes kind, choose the operations that create, get, update, delete and list it."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Identity and credentials"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Say which field identifies a resource, and how the controller authenticates to the API it calls."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Generate the RestDefinitions, check them, and publish the chart as a change request. Once merged, register and install it from the Controller Builder's page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -889,6 +957,74 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a controller gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Point at an OpenAPI document"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Give the document by URL or upload it. The builder lists the operations it describes."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Map operations to kinds"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "For each Kubernetes kind, choose the operations that create, get, update, delete and list it."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Identity and credentials"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Say which field identifies a resource, and how the controller authenticates to the API it calls."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Generate the RestDefinitions, check them, and publish the chart as a change request. Once merged, register and install it from the Controller Builder's page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -1472,6 +1608,74 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
             "Controller builder"
           <p class="_subtitle_ec3666">
             "Map an OpenAPI document to Kinds — each resource group a Kind, its operations its verbs — then publish the controller chart as one change request."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a controller gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Point at an OpenAPI document"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Give the document by URL or upload it. The builder lists the operations it describes."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Map operations to kinds"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "For each Kubernetes kind, choose the operations that create, get, update, delete and list it."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Identity and credentials"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Say which field identifies a resource, and how the controller authenticates to the API it calls."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Generate the RestDefinitions, check them, and publish the chart as a change request. Once merged, register and install it from the Controller Builder's page."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -1553,6 +1757,74 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a controller gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Point at an OpenAPI document"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Give the document by URL or upload it. The builder lists the operations it describes."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Map operations to kinds"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "For each Kubernetes kind, choose the operations that create, get, update, delete and list it."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Identity and credentials"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Say which field identifies a resource, and how the controller authenticates to the API it calls."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Generate the RestDefinitions, check them, and publish the chart as a change request. Once merged, register and install it from the Controller Builder's page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -2164,6 +2436,74 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a controller gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Point at an OpenAPI document"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Give the document by URL or upload it. The builder lists the operations it describes."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Map operations to kinds"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "For each Kubernetes kind, choose the operations that create, get, update, delete and list it."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Identity and credentials"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Say which field identifies a resource, and how the controller authenticates to the API it calls."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Generate the RestDefinitions, check them, and publish the chart as a change request. Once merged, register and install it from the Controller Builder's page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">

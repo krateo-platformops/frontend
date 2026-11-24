@@ -1,14 +1,14 @@
 /**
  * "Publish this draft" — a person clicking Publish, on the path the agent's verb already takes.
  *
- * WHY A BUS RATHER THAN A PROP. The composer is a ROUTE; the publish machinery — the destination
+ * WHY A BUS RATHER THAN A PROP. The builder is a ROUTE; the publish machinery — the destination
  * form, the preview gate, the blast-radius dispatcher — lives in `AgentikoProvider`, which wraps
  * the routed outlet but exposes none of it. Same seam, same reason, as the edit/add/start buses:
  * the surface asks, the provider decides. Nothing about the gate moves closer to the caller.
  *
  * WHY THE OUTCOME COMES BACK ON AN EVENT. A publish ends in a modal the person confirms and then a
  * dispatch; the surface that asked needs to know what happened without owning any of it. So the
- * request carries a correlation id and the provider answers with the same one — the composer shows
+ * request carries a correlation id and the provider answers with the same one — the builder shows
  * its own result rather than sending the author to the chat rail to find out.
  *
  * AND THE MOMENT IT WAS CONFIRMED, on a third event with the same id. Between the press and the
