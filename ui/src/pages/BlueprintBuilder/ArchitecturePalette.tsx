@@ -25,7 +25,7 @@
  * IT DIMS WHILE AN EDGE IS DRAWN (06:58): the pane is `aria-disabled` and says so, and a row does not
  * place — one gesture at a time, and the pending edge is planned from the chart as it is.
  *
- * ITS READ IS THE COMPOSER'S TOO (`onRead`): the readiness picker finds a node's CRD by the plural
+ * ITS READ IS THE BUILDER'S TOO (`onRead`): the readiness picker finds a node's CRD by the plural
  * this list carries, rather than reading the palette twice or pluralising a Kind.
  */
 import { Alert, Input } from 'antd'

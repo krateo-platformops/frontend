@@ -16,7 +16,7 @@
  *
  * DRAG STATE IS LIFTED, not carried in dataTransfer. The canvas already tracks what is in the air
  * as React state, and a second mechanism for the same question would be two things to keep in step;
- * `onPick`/`onDrop` hand the choice to the composer, which owns both panels.
+ * `onPick`/`onDrop` hand the choice to the builder, which owns both panels.
  *
  * WHAT THIS STAGE DOES NOT DO: the drop itself. The canvas accepts TreeNodes today, and teaching it
  * a second payload is its own change — done here, the palette would look finished while dropping
@@ -208,7 +208,7 @@ export const PalettePanel = ({ namespace, snowplowBaseUrl }: {
         ELEVEN CONTAINERS, NOT FIVE, and thirty-three widgets that could not be created at all.
         Both lists come from the CRDs (see widgetKinds.generated) rather than from a literal, so a
         kind added to the chart appears here without anyone remembering to add it — and PageHeader,
-        a container the composer has always treated as a leaf, is offered as one.
+        a container the builder has always treated as a leaf, is offered as one.
       */}
       {containers.length ? (
         <Section title={`Containers · ${containers.length}`}>

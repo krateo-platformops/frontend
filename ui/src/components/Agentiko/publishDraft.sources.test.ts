@@ -113,7 +113,7 @@ describe('a publish writes the confirmed repository into Chart.yaml sources', ()
 })
 
 describe('a publish fills every other publishing field that is missing, and overwrites none', () => {
-  /** Chart.yaml as the Blueprint Composer wrote it before keywords and the icon existed. */
+  /** Chart.yaml as the Blueprint Builder wrote it before keywords and the icon existed. */
   const OLD_CHART = 'apiVersion: v2\nname: orders-api\ntype: application\nversion: 1.4.2\n'
 
   it('an old-style draft with none of them gets the icon, its keyword and sources', async () => {

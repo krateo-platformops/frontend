@@ -3,7 +3,7 @@
  *
  * `composeMove` / `composeAdd` name a widget and a container by CR name. Until now nothing told the
  * model what those names were. The page-context envelope reports the live widget cache — what the
- * BROWSER rendered — and the held draft is not in it: it lives in the composer's store, so a page
+ * BROWSER rendered — and the held draft is not in it: it lives in the builder's store, so a page
  * under construction showed up as its rendered preview at best and as nothing at all before the
  * first render. The model was naming handles it had never been shown.
  *
@@ -17,7 +17,7 @@
  * knowledge it does not have before it has looked. The collector's own stance, snapshot at send
  * time, applies unchanged.
  *
- * DERIVED, NEVER STORED. `buildObjectTree` is the composer's parser and stays the only one. A
+ * DERIVED, NEVER STORED. `buildObjectTree` is the builder's parser and stays the only one. A
  * second parse here would be a second opinion about what a draft contains, and the two would drift
  * the moment either changed — the same argument that keeps `planMove`/`planAdd` the one kernel for
  * a drag and a proposal alike.
@@ -77,7 +77,7 @@ const summarizeNodes = (nodes: readonly TreeNode[], budget: { left: number }): D
       // ONLY AN AUTHORED LIST IS REPORTED AS A CONSTRAINT.
       //
       // `placeChild` appends each child's plural because the CRD requires it, so a container the
-      // composer created carries a non-empty list that describes what it HOLDS rather than what it
+      // builder created carries a non-empty list that describes what it HOLDS rather than what it
       // MAY hold — and `canAccept` stopped treating those as rules. If they were still reported
       // here the model would route around a constraint that is no longer enforced: it would decline
       // to place a Card in a page whose list happens to read `[rows]`, and explain that decision to
@@ -133,7 +133,7 @@ export const summarizeDraft = (held: BlueprintDraftHeld | null): DraftSummary | 
 }
 
 /**
- * Budget for the chart's bytes on the envelope. A composer-built chart is a few KiB a file; this
+ * Budget for the chart's bytes on the envelope. A builder-built chart is a few KiB a file; this
  * keeps a large imported one from crowding everything else out. What does not fit is NAMED as
  * withheld — never silently dropped, which would read as "the chart has no such file".
  */
@@ -193,7 +193,7 @@ const names = (value: unknown): string[] => (Array.isArray(value) ? value.filter
  * `controller-model` — the HELD CONTROLLER, for the agent that edits it with the controller verbs
  * (controllerVerbs.ts). Undefined unless the held draft's Builder names this summarizer.
  *
- * DERIVED FROM THE FILES, by the composer's own reader (readController) and the publish lint
+ * DERIVED FROM THE FILES, by the builder's own reader (readController) and the publish lint
  * (lintHeldDraft) — the same model the palette, canvas and inspector draw, so the agent and the person
  * are told the same thing. NO FILE BYTES: the agent edits a controller by naming groups, Kinds, verbs
  * and operations, never by rewriting a file, so the document (which can be hundreds of KiB) never

@@ -3,12 +3,12 @@
  *
  * WHY THIS EXISTS. The preview payload is built ONCE, by a model-driven verb, and handed to the
  * surfaces. That is fine for a drawer that only displays, and wrong for a surface that EDITS: the
- * page composer read its file bytes out of that payload, so every structural edit was computed
+ * portal builder read its file bytes out of that payload, so every structural edit was computed
  * from the bytes as they were when the draft was first previewed. Two edits to the same parent and
  * the second silently overwrote the first, because both started from the same original.
  *
  * The store is the source of truth and it lives in the provider. Rather than give every surface a
- * store reference — which is the coupling the whole composer split exists to avoid — the provider
+ * store reference — which is the coupling the whole builder split exists to avoid — the provider
  * broadcasts the held files after each accepted write, and a surface that edits re-reads from that.
  *
  * KEYS ARE HELD KEYS, NOT DISPLAYED PATHS. A page draft is held under bare identity tokens
@@ -73,7 +73,7 @@ export const onDraftChanged = (handler: (detail: DraftChangedDetail) => void): (
 
 /**
  * REPLAY. The broadcast above fires on a write, which is the wrong moment for a surface that was
- * not mounted yet — navigate to the composer with a draft already held and the tree would sit empty
+ * not mounted yet — navigate to the builder with a draft already held and the tree would sit empty
  * until the next edit, describing a draft that exists as if it did not.
  *
  * So a surface asks on mount and the provider answers on the same bus. A request carries nothing:
@@ -95,27 +95,27 @@ export const onDraftReplayRequest = (handler: () => void): (() => void) => {
 /**
  * WHO OWNS THE OPEN DRAFT.
  *
- * The drawer and the page composer listen on the SAME preview bus, so on the composer route both
+ * The drawer and the portal builder listen on the SAME preview bus, so on the builder route both
  * used to open on one payload and both mounted a live sandbox render of it. That is not merely
  * redundant: the drawer's close fires `payload.onClose`, which for a sandbox preview DELETEs every
- * draft CR — so closing the drawer to get back to the composer underneath tore the sandbox out from
- * under the composer, which went blank with nothing to explain why.
+ * draft CR — so closing the drawer to get back to the builder underneath tore the sandbox out from
+ * under the builder, which went blank with nothing to explain why.
  *
- * So a draft has exactly one surface. While the composer is mounted it claims the preview and the
- * drawer stays shut; the composer then owns the close, and with it the teardown. Module state and
+ * So a draft has exactly one surface. While the builder is mounted it claims the preview and the
+ * drawer stays shut; the builder then owns the close, and with it the teardown. Module state and
  * not a context because the two parties sit in different React trees — the drawer renders inside
- * AgentikoProvider, the composer is a route — which is the same reason the buses above exist.
+ * AgentikoProvider, the builder is a route — which is the same reason the buses above exist.
  */
 /*
- * PER KIND. There is one composer per Builder — pages, blueprints, controllers, and any later one —
+ * PER KIND. There is one page per Builder — pages, blueprints, controllers, and any later one —
  * and each can show only its own kind of draft. A single kind-blind counter meant a mounted blueprint
- * composer made the drawer defer every PAGE preview to a surface that cannot show it (shown nowhere),
+ * builder made the drawer defer every PAGE preview to a surface that cannot show it (shown nowhere),
  * while its own chart previews still opened the drawer over it. A claim names the kind it can show;
  * the drawer defers only that kind.
  *
  * KEYED BY THE BUILDER'S DRAFT KIND (T3, frontend#409), not a fixed pair: the counters are created on
  * a first claim, and a kind no loaded Builder declares (isDraftKind) is never claimed nor heard — deny
- * by default, so a stray event cannot make the drawer defer to a composer that does not exist.
+ * by default, so a stray event cannot make the drawer defer to a builder that does not exist.
  */
 const builderMounted = new Map<DraftKind, number>()
 
@@ -124,16 +124,16 @@ const mountedCount = (kind: DraftKind): number => builderMounted.get(kind) ?? 0
 /**
  * A CLAIM IS ANNOUNCED, not only recorded. Deferring the NEXT preview is half of "one surface per
  * draft": a drawer ALREADY OPEN on the held draft — the agent previewed the chart on another route,
- * then the person navigated to the composer — stayed open over it, and its Files tab, seeded from the
- * one-shot payload, wrote its stale bytes over whatever the person had since edited in the composer.
- * So a claim tells the drawer, which hands a held draft of that kind to the composer: it shuts without
+ * then the person navigated to the builder — stayed open over it, and its Files tab, seeded from the
+ * one-shot payload, wrote its stale bytes over whatever the person had since edited in the builder.
+ * So a claim tells the drawer, which hands a held draft of that kind to the builder: it shuts without
  * firing the payload's close (for a live page render, the sandbox teardown) and re-announces the
- * payload, so the composer adopts the render and owns its close from then on.
+ * payload, so the builder adopts the render and owns its close from then on.
  */
 export const AGENTIKO_PREVIEW_CLAIMED_EVENT = 'agentikoPreviewSurfaceClaimed'
 
 /**
- * Claim the preview surface for `kind` for as long as that composer is mounted. Returns the release
+ * Claim the preview surface for `kind` for as long as that builder is mounted. Returns the release
  * fn. A kind no loaded Builder declares claims nothing (the release is a no-op).
  */
 export const claimPreviewSurface = (kind: DraftKind): (() => void) => {
@@ -159,14 +159,14 @@ export const onPreviewSurfaceClaimed = (handler: (kind: DraftKind) => void): (()
   return () => window.removeEventListener(AGENTIKO_PREVIEW_CLAIMED_EVENT, listener)
 }
 
-/** True while a mounted composer owns incoming previews of `kind` — the drawer defers those to it. */
+/** True while a mounted builder owns incoming previews of `kind` — the drawer defers those to it. */
 export const previewSurfaceClaimed = (kind: DraftKind | null): boolean => kind !== null && mountedCount(kind) > 0
 
-/** Whose draft a broadcast holds, from one composer's side: its Builder's (`own`), another's (`parked`), or none. */
+/** Whose draft a broadcast holds, from one page's side: its Builder's (`own`), another's (`parked`), or none. */
 export type BuilderMode = 'empty' | 'own' | 'parked'
 
 /**
- * WHOSE DRAFT IS HELD, for the composer hosting the Builder named `builderName`. `kind` on the
+ * WHOSE DRAFT IS HELD, for the page hosting the Builder named `builderName`. `kind` on the
  * broadcast says: a draft of that Builder's draftKind is drawn, a draft of any other kind is parked.
  * A detail with no `kind` is a legacy emitter, which only ever held page drafts — so files with no
  * kind are parked too (a null kind is no legacy emitter: nothing is held).

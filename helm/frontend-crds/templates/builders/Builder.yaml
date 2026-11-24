@@ -50,7 +50,7 @@ spec:
       name: v1alpha1
       schema:
         openAPIV3Schema:
-          description: A builder, declared. Everything a composer does that is configuration lives here; everything that is behaviour is a named plugin the frontend ships, referenced by name and refused by name when this frontend does not ship it.
+          description: A builder, declared. Everything a builder does that is configuration lives here; everything that is behaviour is a named plugin the frontend ships, referenced by name and refused by name when this frontend does not ship it.
           properties:
             apiVersion:
               type: string
@@ -296,7 +296,7 @@ spec:
                     - templateKey
                   type: object
                 route:
-                  description: The portal route the builder's composer is served at.
+                  description: The portal route the builder's page is served at.
                   maxLength: 253
                   pattern: ^(/[a-z0-9]+(-[a-z0-9]+)*)+$
                   type: string

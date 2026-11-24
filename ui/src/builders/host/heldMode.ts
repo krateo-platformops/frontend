@@ -1,11 +1,11 @@
 /**
- * WHOSE DRAFT IS HELD, from the side of a composer hosting a Builder of `draftKind`.
+ * WHOSE DRAFT IS HELD, from the side of a page hosting a Builder of `draftKind`.
  *
  * The broadcast's `kind` says: a draft of this Builder's kind is drawn (`own`), a draft of any other
  * kind is parked behind the empty state, never read. A broadcast with NO `kind` is a legacy emitter,
  * which only ever held LEGACY_PAYLOAD_DRAFT_KIND drafts — so its files are that kind's (a null kind is
  * no legacy emitter: nothing is held). This is builderModeOf's rule with the legacy kind said by the
- * protocol rather than per composer: the Page Composer drew a kind-less draft, the Blueprint Composer
+ * protocol rather than per builder: the Portal Builder drew a kind-less draft, the Blueprint Builder
  * parked it, and both still do.
  */
 import type { DraftKind } from '../../components/Agentiko/blueprintDraftStore'

@@ -2,7 +2,7 @@
  * THE HYPOTHESIS TEST. `builder-publish` is a real chart whose five states are documented in its
  * own template comments (S1 Repository → S2 + Repo → S3 + LocalResources → S4 + PullRequest, and an
  * orthogonal username-secret shim). If reading its templates does not reproduce exactly that, the
- * architecture model is wrong, and it is cheaper to learn that here than in a composer.
+ * architecture model is wrong, and it is cheaper to learn that here than in a builder.
  *
  * The fixture is a verbatim copy of portal:helm/builder-publish/templates at portal-kpo 4cd90ac.
  */

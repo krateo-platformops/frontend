@@ -10,7 +10,7 @@ timestamp: 2026-08-07T00:00:00Z
 
 # Complete Migration Plan — Ant Design Fidelity (fidelity-first / hard-break)
 
-_Status: executed (Phases D, 0, A, C, B on `ux-modernization`; Phase E — antd 5→6 — on `antd6-upgrade`). Notable deltas from the proposal: **BlueprintBuilder was dropped** (untested drag&drop composer), which let Phase A remove **reactflow entirely** rather than add a second graph engine; and **FlowChart's schema was left unchanged** (its `data` is a domain resource model, not a lib shape), so it needed no CR migration. Derived from the full audit (2026-06-15) of all 46 widgets + 11 components._
+_Status: executed (Phases D, 0, A, C, B on `ux-modernization`; Phase E — antd 5→6 — on `antd6-upgrade`). Notable deltas from the proposal: **BlueprintBuilder was dropped** (untested drag&drop builder), which let Phase A remove **reactflow entirely** rather than add a second graph engine; and **FlowChart's schema was left unchanged** (its `data` is a domain resource model, not a lib shape), so it needed no CR migration. Derived from the full audit (2026-06-15) of all 46 widgets + 11 components._
 
 > **Implemented reality (re-verified 2026-08-07, current tree):** the plan is executed —
 > `antd` is at 6.x, `reactflow` and `@dagrejs/dagre` are gone from `package.json`,

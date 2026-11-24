@@ -1,7 +1,7 @@
 /**
  * WHAT JUST HAPPENED, said out loud.
  *
- * The composer performed every structural edit in silence. A drag has its own feedback — the canvas
+ * The builder performed every structural edit in silence. A drag has its own feedback — the canvas
  * redraws and you watch it — but the TREE is the route for anyone not using a pointer, and pressing
  * "Move card-b up" produced no message, no focus change and no announcement: the tree re-rendered
  * and a screen-reader user was told nothing at all. WCAG 4.1.3 (Status Messages) exists for exactly

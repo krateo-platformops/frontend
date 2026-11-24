@@ -42,7 +42,7 @@ export interface ArchitectureEdgeData {
  * one source every width here is computed from (the stylesheet's box is pinned to it by
  * architectureFit.test.ts). The height is the regular card's MINIMUM: its name is shown in full, on
  * as many lines as it needs, and FlowChart measures the tallest card and reserves that height for
- * every card (`architectureNodeSize`). Wider than the composer's 156×72 because this card shows resolved names,
+ * every card (`architectureNodeSize`). Wider than the builder's 156×72 because this card shows resolved names,
  * and a forEach range such as `publish-pod-sizing-v1b-000 … 009` does not fit in 156px.
  *
  * 240, not 220: with the eyebrow at the 12px floor, a forEach kind and the exception chip need

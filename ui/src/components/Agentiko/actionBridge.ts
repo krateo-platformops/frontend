@@ -219,7 +219,7 @@ export interface PortalActionProposal {
    *  The agent's palette drop; `widgetData` carries the CRD's own required fields. */
   kind?: string
   /** composeAdd: the new widget's `widgetData`, in the CRD's own shape. Required LISTS may be
-   *  omitted — the composer defaults them, exactly as the drop form does for a person. */
+   *  omitted — the builder defaults them, exactly as the drop form does for a person. */
   widgetData?: Record<string, unknown>
   /** composeBind: the RESTAction to author — `{name, steps:[{name,path,verb?,dependsOn?}], filter}`. */
   action?: { name: string; steps: { name: string; path: string; verb?: string; dependsOn?: string }[]; filter: string }
@@ -668,7 +668,7 @@ export const useAgentikoActionBridge = (
     /**
      * composeMove / composeAdd — restructure the HELD PAGE DRAFT.
      *
-     * The agent names the INTENT and the composer decides. It deliberately does not compute the
+     * The agent names the INTENT and the builder decides. It deliberately does not compute the
      * resulting YAML (which `previewPage`'s rawTemplates would let it do), because then the agent
      * and the canvas would each decide what a container may hold and the two would drift. One
      * kernel — `planMove` / `planAdd` — answers for a drag, a tree action and a proposal alike.
@@ -682,13 +682,13 @@ export const useAgentikoActionBridge = (
      *
      * These used to emit and immediately return a success label. On krateo-057 that produced
      * "Added a Card inside page-x", READ-ONLY and with no error, while the canvas had no card —
-     * the composer had never applied it and nothing said so. The refusal was not missing, it was
+     * the builder had never applied it and nothing said so. The refusal was not missing, it was
      * discarded: planAdd/planMove compute a precise reason and it died at the bus boundary.
      *
-     * `requestCompose` awaits the composer's answer, so a refusal becomes the chip's text and
+     * `requestCompose` awaits the builder's answer, so a refusal becomes the chip's text and
      * reaches the model as an environment signal it can act on.
      */
-    // chartPut / chartDelete / chartLink — a chart already open in the Blueprint Composer, edited
+    // chartPut / chartDelete / chartLink — a chart already open in the Blueprint Builder, edited
     // through the same batch bus and edge kernel a person's edits take (chartVerbs.ts).
     const chartChip = applyChartVerb(proposal)
     if (chartChip) {
@@ -760,7 +760,7 @@ export const useAgentikoActionBridge = (
      * Creating a Table is half an answer: a Table with no `apiRef` renders an empty frame. This
      * authors the RESTAction (or names one that exists), sets `apiRef`, and fills
      * `widgetDataTemplate` / `resourcesRefsTemplate`. Like the other compose verbs it names the
-     * INTENT and lets the composer decide — the bytes are not computed here.
+     * INTENT and lets the builder decide — the bytes are not computed here.
      */
     if (proposal.verb === 'composeBind') {
       if (!proposal.widget) {
@@ -868,7 +868,7 @@ export const useAgentikoActionBridge = (
     }
 
     // DRAFT verbs (verbRegistry DRAFT_VERB_REGISTRY — the controller verbs): they edit the held draft
-    // through the composer's own kernels and buses, and never reach the apiserver. Deny-by-default as
+    // through the builder's own kernels and buses, and never reach the apiserver. Deny-by-default as
     // below: only a registered `draft` entry runs here, and its handler checks the held draft's Builder.
     const draftSpec = DRAFT_VERB_REGISTRY[proposal.verb]
     if (draftSpec?.sideEffect === 'draft') {
@@ -916,7 +916,7 @@ export const useAgentikoActionBridge = (
     })
   }, [handleActionSet, previewPageSession, sandboxNamespace])
 
-  // A person's Preview in the Blueprint Composer writes its draft chart through the same fabric,
+  // A person's Preview in the Blueprint Builder writes its draft chart through the same fabric,
   // with no agent origin: the audit record names the human.
   const sandboxWriter = useMemo(() => (sandboxNamespace
     ? { handleActionSet: (ops: Parameters<typeof handleActionSet>[0], options?: SetDispatchOptions) => handleActionSet(ops, undefined, options), sandboxNamespace }

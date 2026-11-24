@@ -1,14 +1,14 @@
 /**
- * What the Blueprint Composer shows when there is no chart for it to edit.
+ * What the Blueprint Builder shows when there is no chart for it to edit.
  *
  * TWO CASES, and each names what is missing and what to do (C14, P16):
  *
  *   - Nothing is held. Say so, and offer Start — the Portal Builder's empty state, for charts.
- *   - A PORTAL PAGE draft is held. One store holds one draft, so this composer cannot start a chart
+ *   - A PORTAL PAGE draft is held. One store holds one draft, so this builder cannot start a chart
  *     while it is there, and it has no business reading a page set as a chart: page drafts carry a
  *     Chart.yaml and a values.schema.json too, and a graph drawn from them would be nonsense that
  *     looks like a chart. So the page is PARKED — named, never read — with the way to it, and a way
- *     to discard it for someone who came here to start a chart. The mirror of the Page Composer
+ *     to discard it for someone who came here to start a chart. The mirror of the Portal Builder
  *     parking a blueprint.
  *
  * Through `WidgetEmpty`, the shared empty treatment, with its action slot.

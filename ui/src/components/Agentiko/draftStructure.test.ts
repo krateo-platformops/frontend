@@ -60,7 +60,7 @@ describe('summarizeDraft', () => {
   it('does NOT report a list the builder grew — the agent must not believe a fence the canvas ignores', () => {
     /*
      * `placeChild` appends each child's plural because the CRD requires the container to list it,
-     * so a container the composer created ends up with a non-empty list that DESCRIBES what it
+     * so a container the builder created ends up with a non-empty list that DESCRIBES what it
      * holds. `canAccept` stopped treating those as rules (they are annotated at creation), and this
      * summary is what the model reasons from — so reporting one would have the agent decline a
      * placement, and explain that decision to the user, while a person dragging the same widget
@@ -93,7 +93,7 @@ describe('summarizeDraft', () => {
 
   it('says nothing about a BLUEPRINT draft even when it CARRIES widget CRs', () => {
     // A page-set chart's templates ARE widget CRs, so "it parses as a tree" does not make a draft
-    // a page. `composeMove` / `composeAdd` address the page composer's held draft; describing a
+    // a page. `composeMove` / `composeAdd` address the portal builder's held draft; describing a
     // chart's containment to the model invites proposals against something it cannot restructure.
     // The fixture is deliberately a draft that WOULD parse — a non-widget one proves only that
     // buildObjectTree found nothing, which the empty-draft case already covers.
@@ -134,7 +134,7 @@ describe('summarizeDraft', () => {
 })
 
 /**
- * RESTACTIONS ARE NOT LAYOUT, BUT THE AGENT MUST STILL SEE THEM. The composer's tree leaves them out
+ * RESTACTIONS ARE NOT LAYOUT, BUT THE AGENT MUST STILL SEE THEM. The builder's tree leaves them out
  * (they were drawn as canvas boxes), and this summary is built from that tree — so they ride beside
  * it: on the widget that reads one, and as a list of every RESTAction with who reads it.
  */
@@ -204,7 +204,7 @@ describe('the delta budget cannot stop describing the draft', () => {
   })
 
   it('re-sends the full envelope after the agent RESTRUCTURES the page', () => {
-    // A compose turn moves no route and need not change the on-screen widget set — the composer's
+    // A compose turn moves no route and need not change the on-screen widget set — the builder's
     // live render is one endpoint whether the page holds three widgets or thirty. Collapsing here
     // would describe the draft exactly once, and every following turn would reason about the
     // containment the page had BEFORE the agent's own edit.

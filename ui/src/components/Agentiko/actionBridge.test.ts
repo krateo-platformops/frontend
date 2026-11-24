@@ -217,7 +217,7 @@ describe('the agent can only drive a control that is actually mounted', () => {
  * A tripwire, like the one above, because the compose branches live inside the hook and there is
  * no seam to call — and because the property at stake is precisely the one a behavioural test on
  * a mocked bus would not catch: that NO compose branch returns a success label without first
- * hearing the composer say it applied.
+ * hearing the builder say it applied.
  *
  * This is what shipped broken on krateo-057: the chip read "Added a Card inside page-x", read-only
  * and with no error, over a canvas with no card in it. Restoring fire-and-forget — dropping the

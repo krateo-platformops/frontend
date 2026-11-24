@@ -3,7 +3,7 @@
  *
  * Observed on krateo-057 (frontend 1.6.81): a Portal Builder rehearsal ended with Agentiko replying
  * "I have authored and previewed the pod-sizing-23 page in the live sandbox drawer". No previewPage
- * action reached the frontend — no chip, the composer stayed on "No draft open", nothing was created
+ * action reached the frontend — no chip, the builder stayed on "No draft open", nothing was created
  * on the cluster. The person was told something happened that did not.
  *
  * A prompt rule cannot make that impossible; a prompt rule decays across a thread. This can, because

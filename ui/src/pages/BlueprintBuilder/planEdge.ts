@@ -1,7 +1,7 @@
 /**
  * Edges — the kernel behind drawing one, the inspector's Depends-on rows, a node's Ready when, and
  * Remove from chart. Pure: each takes the held files and answers with the batch that makes the change,
- * or the refusal that says why not and where the edge COULD go. Nothing here writes; the composer
+ * or the refusal that says why not and where the edge COULD go. Nothing here writes; the builder
  * emits the plan on the batch bus, and the provider writes all of it or none (previewFilesBatch).
  *
  * ONE KERNEL, WHOEVER ASKS — a person dragging, a person choosing in a Select, and (S5) the agent's
@@ -30,7 +30,7 @@
  * draft store's to regenerate (`settle`), from the descriptor this plan writes.
  *
  * A HAND-WRITTEN GATE IS NEVER TOUCHED: a template carrying a `lookup` outside a marked block is
- * refused, with its line — the composer will not add a second gate beside a person's.
+ * refused, with its line — the builder will not add a second gate beside a person's.
  */
 import {
   ARCHITECTURE_TEMPLATE_PATH,
@@ -297,9 +297,9 @@ const held = (files: Files): Extract<DescriptorRead, { ok: true }> | EdgeRefusal
 
 /**
  * EVERY node's gate regenerated from the descriptor — for a tree that arrives WHOLE (Agentiko's
- * previewBlueprint), where no edge was drawn in the composer to trigger `planEdge`. The agent
+ * previewBlueprint), where no edge was drawn in the builder to trigger `planEdge`. The agent
  * declares edges and never writes a gate; without this the edges it declared were drawn on the
- * canvas and the detail page but NOT enforced when the chart rendered. The same kernel the composer
+ * canvas and the detail page but NOT enforced when the chart rendered. The same kernel the builder
  * uses for one edge (gatePlan), over all nodes: idempotent, and it never touches a hand-written
  * lookup. A refusal leaves the tree as it came — the lint and the gate report why.
  */

@@ -1,9 +1,9 @@
 /**
- * The composer's side of Resume (screens 3 and 4 of the draft-records mockup), shared by both
- * composers: read `?resume=` (or, on the page composer, `?adopt=`) once on mount, read the record as
+ * The builder's side of Resume (screens 3 and 4 of the draft-records mockup), shared by both
+ * builders: read `?resume=` (or, on the portal builder, `?adopt=`) once on mount, read the record as
  * the person, ask the provider to hold it, and show what happened.
  *
- * WHY A HOOK THAT RETURNS AN ELEMENT, not a component. A composer renders a different tree for "no
+ * WHY A HOOK THAT RETURNS AN ELEMENT, not a component. A builder renders a different tree for "no
  * draft" and "a draft is held", and a resume STARTS in the first and ENDS in the second. A component
  * placed in both would remount across that switch and forget the answer it was waiting for; state
  * held at the page, with its element placed in each branch, does not.
@@ -36,12 +36,12 @@ interface Asking {
 }
 
 export interface DraftResumeOptions {
-  /** Which composer this is: a record of the other kind is not loaded here, and says where to go. */
+  /** Which builder this is: a record of the other kind is not loaded here, and says where to go. */
   kind: DraftKind
   snowplowBaseUrl?: string
   sandboxNamespace?: string
   /**
-   * The page composer only: `?adopt=<root flex name>` adopts a legacy page set, and
+   * The portal builder only: `?adopt=<root flex name>` adopts a legacy page set, and
    * `?discard-legacy=<root flex name>` deletes one (Unowned drafts' Discard) and returns to the list.
    */
   allowAdopt?: boolean
@@ -65,7 +65,7 @@ const consumeParams = (): void => {
 /**
  * Back to the Portal Builder's list, as a client-side navigation: a full load would drop whatever
  * draft this tab holds. The router follows the history it is told about through `popstate`, which is
- * how this hook can go there without a router context of its own (the composer mounts bare in tests).
+ * how this hook can go there without a router context of its own (the builder mounts bare in tests).
  */
 export const returnToPortalBuilder = (): void => {
   window.history.pushState(null, '', '/portal-builder')
