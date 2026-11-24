@@ -3,46 +3,27 @@
  * cluster serves, CompositionDefinitions of OTHER charts included. One that registers the chart it is part
  * of would let a composition rewrite or delete its own registration.
  *
- * Judged twice, with core-provider's matching rule (its chart gate judges the rendered manifest too):
+ * Judged twice, by the matcher core-provider's chart gate uses too (chartReference.ts):
  *   - on the template text, in the lint, before anything is rendered. A chart name built from a template
- *     expression is not one yet, so it is not judged there;
+ *     expression is not one yet, so it is not judged there (an expression elsewhere, such as the registry,
+ *     does not hide a literal name);
  *   - on the RENDERED objects of a preview, which is what would be installed. A render that carries it is
  *     a failed render, so it never arms a publish. A template behind a `lookup` gate is not rendered.
- * An own definition no one can tell is one (no chart named at all) is not refused: nothing says it is.
+ * A definition whose chart no one can tell is not refused here: nothing says it is this one.
  */
 import { load } from 'js-yaml'
 
-type Json = Record<string, unknown>
-const asRecord = (value: unknown): Json | null =>
-  (value && typeof value === 'object' && !Array.isArray(value) ? value as Json : null)
-
-const GROUP = /^core\.krateo\.io(?:\/|$)/
-const SEMVER_ARCHIVE = /^\d+\.\d+\.\d+[^/]*\.tgz$/
-
-/**
- * Whether a CompositionDefinition's `spec.chart` names this chart (its repo, its OCI path, or its archive),
- * another, or none. `unknown` is for the caller to judge: core-provider's chart gate, which sees the final
- * render, refuses it; a draft's empty value can look like it, so nothing here does.
- */
-export const chartReference = (chart: { repo?: unknown; url?: unknown }, name: string): 'other' | 'own' | 'unknown' => {
-  if (chart.repo === name) { return 'own' }
-  const repo = typeof chart.repo === 'string' && chart.repo.trim() !== ''
-  if (typeof chart.url !== 'string' || !chart.url.trim()) { return repo ? 'other' : 'unknown' }
-  const path = chart.url.trim().replace(/[?#].*$/, '').replace(/\/+$/, '')
-  const last = path.slice(path.lastIndexOf('/') + 1)
-  const bare = last.replace(/@.*$/, '').replace(/:[^:]*$/, '')
-  const archive = last.startsWith(`${name}-`) && SEMVER_ARCHIVE.test(last.slice(name.length + 1))
-  return bare === name || archive ? 'own' : 'other'
-}
-
-const namesChart = (chart: { repo?: unknown; url?: unknown }, name: string): boolean => chartReference(chart, name) === 'own'
+import { chartReference, definitionsIn, registersChart } from './chartReference'
 
 const problem = (where: string, name: string): string =>
   `${where}: this CompositionDefinition installs the chart it is part of (${name}), so a composition could rewrite or delete its own registration. Remove it: the portal writes compositiondefinition.yaml when you publish.`
 
-/** A scalar as written, unquoted and without its comment. A template expression in it stays as it is, and so never equals a name. */
+/** A template expression in a name or a path: a name no chart has. It keeps the rest of the reference readable. */
+const EXPRESSION = 'templated-expression'
+
+/** A scalar as written, unquoted and without its comment, its template expressions replaced. */
 const scalar = (raw: string): string => {
-  const value = raw.trim()
+  const value = raw.replace(/\{\{.*?\}\}/g, EXPRESSION).trim()
   const quoted = /^(["'])(.*?)\1\s*(?:#.*)?$/.exec(value)
   return quoted ? quoted[2] : value.replace(/\s+#.*$/, '')
 }
@@ -75,22 +56,23 @@ export const ownDefinitionProblems = (files: Readonly<Record<string, string>>, n
     .filter((path) => files[path].split(/^---.*$/m).some((text) =>
       /^kind:\s*["']?CompositionDefinition["']?\s*(?:#.*)?$/m.test(text)
       && /^apiVersion:\s*["']?core\.krateo\.io\//m.test(text)
-      && namesChart(chartIn(text), name)))
+      && registersChart(chartReference(chartIn(text)), name)))
     .map((path) => problem(path, name))
 }
 
 /** A render whose objects register this very chart did not render something publishable: it says so as its error. */
 export const refuseOwnDefinition = <Rendered extends { error?: string; objects: readonly { apiVersion?: string; kind?: string; name?: string; yaml?: string }[] }>(rendered: Rendered, name: string | null): Rendered => {
   if (rendered.error || !name) { return rendered }
-  const own = rendered.objects.find(({ apiVersion, kind, yaml }) => {
-    if (kind !== 'CompositionDefinition' || !GROUP.test(apiVersion ?? '')) { return false }
+  const own = rendered.objects.flatMap(({ apiVersion, kind, yaml }) => {
     let parsed: unknown
     try {
       parsed = load(yaml ?? '')
     } catch {
-      return false
+      return []
     }
-    return namesChart(asRecord(asRecord(asRecord(parsed)?.spec)?.chart) ?? {}, name)
-  })
-  return own ? { ...rendered, error: problem(`CompositionDefinition ${own.name ?? ''}`.trim(), name) } : rendered
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? definitionsIn(parsed as Record<string, unknown>, apiVersion ?? '', kind ?? '')
+      : []
+  }).find(({ reference }) => registersChart(reference, name))
+  return own ? { ...rendered, error: problem(`CompositionDefinition ${own.name}`.trim(), name) } : rendered
 }
