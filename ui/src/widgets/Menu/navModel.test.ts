@@ -1,8 +1,16 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 import type { ResourcesRefs } from '../../types/Widget'
 
-import { buildNavModel, resolveContentEndpoint } from './navModel'
+import type { Menu } from './Menu.type'
+import { buildNavModel, type InlineNavItem, resolveContentEndpoint } from './navModel'
+
+/**
+ * Every field the nav model reads off an item is one the Menu's schema declares. The CRD refuses any other
+ * (additionalProperties: false), and snowplow then refuses the WHOLE Menu: no sidebar and no routes.
+ * `linkOnly` was read here and emitted by the portal's sidebar-nav for a month without being declared.
+ */
+type Undeclared = Exclude<keyof InlineNavItem, keyof NonNullable<Menu['spec']['widgetData']['items']>[number]>
 
 const resourcesRefs: ResourcesRefs = {
   items: [
@@ -12,6 +20,10 @@ const resourcesRefs: ResourcesRefs = {
 }
 
 describe('Menu navModel', () => {
+  it('reads no item field the Menu schema does not declare', () => {
+    expectTypeOf<Undeclared>().toEqualTypeOf<never>()
+  })
+
   it('builds entries + routes from inline items, sorted by order, resolving content endpoints', () => {
     const items = [
       { icon: 'fa-gear', label: 'Settings', order: 20, path: '/settings', resourceRefId: 'settings-page' },
