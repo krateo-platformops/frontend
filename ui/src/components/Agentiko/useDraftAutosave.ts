@@ -37,14 +37,15 @@
  * NO SANDBOX, NO AUTOSAVE. Without api.PREVIEW_SANDBOX_NAMESPACE there is no writer and nowhere to
  * store a record: every call is a no-op and the status is `off` — never an error.
  */
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 
 import { builderRegistry } from '../../builders/builderRegistry'
 import { draftKindOf, findDraftKindPlugin, isDraftKind } from '../../builders/draftKinds'
+import type { Config } from '../../context/ConfigContext'
 import { getUserInfo } from '../../utils/getUserInfo'
 
 import { buildSetOpPath } from './applyResourceSet'
-import type { BlueprintDraftHeld, DraftChangeListener, DraftKind } from './blueprintDraftStore'
+import type { BlueprintDraftHeld, BlueprintDraftStore, DraftChangeListener, DraftKind } from './blueprintDraftStore'
 import type { SandboxWriter } from './blueprintRenderSandbox'
 import {
   DRAFT_RECORD_VERSION,
@@ -58,6 +59,7 @@ import {
 import { draftSaveStatus } from './draftSaveStatus'
 import { pageDraftFiles, pageDraftWidgets } from './pageDraft'
 import { publishedLocks } from './publishedLocks'
+import { usePreviewSweep } from './usePreviewSweep'
 
 /** How long edits settle before the record is written. The plan's "~2 s". */
 export const DRAFT_AUTOSAVE_DEBOUNCE_MS = 2000
@@ -421,4 +423,20 @@ export const useDraftAutosave = (
   useEffect(() => { autosave.setWriter(sandboxWriter) }, [autosave, sandboxWriter])
   useEffect(() => { autosave.setThreadId(threadId) }, [autosave, threadId])
   useEffect(() => () => autosave.dispose(), [autosave])
+}
+
+/** The held draft's two sandbox habits: its record is saved as it changes, and the author's old previews are cleared. */
+export const useSandboxDrafts = (
+  store: Pick<BlueprintDraftStore, 'get'>,
+  config: Config | undefined,
+  autosave: DraftAutosave,
+  sandboxWriter: SandboxWriter | undefined,
+  threadId?: string | null,
+): void => {
+  useDraftAutosave(autosave, sandboxWriter, threadId)
+  const heldPage = useCallback(() => {
+    const held = store.get()
+    return held?.kind === 'page' ? draftRecordDisplayName(held) : undefined
+  }, [store])
+  usePreviewSweep(heldPage, config, sandboxWriter)
 }

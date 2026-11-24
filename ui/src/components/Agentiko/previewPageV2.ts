@@ -25,10 +25,9 @@
  *      a production page ("Rendered (live)" + the source view, previewSurface.tsx).
  *   5. TEARDOWN (A.2.5): drawer close → best-effort silent DELETE set of THIS
  *      preview's drafts (epoch-guarded: a stale close never deletes a newer preview).
- *      THERE IS NO BACKSTOP. This line used to name "the sandbox TTL janitor (CHART-SBX)";
- *      no janitor has ever existed (frontend#364), and by decision none will. Teardown here
- *      and the sweep the NEXT preview performs are the only reclaim, so a session that dies
- *      without a drawer close leaves its drafts until someone previews again.
+ *      THERE IS NO JANITOR. This line used to name "the sandbox TTL janitor (CHART-SBX)"; none
+ *      has ever existed (frontend#364). What a session that dies without a drawer close leaves,
+ *      the author's next visit to a builder removes once it is a day old (previewSweep.ts).
  */
 
 import type { SetDispatchOptions, WriteOp, WriteOpResult } from '../../hooks/runRestSet'
@@ -52,6 +51,7 @@ import {
   rootDraftTargetOf,
   validatePageDrafts,
 } from './previewSandbox'
+import { previewSweepSettled } from './previewSweep'
 import type { AgentikoActionChip } from './types'
 
 /** What the v2 flow needs from the bridge: the sandbox, the thread id, the session,
@@ -156,8 +156,8 @@ const compileWriteOps = (ops: readonly ApplyResourceSetOp[]): WriteOp[] =>
  * Still best-effort in the sense that a failed delete does not abort the preview. What changes is
  * that the caller can now SEE it and act, which is what `applyWithReclaim` below does — and that
  * matters more than this line used to admit, because there is no backstop behind it. The sentence
- * here once read "the TTL janitor remains the backstop"; no janitor exists (frontend#364), so an
- * object a failed delete leaves behind stays until the next preview sweeps it.
+ * here once read "the TTL janitor remains the backstop"; none existed (frontend#364). Now the author's
+ * next visit to a builder removes what they abandoned a day ago (previewSweep.ts, frontend#496).
  */
 const dispatchSilent = async (
   ops: readonly ApplyResourceSetOp[],
@@ -350,6 +350,9 @@ export const applyPreviewPageV2 = async (
   }
   // Whatever the last preview rendered is no longer what will be on screen.
   setPreviewRender(null)
+  // An abandoned-preview sweep in flight finishes first (previewSweep.ts): the two may name the same
+  // objects, and a preview must not write what a sweep is about to remove.
+  await previewSweepSettled()
 
   // 1. VALIDATE — any failure: source drawer with the verdicts, NOTHING applied.
   const problems = await validatePageDrafts(widgets, deps.snowplowBaseUrl)
