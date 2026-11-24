@@ -61,6 +61,8 @@ export interface DraftRecordBody {
    * publish locked (publishedLocks.ts): opaque here, read back only by that kind's code.
    */
   publish?: { repo: string; prUrl?: string; locked?: Record<string, Record<string, unknown>> }
+  /** The record's own uid, on a record READ from the cluster. Never stored in it. */
+  uid?: string
 }
 
 /**
@@ -107,7 +109,7 @@ export const draftRecordConfigMap = (
   body: DraftRecordBody,
 ): Record<string, unknown> => ({
   apiVersion: 'v1',
-  data: { [DRAFT_RECORD_KEY]: JSON.stringify(body) },
+  data: { [DRAFT_RECORD_KEY]: JSON.stringify({ ...body, uid: undefined }) },
   kind: 'ConfigMap',
   metadata: {
     annotations: { [ANNOTATION_NAME]: body.name, [ANNOTATION_UPDATED]: body.updatedAt },
@@ -146,5 +148,6 @@ export const readDraftRecord = (configMap: unknown): DraftRecordBody | null => {
   if (typeof body.name !== 'string' || !isRecord(body.files)) { return null }
   if (!Object.values(body.files).every((content) => typeof content === 'string')) { return null }
   if (body.state !== 'open' && body.state !== 'published') { return null }
-  return body as unknown as DraftRecordBody
+  const uid = isRecord(configMap.metadata) && typeof configMap.metadata.uid === 'string' ? configMap.metadata.uid : undefined
+  return { ...(body as unknown as DraftRecordBody), uid }
 }

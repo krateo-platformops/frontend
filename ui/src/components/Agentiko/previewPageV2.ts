@@ -39,6 +39,7 @@ import { type ApplyResourceSetOp, buildSetOpPath, isApplySetAllowed, MAX_APPLY_S
 import { draftOwner } from './draftRecord'
 import { buildPagePreviewPayload, parsePagePreviewArgs } from './previewBridge'
 import { openAgentikoPreview, setPreviewProblems, setPreviewRender } from './previewBus'
+import { ownPreviewObjects, recordOf } from './previewOwner'
 import {
   buildSandboxTeardownOps,
   buildSandboxWidgetEndpoint,
@@ -51,7 +52,7 @@ import {
   rootDraftTargetOf,
   validatePageDrafts,
 } from './previewSandbox'
-import { previewSweepSettled } from './previewSweep'
+import { pageOfRoot, previewSweepSettled } from './previewSweep'
 import type { AgentikoActionChip } from './types'
 
 /** What the v2 flow needs from the bridge: the sandbox, the thread id, the session,
@@ -211,6 +212,41 @@ const appliedOf = (session: PreviewPageSession): Map<string, Record<string, unkn
   return applied
 }
 
+/** Which record each applied object was last made to belong to, by uid; and what is applied now. */
+const ownedBySession = new WeakMap<PreviewPageSession, Map<string, string>>()
+const pageBySession = new WeakMap<PreviewPageSession, { page: string; targets: readonly DraftTarget[] }>()
+
+const ownedOf = (session: PreviewPageSession): Map<string, string> => {
+  let owned = ownedBySession.get(session)
+  if (!owned) {
+    owned = new Map()
+    ownedBySession.set(session, owned)
+  }
+
+  return owned
+}
+
+/** A created object has no owner yet, whatever an earlier one under its name had. */
+const noteCreated = (session: PreviewPageSession, created: readonly { target: DraftTarget }[]): void => {
+  created.forEach(({ target }) => { ownedOf(session).delete(targetKey(target)) })
+}
+
+/**
+ * The applied preview's objects belong to their page's draft record (previewOwner.ts), once there is one:
+ * after an apply, and again when the record is first stored (an agent's page is held, and so saved, only
+ * after it was applied).
+ */
+export const ownAppliedPreview = async (deps: Pick<PreviewPageV2Deps, 'handleActionSet' | 'sandboxNamespace' | 'session'>): Promise<void> => {
+  const current = pageBySession.get(deps.session)
+  const page = current && pageOfRoot(current.page, draftOwner(getUserInfo().username))
+  const owner = page ? recordOf(page) : undefined
+  if (!current || !owner) { return }
+  const owned = ownedOf(deps.session)
+  const missing = current.targets.filter((target) => owned.get(targetKey(target)) !== owner.uid)
+  const landed = await ownPreviewObjects(missing, owner, deps)
+  landed.forEach((target) => { owned.set(targetKey(target), owner.uid) })
+}
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
@@ -297,7 +333,9 @@ const dispatchEntries = async (
       if (results === null) {
         return { applied, failure: 'the write set was not dispatched' }
       }
-      applied.push(...results.filter(({ ok }) => ok).map(({ index }) => chunk[index].target))
+      const landed = results.filter(({ ok }) => ok).map(({ index }) => chunk[index])
+      applied.push(...landed.map(({ target }) => target))
+      noteCreated(deps.session, landed.filter(({ op }) => op.verb === 'POST'))
       const refused = results.find(({ ok }) => !ok)
       if (!refused) {
         break
@@ -315,6 +353,7 @@ const dispatchEntries = async (
         return { applied, failure: `${label}: ${refused.message}${retried ? ` (retry: ${retried.message})` : ''}` }
       }
       applied.push(entry.target)
+      noteCreated(deps.session, retry.verb === 'POST' ? [entry] : [])
       pending = chunk.slice(refused.index + 1)
     }
   }
@@ -329,6 +368,7 @@ const dispatchEntries = async (
  */
 export const discardPreviewSandbox = async (deps: PreviewPageV2Deps): Promise<void> => {
   appliedOf(deps.session).clear()
+  pageBySession.delete(deps.session)
   await dispatchBestEffort(deps.session.take(), deps)
 }
 
@@ -444,6 +484,8 @@ export const applyPreviewPageV2 = async (
   for (const { cr, target } of entries) {
     previous.set(targetKey(target), cr)
   }
+  pageBySession.set(deps.session, { page: root.name, targets: applied })
+  await ownAppliedPreview(deps)
   // The SWEEP: only names that left the set, and only after the container that listed them was
   // updated, so nothing still on the page ever points at a deleted object.
   await dispatchBestEffort(held.filter(({ gvr, name }) => !previous.has(targetKey({ gvr, name: name ?? '' }))), deps)
@@ -472,6 +514,7 @@ export const applyPreviewPageV2 = async (
     liveEndpoint: buildSandboxWidgetEndpoint(root, deps.sandboxNamespace),
     onClose: () => {
       const teardown = deps.session.takeIf(epoch)
+      if (teardown.length) { pageBySession.delete(deps.session) }
       if (teardown.length) {
         // Torn down: the next preview creates, it has nothing left to update in place.
         previous.clear()
