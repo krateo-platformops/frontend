@@ -37,7 +37,7 @@
  */
 import { DRAFT_REJECTED_CAPTION, draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { buildBlueprintPreviewPayload } from './blueprintPreviewPayload'
-import { renderBlueprint } from './blueprintRenderSandbox'
+import { judgeRender, renderBlueprint } from './blueprintRenderSandbox'
 import { readHeldDraft } from './chartVerbs'
 import { holdsController, previewHeldController } from './controllerVerbs'
 import { buildDescribeResourcePayload, crdNameFromArgs, extractCrdSpecFields, parseDescribeResourceArgs } from './describeResource'
@@ -109,7 +109,7 @@ export const previewBlueprintSpec: VerbSpec = {
     // PREFER the RA (server-side render); DIRECT fetch is the config-absent fallback.
     const rendered = canUseRA
       ? await renderBlueprint(deps.snowplowBaseUrl!, deps.frontendNamespace!, args, deps.sandboxWriter)
-      : await callHelmRender(deps.renderBaseUrl!, args)
+      : judgeRender(await callHelmRender(deps.renderBaseUrl!, args), args)
     // HELD only when an inline draft rendered — the same rule recordBlueprintPreview applies. A
     // published chart's dry run, or a draft that failed to render, is looked at, not held.
     openAgentikoPreview(buildBlueprintPreviewPayload({ held: Boolean(args.rawTemplates && !rendered.error), name, rawTemplates: args.rawTemplates, rendered }))
