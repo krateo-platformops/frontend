@@ -43,7 +43,9 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
   vi.stubGlobal('fetch', (_url: string, init: RequestInit) => {
     let end: () => void = () => undefined
-    const done = new Promise<{ done: true }>((resolve) => { end = () => { resolve({ done: true }) } })
+    const done = new Promise<{ done: true }>((resolve) => {
+      end = () => { resolve({ done: true }) }
+    })
     opened.push({ end, token: (init.headers as Record<string, string>).Authorization })
     return Promise.resolve({ body: { getReader: () => ({ read: () => done }) }, headers: new Headers(), ok: status === 200, status, statusText: '' })
   })
