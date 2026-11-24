@@ -185,9 +185,9 @@ describe('what each fixture says about its own builder', () => {
  * Changing a fixture means changing its pin AND copying the new bytes into the portal chart.
  */
 const PORTAL_CHART_SHA256: Record<string, string> = {
-  'blueprint-builder.builder.yaml': 'b6760905d6778714bb50e0f7601aa5a0227513a03bbc4d1dbdd41bd48b1b6865',
-  'controller-builder.builder.yaml': 'e1b983d40ba9390eaf11662c47e172955989923ef9bd0f20bbac10dddfa75900',
-  'portal-builder.builder.yaml': '137d1bbb52acb1501c2c0c2910db8360d882b35dac895d341194a9ce66a19b53',
+  'blueprint-builder.builder.yaml': '224948052ddaa854d8b870181837179f0a24a705ec386957e3ac168df6c8bbd2',
+  'controller-builder.builder.yaml': 'bf407c54b30a87997bfb75ef8e71f002e4cd3165e8d0654ed53853fff118e4f5',
+  'portal-builder.builder.yaml': '1a00f25521c7cf282751ab80f583a88dda608f8da8223d4faf0518f59050986e',
 }
 
 const isTestOnly = (path: string): boolean =>

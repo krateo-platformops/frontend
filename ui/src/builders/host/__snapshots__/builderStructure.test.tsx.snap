@@ -10,6 +10,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > empty: not
             "Blueprint builder"
           <p class="_subtitle_ec3666">
             "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -79,6 +147,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                 "Chart.yaml: version is not semver"
               <li>
                 "values.schema.json: no root"
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -2575,6 +2711,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fre
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
         "Preview needed — publishing stays off until Preview has rendered the chart exactly as it is now."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -3496,6 +3700,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
         "Wait for the preview to finish."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -4434,6 +4706,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -5360,6 +5700,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -6282,6 +6690,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -7171,6 +7647,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > parked: a 
             "Blueprint builder"
           <p class="_subtitle_ec3666">
             "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -7226,6 +7770,74 @@ exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > 
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -8116,6 +8728,74 @@ exports[`Page Builder — DOM structure, unchanged by the host > empty: nothing 
             "Page builder"
           <p class="_subtitle_ec3666">
             "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -8164,6 +8844,74 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_build_03b493">
       <section class="_palette_03b493">
         <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -8937,6 +9685,74 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_build_03b493">
       <section class="_palette_03b493">
         <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -9485,6 +10301,74 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
               <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
                 <span>
                   "Close draft"
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_build_03b493">
       <section class="_palette_03b493">
         <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -10011,6 +10895,74 @@ exports[`Page Builder — DOM structure, unchanged by the host > parked: a bluep
             "Page builder"
           <p class="_subtitle_ec3666">
             "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">

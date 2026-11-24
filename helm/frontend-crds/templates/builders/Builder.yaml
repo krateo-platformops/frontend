@@ -113,6 +113,40 @@ spec:
                     type: string
                   type: array
                   x-kubernetes-list-type: set
+                guide:
+                  description: How this builder's work gets built, shown above the canvas. A person can hide it. Absent, no guide is shown.
+                  properties:
+                    steps:
+                      items:
+                        properties:
+                          description:
+                            maxLength: 500
+                            minLength: 1
+                            type: string
+                          icon:
+                            description: A Font Awesome icon name (e.g. fa-eye).
+                            maxLength: 63
+                            minLength: 1
+                            type: string
+                          title:
+                            maxLength: 63
+                            minLength: 1
+                            type: string
+                        required:
+                          - description
+                          - title
+                        type: object
+                      maxItems: 8
+                      minItems: 1
+                      type: array
+                    title:
+                      maxLength: 63
+                      minLength: 1
+                      type: string
+                  required:
+                    - steps
+                    - title
+                  type: object
                 inspector:
                   description: The inspector plugin — what the selected part of the draft is edited in.
                   properties:
@@ -193,21 +227,6 @@ spec:
                       type: object
                     draftsCard:
                       description: The Card widget on the builder's hub page that lists this builder's drafts.
-                      properties:
-                        name:
-                          maxLength: 253
-                          minLength: 1
-                          type: string
-                        namespace:
-                          description: Absent, the frontend's own namespace.
-                          maxLength: 63
-                          minLength: 1
-                          type: string
-                      required:
-                        - name
-                      type: object
-                    guideCard:
-                      description: The Card widget the builder's composer shows above its canvas, saying how this builder's work gets built. The person can hide it. Absent, the composer shows no guide.
                       properties:
                         name:
                           maxLength: 253

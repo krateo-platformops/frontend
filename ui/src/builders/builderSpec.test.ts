@@ -121,16 +121,25 @@ describe('parseBuilder', () => {
     expect(problemsOf(builder)).toEqual(['spec.canvas.plugins is not a Builder field', 'spec.palete is not a Builder field'])
   })
 
-  it('reads the portal\'s guide Card, which is optional, and names a malformed one', () => {
+  it('reads the guide, which is optional, and names what is wrong with one', () => {
     const builder = valid()
-    specOf(builder).portal.guideCard = { name: 'demo-guide', namespace: 'builders-page' }
+    specOf(builder).guide = { steps: [{ description: 'Name it.', icon: 'fa-eye', title: 'Start' }, { description: 'Publish it.', title: 'End' }], title: 'How it gets built' }
     const result = parseBuilder(builder)
-    expect(result.ok && result.builder.spec.portal.guideCard).toEqual({ name: 'demo-guide', namespace: 'builders-page' })
+    expect(result.ok && result.builder.spec.guide).toEqual(specOf(builder).guide)
     const without = parseBuilder(valid())
-    expect(without.ok && without.builder.spec.portal.guideCard).toBeUndefined()
+    expect(without.ok && 'guide' in without.builder.spec).toBe(false)
 
-    specOf(builder).portal.guideCard = { title: 'How it gets built' }
-    expect(problemsOf(builder)).toEqual(['spec.portal.guideCard.name is required', 'spec.portal.guideCard.title is not a Builder field'])
+    specOf(builder).guide = { steps: [{ eyebrow: 'Step 1', title: 'Start' }, 'End'] }
+    expect(problemsOf(builder)).toEqual([
+      'spec.guide.title is required', 'spec.guide.steps[0].description is required',
+      'spec.guide.steps[0].eyebrow is not a Builder field', 'spec.guide.steps[1] must be an object',
+    ])
+    specOf(builder).guide = { steps: [], title: 'How it gets built' }
+    expect(problemsOf(builder)).toEqual(['spec.guide.steps must be a list of 1 to 8 steps'])
+    // The portal's Card reference, as this was first drawn, is not a field.
+    delete specOf(builder).guide
+    specOf(builder).portal.guideCard = { name: 'demo-guide' }
+    expect(problemsOf(builder)).toEqual(['spec.portal.guideCard is not a Builder field'])
   })
 
   it('holds the CRD\'s patterns and enums', () => {

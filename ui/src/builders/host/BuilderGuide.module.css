@@ -1,16 +1,17 @@
-/* The guide is one more item of the composer's column (both frames' `.page` is a flex column with
-   its own gap), between the head and the panes; it keeps its height and the panes take the rest.
-   "Hide guide" sits in the Card's head, where an `extra` would, so the guide reads as one card with
-   its own way out. */
+/* The guide is one more item of the builder's column (both frames' `.page` is a flex column with its
+   own gap), between the head and the panes; it keeps its height and the panes take the rest. */
 .guide {
   flex-shrink: 0;
-  position: relative;
 }
 
-.hide {
-  inset-block-start: 7px;
-  inset-inline-end: var(--spacing-xs);
-  position: absolute;
+/* The eyebrow title the portal's cards wear (Card `titleVariant: eyebrow`). */
+.title {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .shown {

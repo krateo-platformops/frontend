@@ -279,8 +279,8 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     ? <Button loading={rendering} onClick={workbench.preview?.run}>{rendering ? 'Previewing…' : 'Preview'}</Button>
     : <Button onClick={() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Preview</Button>
   const undoButton = <Button disabled={!undoDepth} onClick={() => emitDraftUndo()}>Undo</Button>
-  // How it gets built: the portal's Card the Builder names, under the head in every frame and state.
-  const guide = <BuilderGuide builderName={builder.metadata.name} guide={spec.portal.guideCard} />
+  // How it gets built, under the head in every frame and state.
+  const guide = <BuilderGuide builderName={builder.metadata.name} guide={spec.guide} />
 
   // Confirmed rather than immediate. The provider drops the held draft, not only this view; whether
   // the draft stays stored (close) or goes (discard) is useCloseDraftCopy's to say.

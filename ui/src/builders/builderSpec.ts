@@ -42,6 +42,10 @@ export interface StartField {
 export type PreviewMode = 'sandbox-apply' | 'render'
 export type PublishBuilder = 'page' | 'blueprint' | 'controller'
 
+export interface GuideStep { title: string; description: string; icon?: string }
+
+export interface BuilderGuideSpec { title: string; steps: GuideStep[] }
+
 export interface BuilderSpec {
   route: string
   label: string
@@ -63,8 +67,9 @@ export interface BuilderSpec {
     registration: { kind: 'CompositionDefinition'; path: string }
   }
   verbs: { allowed: string[] }
-  /** `guideCard`: the Card the composer shows above its canvas, saying how this builder's work gets built. */
-  portal: { draftsCard: NamespacedRef; deliverablesRestActionRef?: NamespacedRef; guideCard?: NamespacedRef }
+  portal: { draftsCard: NamespacedRef; deliverablesRestActionRef?: NamespacedRef }
+  /** How this builder's work gets built, shown above the canvas. */
+  guide?: BuilderGuideSpec
 }
 
 export interface Builder {
@@ -80,8 +85,8 @@ export type BuilderParseResult =
 
 /** The spec's keys, and which are required — exported so the test can hold them to the CRD's. */
 export const BUILDER_SPEC_KEYS = [
-  'canvas', 'draftKind', 'files', 'gates', 'inspector', 'label', 'lint', 'palette', 'parser', 'portal',
-  'preview', 'publish', 'route', 'start', 'summarizer', 'verbs',
+  'canvas', 'draftKind', 'files', 'gates', 'guide', 'inspector', 'label', 'lint', 'palette', 'parser',
+  'portal', 'preview', 'publish', 'route', 'start', 'summarizer', 'verbs',
 ] as const
 export const BUILDER_SPEC_REQUIRED = [
   'canvas', 'draftKind', 'files', 'gates', 'inspector', 'label', 'lint', 'palette', 'portal', 'preview',
@@ -253,6 +258,19 @@ const pluginRef = (read: ReturnType<typeof reader>, key: string, required: boole
   return plugin === undefined ? undefined : { plugin }
 }
 
+const guideStep = (value: unknown, path: string, problems: string[]): GuideStep | undefined => {
+  if (!isObject(value)) {
+    problems.push(`${path} must be an object`)
+    return undefined
+  }
+  const read = reader(value, path, problems)
+  const title = read.string('title', { max: 63, min: 1, required: true })
+  const description = read.string('description', { max: 500, min: 1, required: true })
+  const icon = read.string('icon', { max: 63, min: 1 })
+  read.done()
+  return title === undefined || description === undefined ? undefined : { description, title, ...(icon !== undefined ? { icon } : {}) }
+}
+
 const startField = (value: unknown, path: string, problems: string[]): StartField | undefined => {
   if (!isObject(value)) {
     problems.push(`${path} must be an object`)
@@ -400,14 +418,27 @@ const parseSpec = (spec: Obj, problems: string[]): BuilderSpec | null => {
     const cardRaw = inner.object('draftsCard', true)
     const draftsCard = cardRaw ? namespacedRef(cardRaw, 'spec.portal.draftsCard', problems) : undefined
     const deliverablesRestActionRef = optionalRef(inner, 'deliverablesRestActionRef', problems)
-    const guideCard = optionalRef(inner, 'guideCard', problems)
     inner.done()
-    if (draftsCard && deliverablesRestActionRef !== null && guideCard !== null) {
-      portal = {
-        draftsCard,
-        ...(deliverablesRestActionRef ? { deliverablesRestActionRef } : {}),
-        ...(guideCard ? { guideCard } : {}),
-      }
+    if (draftsCard && deliverablesRestActionRef !== null) {
+      portal = { draftsCard, ...(deliverablesRestActionRef ? { deliverablesRestActionRef } : {}) }
+    }
+  }
+
+  let guide: BuilderGuideSpec | undefined
+  const guideRaw = read.object('guide', false)
+  if (guideRaw) {
+    const inner = reader(guideRaw, 'spec.guide', problems)
+    const title = inner.string('title', { max: 63, min: 1, required: true })
+    const stepsRaw = inner.take('steps')
+    inner.done()
+    if (stepsRaw === undefined) {
+      problems.push('spec.guide.steps is required')
+    } else if (!Array.isArray(stepsRaw) || stepsRaw.length < 1 || stepsRaw.length > 8) {
+      problems.push('spec.guide.steps must be a list of 1 to 8 steps')
+    } else {
+      const steps = stepsRaw.map((step, index) => guideStep(step, `spec.guide.steps[${index}]`, problems))
+      const complete = steps.filter((step): step is GuideStep => step !== undefined)
+      if (title !== undefined && complete.length === steps.length) { guide = { steps: complete, title } }
     }
   }
 
@@ -433,6 +464,7 @@ const parseSpec = (spec: Obj, problems: string[]): BuilderSpec | null => {
     route,
     start,
     verbs,
+    ...(guide ? { guide } : {}),
     ...(parser ? { parser } : {}),
     ...(summarizer ? { summarizer } : {}),
   }

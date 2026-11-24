@@ -1,95 +1,77 @@
 // @vitest-environment jsdom
 /**
- * The composer's guide (spec.portal.guideCard): mounted from the portal's Card, in the chrome scope,
- * hidden and shown again per Builder, and absent when the Builder names none.
+ * The builder's guide (spec.guide): drawn from the Builder alone, hidden and shown again per Builder,
+ * and absent when the Builder has none. Rendered with no provider at all: it reads nothing.
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import FiltersProvider from '../../components/FiltesProvider/FiltersProvider'
-import { ConfigContext } from '../../context/ConfigContext'
+import type { BuilderGuideSpec } from '../builderSpec'
 
-// What the guide mounted, and in which scope: the double reads the scope as a widget would.
-const mounted = vi.hoisted((): { endpoint: string; scope: string }[] => [])
-vi.mock('../../components/WidgetRenderer', async () => {
-  const { useWidgetScope } = await import('../../context/WidgetScopeContext')
-  const WidgetRendererDouble = ({ widgetEndpoint }: { widgetEndpoint: string }) => {
-    mounted.push({ endpoint: widgetEndpoint, scope: useWidgetScope() })
-    return <div data-testid='guide-card'>{widgetEndpoint}</div>
-  }
-  return { default: WidgetRendererDouble }
-})
+import { BuilderGuide, guideHiddenKey } from './BuilderGuide'
 
-import { BuilderGuide, guideEndpoint, guideHiddenKey } from './BuilderGuide'
+vi.stubGlobal('matchMedia', (query: string) => ({
+  addEventListener: vi.fn(),
+  addListener: vi.fn(),
+  dispatchEvent: vi.fn(() => false),
+  matches: false,
+  media: query,
+  onchange: null,
+  removeEventListener: vi.fn(),
+  removeListener: vi.fn(),
+}))
 
-const withConfig = (node: React.ReactNode) => (
-  // Only what the guide reads: the frontend's namespace, for a guide that names none, under the
-  // FiltersProvider the app mounts at its root.
-  <ConfigContext.Provider value={{ config: { params: { FRONTEND_NAMESPACE: 'krateo-system' } } } as never}>
-    <FiltersProvider>{node}</FiltersProvider>
-  </ConfigContext.Provider>
-)
+const guide: BuilderGuideSpec = {
+  steps: [
+    { description: 'Name the page.', icon: 'fa-file-circle-plus', title: 'Start a draft' },
+    { description: 'It opens a change request.', title: 'Publish' },
+  ],
+  title: 'How a page gets built',
+}
+const card = () => screen.queryByRole('region', { name: 'How it gets built' })
 
-beforeEach(() => {
-  mounted.length = 0
-  window.localStorage.clear()
-})
+beforeEach(() => { window.localStorage.clear() })
 afterEach(cleanup)
 
 describe('BuilderGuide', () => {
-  it('reads the Card the Builder names, in its namespace or the frontend\'s', () => {
-    expect(guideEndpoint({ name: 'portal-builder-guide', namespace: 'builders-page' }, 'krateo-system'))
-      .toBe('/call?resource=cards&apiVersion=widgets.templates.krateo.io/v1beta1&name=portal-builder-guide&namespace=builders-page')
-    expect(guideEndpoint({ name: 'g' }, 'krateo-system')).toContain('&namespace=krateo-system')
-    expect(guideEndpoint({ name: 'g' }, undefined)).toBeNull()
+  it('draws the title and the numbered steps, in order', () => {
+    render(<BuilderGuide builderName='portal-builder' guide={guide} />)
+    expect(within(card()!).getByText('How a page gets built')).toBeTruthy()
+    const text = card()!.textContent ?? ''
+    const order = ['Step 1', 'Start a draft', 'Name the page.', 'Step 2', 'Publish', 'It opens a change request.'].map((part) => text.indexOf(part))
+    expect(order.every((at) => at >= 0)).toBe(true)
+    expect([...order].sort((left, right) => left - right)).toEqual(order)
   })
 
-  it('draws nothing, and fetches nothing, for a Builder with no guide', () => {
-    const { container } = render(withConfig(<BuilderGuide builderName='portal-builder' />))
+  it('draws nothing for a Builder with no guide', () => {
+    const { container } = render(<BuilderGuide builderName='portal-builder' />)
     expect(container.innerHTML).toBe('')
-    expect(mounted).toEqual([])
-  })
-
-  it('mounts the guide Card in the chrome scope, so the composer\'s query never reaches it', () => {
-    render(withConfig(<BuilderGuide builderName='portal-builder' guide={{ name: 'portal-builder-guide', namespace: 'builders-page' }} />))
-    expect(screen.getByTestId('guide-card')).toBeTruthy()
-    expect(mounted[0]).toEqual({
-      endpoint: '/call?resource=cards&apiVersion=widgets.templates.krateo.io/v1beta1&name=portal-builder-guide&namespace=builders-page',
-      scope: 'chrome',
-    })
   })
 
   it('hides for this Builder, remembers it, and comes back', () => {
-    const guide = { name: 'portal-builder-guide', namespace: 'builders-page' }
-    render(withConfig(<BuilderGuide builderName='portal-builder' guide={guide} />))
+    render(<BuilderGuide builderName='portal-builder' guide={guide} />)
     fireEvent.click(screen.getByRole('button', { name: 'Hide guide' }))
-    expect(screen.queryByTestId('guide-card')).toBeNull()
+    expect(card()).toBeNull()
     expect(window.localStorage.getItem(guideHiddenKey('portal-builder'))).toBe('true')
     cleanup()
 
     // Another visit: still hidden, for this Builder only.
-    render(withConfig(<BuilderGuide builderName='portal-builder' guide={guide} />))
-    expect(screen.queryByTestId('guide-card')).toBeNull()
-    render(withConfig(<BuilderGuide builderName='blueprint-builder' guide={{ name: 'blueprint-builder-guide' }} />))
-    expect(screen.getAllByTestId('guide-card')).toHaveLength(1)
+    render(<BuilderGuide builderName='portal-builder' guide={guide} />)
+    expect(card()).toBeNull()
+    render(<BuilderGuide builderName='blueprint-builder' guide={guide} />)
+    expect(card()).not.toBeNull()
     cleanup()
 
-    render(withConfig(<BuilderGuide builderName='portal-builder' guide={guide} />))
+    render(<BuilderGuide builderName='portal-builder' guide={guide} />)
     fireEvent.click(screen.getByRole('button', { name: 'Show how it gets built' }))
-    expect(screen.getByTestId('guide-card')).toBeTruthy()
+    expect(card()).not.toBeNull()
     expect(window.localStorage.getItem(guideHiddenKey('portal-builder'))).toBeNull()
-  })
-
-  it('draws nothing outside the app\'s providers, where no widget can render', () => {
-    const { container } = render(<BuilderGuide builderName='portal-builder' guide={{ name: 'g', namespace: 'ns' }} />)
-    expect(container.innerHTML).toBe('')
-    expect(mounted).toEqual([])
   })
 
   it('shows the guide when the storage throws', () => {
     const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('denied') })
-    render(withConfig(<BuilderGuide builderName='portal-builder' guide={{ name: 'g', namespace: 'ns' }} />))
-    expect(screen.getByTestId('guide-card')).toBeTruthy()
+    render(<BuilderGuide builderName='portal-builder' guide={guide} />)
+    expect(card()).not.toBeNull()
     getItem.mockRestore()
   })
 })
