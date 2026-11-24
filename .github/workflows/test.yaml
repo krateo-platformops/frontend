@@ -51,6 +51,15 @@ jobs:
       - name: Widget types in step with the schemas
         run: npx tsx scripts/generate-types.ts --check
 
+  # What ui/nginx.conf answers, asked of the real server: hidden files and dev-server paths 404, app
+  # routes get the shell, and the agents' proxies still receive every path under them (frontend#470).
+  nginx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5 @ 2026-11-23
+      - name: nginx answers
+        run: ui/scripts/test-nginx.sh
+
   # Browser checks against the BUILT app (ui/e2e): what only a real hard load can show — the router
   # on a cold start, real storage, the headers that actually leave. The first is the public route:
   # /public/<slug> with a stored session renders outside the signed-in shell and sends no token.

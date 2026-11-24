@@ -61,7 +61,7 @@ describe('a same-origin proxy path is named after the agent it rewrites to', () 
   it('nginx.conf: each agent location has the sessions location the Evidence panel reads', () => {
     const nginx = readFileSync(join(UI, 'nginx.conf'), 'utf8')
     for (const agent of SAME_ORIGIN_AGENTS) {
-      expect(nginx).toContain(`location /${agent}/sessions/ {`)
+      expect(nginx).toContain(`location ^~ /${agent}/sessions/ {`)
       expect(nginx).toContain(`rewrite ^/${agent}/sessions/(.*)$ /api/sessions/$1 break;`)
     }
   })
