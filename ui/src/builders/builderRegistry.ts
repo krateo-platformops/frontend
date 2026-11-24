@@ -1,5 +1,5 @@
 /**
- * The Builders the composer engine runs — THE ONE SEAM where they are held (T2, frontend#408).
+ * The Builders the engine runs — THE ONE SEAM where they are held (T2, frontend#408).
  *
  * WHERE THEY COME FROM. The Builder CRs on the cluster, listed AS THE SIGNED-IN PERSON over snowplow
  * (clusterBuilders.ts, ADR 0001) and parsed here with `parseBuilder`. Nothing is bundled: the YAML
@@ -14,7 +14,7 @@
  * WHAT THE ENGINE ASKS. A Builder by its draft kind (the held draft's `kind`), its route, its name, or
  * a verb it allows. Each answer is the parsed Builder or undefined — never a throw, because an absent
  * Builder is content ("no builder declares this"), not a crash. `builderOf(kind)` is the one exception,
- * for a HELD draft's kind: a draft is only held inside a composer, which only mounts once its Builder
+ * for a HELD draft's kind: a draft is only held inside a builder page, which only mounts once its Builder
  * loaded, so a miss there is a defect, said loudly.
  */
 import { parseBuilder, type Builder, type BuilderSpec } from './builderSpec'
@@ -188,7 +188,7 @@ export const failBuilders = (reason: string): void => {
 
 /**
  * A RE-READ for the same person failed: the Builders already loaded keep running (the registry is
- * untouched), and the reason is kept as `lastError` for the composers to mention. Only when nothing is
+ * untouched), and the reason is kept as `lastError` for the builders to mention. Only when nothing is
  * loaded is it a plain failure.
  */
 export const noteBuildersRereadFailed = (reason: string): void => {
@@ -239,7 +239,7 @@ export const swapBuildersForTest = (builders: readonly Builder[]): (() => void) 
 
 /**
  * The spec of the Builder a held draft's kind names. Throws only for a kind no loaded Builder
- * declares: a draft is held only inside the composer its Builder mounted, so a miss is a defect.
+ * declares: a draft is held only inside the page its Builder mounted, so a miss is a defect.
  */
 export const builderOf = (draftKind: string): BuilderSpec => {
   const builder = builderRegistry.get({ draftKind })

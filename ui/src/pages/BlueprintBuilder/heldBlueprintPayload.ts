@@ -1,17 +1,17 @@
 /**
- * The preview the Blueprint Composer shows under its canvas: the held chart, and its last render.
+ * The preview the Blueprint Builder shows under its canvas: the held chart, and its last render.
  *
- * The mirror of heldPagePayload, for the same reason: the composer does not receive a payload for
+ * The mirror of heldPagePayload, for the same reason: the builder does not receive a payload for
  * the draft it shows — it receives the held FILES on the draft broadcast, after every write, and a
  * render RESULT when a Preview (its own, or the agent's) comes back. This puts the two together
  * through buildBlueprintPreviewPayload, the one builder the agent's previewBlueprint verb uses too,
- * so the drawer and the composer cannot come to disagree about what a chart preview shows.
+ * so the drawer and the builder cannot come to disagree about what a chart preview shows.
  *
- * `held: true` because the composer only ever shows the held draft — that is what makes Chart files
+ * `held: true` because the builder only ever shows the held draft — that is what makes Chart files
  * editable in place (an edit rides the file-edit bus into the provider, tagged as a blueprint) and
  * what makes it the draft a publish commits.
  *
- * NO `formSchema`. The builder attaches the create-form preview to the Source tab; the composer
+ * NO `formSchema`. The builder attaches the create-form preview to the Source tab; the page
  * shows it in the inspector beside the graph (mockup screen 3), and one form in two places would
  * be two things to read that must say the same.
  */
@@ -29,7 +29,7 @@ export const STALE_RENDER_CAPTION = 'Source shows the last preview. The chart ha
 /** A render whose chart failed — kept on screen with its error, and said to have failed. */
 export const FAILED_RENDER_CAPTION = 'The last preview did not render — its error is in Source. Fix the chart in Chart files and preview again.'
 
-/** The render as the composer keeps it: its objects or its error, and the files it rendered. */
+/** The render as the builder keeps it: its objects or its error, and the files it rendered. */
 export interface LastRender {
   objects: PreviewObjectEntry[]
   error?: string

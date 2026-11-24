@@ -3,7 +3,7 @@
  *
  * WHY TWO BUSES THE AGENT DOES NOT USE. Until now a chart could be held and armed only through the
  * model: previewBlueprint ran inside the agent's turn and the provider held and armed what it
- * rendered. The Blueprint Composer is a person authoring a chart, so it needs the same two steps
+ * rendered. The Blueprint Builder is a person authoring a chart, so it needs the same two steps
  * without a model in the loop — start (hold a new tree) and preview (render what is held, and arm it
  * only if the render succeeded). Same idiom as the publish bus: the surface emits a request with a
  * correlation id, the provider does the work, and one result answers it.
@@ -20,13 +20,13 @@ export const AGENTIKO_DRAFT_RENDER_REQUEST_EVENT = 'agentikoDraftRenderRequest'
 export const AGENTIKO_DRAFT_RENDER_RESULT_EVENT = 'agentikoDraftRenderResult'
 
 /**
- * The id prefix of a start or render the AGENT asked for (controllerVerbs.ts). A mounted composer
- * shows the render it answers — it is a render of the draft the composer holds — while the outcome
+ * The id prefix of a start or render the AGENT asked for (controllerVerbs.ts). A mounted builder
+ * shows the render it answers — it is a render of the draft the builder holds — while the outcome
  * belongs to the agent's chip.
  */
 export const AGENT_RENDER_ID_PREFIX = 'agent-render-'
 
-/** Start a chart draft from these files (the composer's Start). Answered by a render result with the same id. */
+/** Start a chart draft from these files (the builder's Start). Answered by a render result with the same id. */
 export interface ChartStartDetail {
   id: string
   files: Record<string, string>
@@ -34,7 +34,7 @@ export interface ChartStartDetail {
   kind?: DraftKind
 }
 
-/** Render the held chart draft (the composer's Preview). Answered by a render result with the same id. */
+/** Render the held chart draft (the builder's Preview). Answered by a render result with the same id. */
 export interface DraftRenderRequestDetail {
   id: string
 }

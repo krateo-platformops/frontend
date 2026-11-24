@@ -5,7 +5,7 @@
  * frontend reads one over snowplow `/call` as the person, and what arrives is data from the cluster:
  * an older CRD, a hand-edited object, a Builder from a newer frontend with a field this build does not
  * know. The engine must turn that into either a typed Builder or a list of sentences, never a crash
- * halfway through mounting a composer. builderSpec.test.ts holds the two in step (the same keys, the
+ * halfway through mounting a page. builderSpec.test.ts holds the two in step (the same keys, the
  * same required keys), so a field added to one and not the other fails CI rather than a page.
  *
  * STRICTER THAN THE APISERVER IN ONE WAY. The apiserver PRUNES an unknown field; this parser REPORTS

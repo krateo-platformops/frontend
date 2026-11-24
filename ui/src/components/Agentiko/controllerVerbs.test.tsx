@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * frontend#429 — Agentiko authors a controller THROUGH the Controller Builder: the controller verbs
- * start, place, map and settle through the composer's own kernels and buses, previewRestDef renders the
- * held controller the way the composer's Preview does, and publishRestDef publishes the held, previewed
+ * start, place, map and settle through the builder's own kernels and buses, previewRestDef renders the
+ * held controller the way the builder's Preview does, and publishRestDef publishes the held, previewed
  * draft — the petstore e2e an agent must be able to reproduce, then every refusal.
  *
  * The provider is the real one where it matters (the file buses, the authoring buses, the draft store

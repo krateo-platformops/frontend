@@ -11,7 +11,7 @@
  *
  * SAME IDIOM, SAME GUARANTEE. Like previewFileEdit and previewEditBus, this is a window
  * CustomEvent, because the held draft and the preview gate live in the provider while the surfaces
- * that author are pure and hold neither. The bytes are produced by a HUMAN acting in the composer —
+ * that author are pure and hold neither. The bytes are produced by a HUMAN acting in the builder —
  * placing a container, authoring a widget — and never round-trip the model. The provider re-checks
  * the path and the 512 KiB cap in `addFile` before anything is held, so a refusal is a refusal.
  *
@@ -20,7 +20,7 @@
 
 export const AGENTIKO_PREVIEW_FILE_ADD_EVENT = 'agentikoPreviewFileAdded'
 
-/** A file the composer created: where it belongs in the repo, and its bytes. */
+/** A file the builder created: where it belongs in the repo, and its bytes. */
 export interface FileAddDetail {
   path: string
   content: string

@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 /**
- * THE ALIGNMENT GATE for the composer host (T4, frontend#410): each composer's DOM, state by state,
+ * THE ALIGNMENT GATE for the builder host (T4, frontend#410): each builder's DOM, state by state,
  * exactly as it was BEFORE the host was extracted.
  *
  * The snapshots in __snapshots__/builderStructure.test.tsx.snap were written against the
  * hand-built BlueprintBuilder.tsx and PageBuilder.tsx (main c85fb6f) and committed before either
  * was touched. After the extraction the same states must produce the same DOM: every element in
- * order, its classes, its ARIA, its inline style (the Page Composer's `--split`), each button's
+ * order, its classes, its ARIA, its inline style (the Portal Builder's `--split`), each button's
  * label and state, the pills, and the Close draft confirm's words. Run WITHOUT `-u`; a diff here is
  * a visual change the host made, not a snapshot to refresh.
  *
@@ -97,7 +97,7 @@ const outline = (root: Element): string => {
   return lines.join('\n')
 }
 
-/** Just the composer: the container's one child. */
+/** Just the builder: the container's one child. */
 const page = (container: HTMLElement) => outline(container.firstElementChild as Element)
 
 /** The Close draft confirm, opened, as the person reads it — then closed again. */
@@ -160,10 +160,10 @@ describe('Blueprint Builder — a chart held BEFORE it mounts (review of #427)',
     const Page = () => {
       const [gate] = useState(() => createBlueprintGate())
       const [store] = useState(() => createBroadcastingDraftStore(gate))
-      const [composer, setBuilder] = useState(false)
+      const [builder, setBuilder] = useState(false)
       useDraftFileBuses(store, gate, heldDraftIdentity)
       Object.assign(held, { gate, show: () => setBuilder(true), store })
-      return composer ? <BlueprintBuilder /> : null
+      return builder ? <BlueprintBuilder /> : null
     }
     const { container } = render(
       <AntdApp>

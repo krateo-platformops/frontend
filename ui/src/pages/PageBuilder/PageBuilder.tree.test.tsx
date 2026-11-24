@@ -260,7 +260,7 @@ describe('PageBuilder — structural edits from the tree', () => {
     expect(order(seen[1].content)).toEqual(['third', 'first', 'second'])
   })
 
-  /** Remove is confirmed now — it deletes a file and the composer has no undo. */
+  /** Remove is confirmed now — it deletes a file and the builder has no undo. */
   const confirmRemove = (label: string) => {
     act(() => { screen.getByLabelText(label).click() })
     act(() => { screen.getByRole('button', { name: 'Remove' }).click() })

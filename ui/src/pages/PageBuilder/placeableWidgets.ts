@@ -2,7 +2,7 @@
  * The widgets already on the cluster, for "Place existing".
  *
  * NO NEW BACKEND, AND NO RESTACTION. This used to read `restaction.page-composable`, the list
- * `form.compose-page`'s multi-select read, so the composer offered the same set the old card did.
+ * `form.compose-page`'s multi-select read, so the builder offered the same set the old card did.
  * Both are gone from the portal chart: the form in portal#237, the RESTAction in portal#245, once
  * nothing fetched it. This module reads snowplow's `/list` instead (WIDGET_CATEGORY below), which
  * offers every widget kind rather than the seven that RESTAction named — the old card's set, and
@@ -10,7 +10,7 @@
  *
  * WHY THAT IS THE RIGHT AUTHORIZATION MODEL. `/list` resolves every GVR in the category under the
  * caller's own `<user>-clientconfig` credential: the list is exactly what THIS user may read, and the
- * composer adds no authorization surface of its own.
+ * builder adds no authorization surface of its own.
  *
  * WHY A PLAIN FETCH. There is no list hook in the codebase to reuse: every other widget read in the
  * UI is a single named CR GET, and `getResourceEndpoint` requires a name.
@@ -140,7 +140,7 @@ export const listPlaceableWidgets = async (
  * The CATEGORY every RESTAction CRD declares — `categories: [krateo, rest, actions]`.
  *
  * A RESTAction is discovered exactly the way a widget is, by the same endpoint under the same
- * RBAC, because it is an ordinary CRD in a category. The composer treated widgets as the only
+ * RBAC, because it is an ordinary CRD in a category. The builder treated widgets as the only
  * placeable thing, which is why a page's DATA could only ever come from the three-question
  * bind-data form — not because the platform said so, but because nothing else was ever offered.
  */
@@ -168,9 +168,9 @@ export type WidgetPresence =
  *
  * WHY NOT THE LISTING. `listPlaceableWidgets` answers this too, and it was what the placement check
  * originally used — but it enumerates a whole category in a namespace, and on a real cluster that
- * is 553 objects and SEVEN SECONDS. `requestCompose` gives the composer four seconds to answer, so
- * the check could never finish in time: every placement timed out and reported "no page composer is
- * open to apply this", on a page whose composer was open and working. A correctness fix that turns
+ * is 553 objects and SEVEN SECONDS. `requestCompose` gives the builder four seconds to answer, so
+ * the check could never finish in time: every placement timed out and reported "no portal builder is
+ * open to apply this", on a page whose builder was open and working. A correctness fix that turns
  * a working path into a misleading timeout is a worse bug than the one it fixed.
  *
  * The same question asked about one object is a single GET: measured at 111ms when it exists and

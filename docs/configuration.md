@@ -218,7 +218,7 @@ where previews write their drafts, and the author RBAC for the subjects in `auth
 
 - the **page builder** applies draft widget and RESTAction CRs there, so the deployed
   snowplow compiles them for the in-drawer live preview;
-- the **Blueprint Composer** writes each draft chart there as one ConfigMap and renders it
+- the **Blueprint Builder** writes each draft chart there as one ConfigMap and renders it
   by name (portal `blueprint-render-draft`), because a chart sent in a GET's `?extras`
   passes the gateway's 16 KB HTTP/2 header limit. The ConfigMap is deleted as soon as the
   render answers.

@@ -68,7 +68,7 @@ const centre = (element: Element) => {
 /**
  * One complete gesture: press on `source`, move onto `target`, release.
  *
- * The first move clears the 6px activation distance the composer's PointerSensor asks for — without
+ * The first move clears the 6px activation distance the builder's PointerSensor asks for — without
  * it the sensor never starts and the drop is a click.
  */
 export const dragOnto = (source: Element, target: Element): void => {
@@ -98,7 +98,7 @@ export const dragOnto = (source: Element, target: Element): void => {
  *
  * This exists because the claim needed testing rather than repeating. dnd-kit's KeyboardSensor was
  * wired and the handle was given a role and a tabindex, and two tests asserted exactly that much —
- * which is "the controls can be reached", not "a keyboard user can move a widget". The composer's
+ * which is "the controls can be reached", not "a keyboard user can move a widget". The builder's
  * own comments have been caught asserting the second while only having the first before.
  *
  * `stubLayout` is still required: the KeyboardSensor moves a virtual pointer by a fixed step and

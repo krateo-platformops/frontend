@@ -6,7 +6,7 @@
  * exist for the one thing isolation cannot show: that a drop on the real page reaches the draft.
  *
  * They assert on the WRITE BUS rather than on rendered YAML, because that is the actual contract —
- * the composer never writes files itself. It emits on the same bus the Files tab uses, so a move
+ * the builder never writes files itself. It emits on the same bus the Files tab uses, so a move
  * passes through the draft's byte cap and re-arms the publish gate exactly like a hand edit.
  */
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
@@ -79,7 +79,7 @@ describe('PageBuilder — the canvas is wired to the draft', () => {
     //
     // NOTE ON WHAT THIS DOES *NOT* SHOW. No error message appears here, and that is correct rather
     // than a gap: an unoffered container carries no drop handler at all, so `applyMove` never runs
-    // and there is nothing to explain — the absent highlight IS the explanation. The composer's
+    // and there is nothing to explain — the absent highlight IS the explanation. The builder's
     // `moveError` Alert covers the other case, where the canvas offered a drop and `planMove` then
     // refused it because the render-time snapshot had gone stale.
     const rowsOnly = [
@@ -177,9 +177,9 @@ describe('PageBuilder — adding from the palette', () => {
      * The cause was two correct rules meeting. `placeChild` MUST append each child's plural or the
      * CRD will not render the child; `canAccept` honours any non-empty list as intent. So the Row
      * left `allowedResources: ['rows']` behind and the page started refusing everything else — on
-     * the strength of a declaration the composer itself had written a moment earlier.
+     * the strength of a declaration the builder itself had written a moment earlier.
      *
-     * Provenance is what separates them: a container the composer created says so, and its list is
+     * Provenance is what separates them: a container the builder created says so, and its list is
      * read as a description of what it holds rather than as a rule about what it may hold.
      */
     const bus = capture()
@@ -199,7 +199,7 @@ describe('PageBuilder — adding from the palette', () => {
     // exactly what the defect looked like from the canvas.
     expect(screen.queryByRole('alert')).toBeNull()
 
-    // NOTE the harness does not feed accepted edits back into the composer's `files`, so the second
+    // NOTE the harness does not feed accepted edits back into the builder's `files`, so the second
     // plan is computed against the draft as first emitted — which is why this asserts that the drop
     // LANDED rather than that the parent ends up listing both plurals. The accumulation is
     // structureEdit's own property and is covered there.

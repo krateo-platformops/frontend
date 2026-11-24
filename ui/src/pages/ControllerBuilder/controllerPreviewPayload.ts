@@ -11,7 +11,7 @@
  *                  API the Kinds are served under (`<group>/v1alpha1`, pinned) and each Kind's notices
  *
  * A render that no longer describes the files is kept on screen and said to be old — the same rule
- * the Blueprint Composer's Source follows.
+ * the Blueprint Builder's Source follows.
  */
 import type { AgentikoPreviewPayload } from '../../components/Agentiko/previewBus'
 import type { DraftRenderResultDetail } from '../../components/Agentiko/previewDraftRender'

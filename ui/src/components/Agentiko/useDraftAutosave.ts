@@ -7,7 +7,7 @@
  * last debounce window of edits.
  *
  * THE SEAM. `createBlueprintDraftStore(onChange)` fires after every mutation that changed the held
- * tree, for EVERY draft kind — the one place every write path (a Files-tab edit, a composer batch, Undo,
+ * tree, for EVERY draft kind — the one place every write path (a Files-tab edit, a builder batch, Undo,
  * an agent proposal, a start, a close) already passes through. `onHeldChange` is handed to it by the
  * provider, so no path can change the draft without the autosave hearing about it.
  *

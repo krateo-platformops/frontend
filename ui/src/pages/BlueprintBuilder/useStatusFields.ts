@@ -1,7 +1,7 @@
 /**
  * A node's status schema, read as the person — the Ready when picker's input (screen 6).
  *
- * Through the composer's per-mount CRD cache (useCrdSchema), so a target read for placing is not
+ * Through the builder's per-mount CRD cache (useCrdSchema), so a target read for placing is not
  * read again for its readiness, and a denial is said once. Keyed by the CRD's name: a picker that
  * moves to another node answers for that node, and an answer that lands for one it has left is
  * dropped. A native kind reads nothing — its readiness is the kind's own.

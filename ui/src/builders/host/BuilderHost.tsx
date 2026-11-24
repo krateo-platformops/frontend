@@ -1,8 +1,8 @@
 /**
- * THE COMPOSER HOST (T4, frontend#410) — one authoring surface for every Builder, configured by its
+ * THE BUILDER HOST (T4, frontend#410) — one authoring surface for every Builder, configured by its
  * spec and filled by the plugins it names.
  *
- * WHAT IT OWNS, which the Page and Blueprint composers each used to wire by hand:
+ * WHAT IT OWNS, which the Page and Blueprint builders each used to wire by hand:
  *
  * - WHOSE DRAFT IS HELD. The draft broadcast, and a replay asked for on mount so a draft held before
  *   this page opened is shown. A draft of the Builder's kind is drawn; any other is parked behind the
@@ -22,7 +22,7 @@
  *
  * WHAT IT NEVER DOES. It never publishes: Publish only asks. It never reads another kind's files. And a
  * Builder it cannot mount — a plugin, a check or a workbench this build does not ship, or a plugin
- * paired with another kind's workbench — is said in sentences where the composer would have been.
+ * paired with another kind's workbench — is said in sentences where the builder would have been.
  */
 import { Alert, Button, Popconfirm, Space, Tooltip } from 'antd'
 import {
@@ -105,7 +105,7 @@ const resolveParts = (builder: Builder): { ok: true; parts: Parts } | { ok: fals
   }
 }
 
-/** A Builder this frontend cannot mount: said where the composer would have been. */
+/** A Builder this frontend cannot mount: said where its page would have been. */
 const Refused = ({ label, problems }: { label: string; problems: string[] }) => {
   const styles = FRAME_STYLES.panes
   return (
@@ -127,7 +127,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
   const { kind, nouns } = parts
   const { frame } = parts.canvas
   const styles = FRAME_STYLES[frame]
-  // `useContext`, not a throwing hook: a composer mounts bare in tests and degrades without config.
+  // `useContext`, not a throwing hook: a builder mounts bare in tests and degrades without config.
   const api = useContext(ConfigContext)?.config?.api
   const [held, setHeld] = useState<DraftChangedDetail>(NOTHING_HELD)
   // The file a slot asked the files pane to reveal — and a count of the requests, because asking for
@@ -477,7 +477,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
 }
 
 /**
- * The composer for one Builder. `undefined` — no Builder answers where one was asked for — is said,
+ * The page for one Builder. `undefined` — no Builder answers where one was asked for — is said,
  * like any Builder that cannot be mounted.
  */
 export const BuilderHost = ({ builder, name }: { builder: Builder | undefined; name?: string }) => {

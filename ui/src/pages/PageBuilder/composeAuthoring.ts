@@ -3,7 +3,7 @@
  *
  * WHY THEY LIVE HERE. `PageBuilder` hit its 500-line cap when these branches were added, and the
  * cap was right to complain: deciding what a proposal MEANS is not the same job as rendering a
- * composer, and mixing them is what made the existing branches hard to test — every assertion
+ * builder, and mixing them is what made the existing branches hard to test — every assertion
  * needed a mounted component and a dispatched event.
  *
  * WHY THEY ARE PURE. Both answer with a description of what should happen, and neither touches the

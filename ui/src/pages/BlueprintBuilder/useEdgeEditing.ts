@@ -1,11 +1,11 @@
 /**
- * Edges, as the composer edits them — screens 6 and 7, and the inspector's Depends-on rows.
+ * Edges, as the builder edits them — screens 6 and 7, and the inspector's Depends-on rows.
  *
  * TWO WAYS TO START ONE, ONE PENDING EDGE. A drag from a card onto another (DependencyGraph's
  * `edgeDraw`), or — the guaranteed route, for a keyboard and a touch screen — the node inspector's
  * "Add dependency" Select. Both end in the same PENDING edge, which the edge inspector asks about:
  * wait for readiness or not, and what "ready" means. Nothing is written until Accept; Cancel, or Esc
- * from anywhere in the composer, lets it go.
+ * from anywhere in the builder, lets it go.
  *
  * A DROP WHERE THE EDGE MAY NOT GO is refused on the spot, in the kernel's words ("Refused a moment
  * ago"): the cards that would close a loop never lit, and the refusal names where it could go.
@@ -15,7 +15,7 @@
  * renders it again. The plan is the kernel's (planEdge); a batch the provider refuses is said where
  * the gesture was made, and nothing is written.
  *
- * AFTER AN ACCEPT the composer says what happened (screen 7): the dependent's descriptor entry, a
+ * AFTER AN ACCEPT the builder says what happened (screen 7): the dependent's descriptor entry, a
  * sentence per rewritten template, and the dependent's template opened with its gate lit. That account
  * belongs to the bytes it describes — an Undo, or any other write to those templates, retires it.
  */
@@ -147,7 +147,7 @@ export const useEdgeEditing = ({ architecture, files, filesRef, onAccepted }: Ed
     if (drawing && !has(drawing.source)) { setDrawing(null) }
   }, [architecture, drawing, pending])
 
-  // Esc lets a pending edge (or a drag) go, from anywhere in the composer.
+  // Esc lets a pending edge (or a drag) go, from anywhere in the builder.
   const active = !!pending || !!drawing
   useEffect(() => {
     if (!active) { return undefined }

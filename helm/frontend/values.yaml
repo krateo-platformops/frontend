@@ -283,7 +283,7 @@ config:
   #   in); the REPO segment is only a fallback prefill that the per-artifact name overrides. The
   #   default SCM-agnostic path discriminates Portal-Builder listings by the krateo.io/builder LABEL,
   #   not the repo, so per-artifact repos are safe.
-  # BLUEPRINT: krateo-blueprints owns the new repos. It is the OWNER the Blueprint Composer shows a
+  # BLUEPRINT: krateo-blueprints owns the new repos. It is the OWNER the Blueprint Builder shows a
   #   chart will be registered under, and the one the publish form prefills; with this key empty
   #   both were blank and every publish asked the person for an org.
   #   The repo segment is `<chart>` on purpose, because nothing should ever publish to it. A publish
@@ -326,14 +326,14 @@ config:
   AUTOPILOT_GIT_SCM: github
   AUTOPILOT_GIT_HOST: github.com
   # Agentiko SPEAK-BACK — reads an answer aloud when the question was asked BY VOICE (a
-  # composer draft made purely of dictated segments; one typed character and the turn is
+  # chat composer draft made purely of dictated segments; one typed character and the turn is
   # silent). ON by default; set "off" to remove the feature and its rail-header control on
   # this install. Uses the BROWSER's speech synthesis with a LOCAL (on-device) voice only:
   # no request leaves the browser, no microphone is opened, no HTTPS is required, and a
   # machine with no local voice simply reports the feature unavailable rather than falling
   # back to a cloud voice that would ship the answer text to a voice vendor.
   AUTOPILOT_VOICE_SPEAK_BACK: "on"
-  # Agentiko DICTATION — hold-to-speak into the rail's composer. ITS PRESENCE IS THE
+  # Agentiko DICTATION — hold-to-speak into the chat composer. ITS PRESENCE IS THE
   # ON/OFF SWITCH: empty (the default) and no microphone control renders at all. Set it to
   # the FULL absolute URL of an OpenAI-shaped /chat/completions on the agent gateway —
   # the dedicated guardrail-free /stt/v1 route once the platform ships it, otherwise
@@ -343,7 +343,7 @@ config:
   # BEFORE ENABLING, know what it does: dictated microphone audio is sent to GOOGLE VERTEX
   # AI (region "global" — no region guarantee), because the gateway's /llm/v1 backend is
   # Vertex regardless of any ModelConfig, INCLUDING on installs that have moved the agent
-  # fleet to a local model. The audio is used only to produce text in the composer; only
+  # fleet to a local model. The audio is used only to produce text in the chat composer; only
   # the user pressing Send transmits anything to an agent. It also requires HTTPS on the
   # portal AND on every backend origin in config.json — a plain-HTTP portal is not a secure
   # context, so no microphone control appears no matter what this key says.

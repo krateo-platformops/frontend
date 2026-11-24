@@ -1,7 +1,7 @@
 /**
- * The composer's inline styles obey the token rules — because NOTHING ELSE CHECKS THEM.
+ * The builder's inline styles obey the token rules — because NOTHING ELSE CHECKS THEM.
  *
- * `design/lint/lint-css-tokens.py` reads `.module.css`. The composer does most of its styling in
+ * `design/lint/lint-css-tokens.py` reads `.module.css`. The builder does most of its styling in
  * `style={{ … }}` inside TSX, which that lint never sees, so T1 (colour comes from a token, never a
  * hex literal) and T4 (spacing resolves to the scale) were unenforced here and both had drifted.
  *
@@ -61,7 +61,7 @@ describe('the builder styles from tokens (T1, T4)', () => {
    * so the component emits `background: default`, the browser drops it as invalid, and the badge
    * keeps antd's default red. Nothing errors and nothing warns.
    *
-   * The composer shipped that on the Objects count for three releases: a red pill reading "3" next
+   * The builder shipped that on the Objects count for three releases: a red pill reading "3" next
    * to the word Objects, which says three things are wrong with a page where nothing is. Red is
    * exception-only — see the status-indicator rule — so this asserts the mistake cannot return by
    * the same silent route.

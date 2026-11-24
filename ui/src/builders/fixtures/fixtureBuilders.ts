@@ -3,7 +3,7 @@
  *
  * The product reads Builders from the cluster (clusterBuilders.ts) and never imports this module:
  * the YAML beside it is the source the portal chart's CRs are copied from, and test data. The suite's
- * setup (src/test/setup.ts) installs these into the registry so engine and composer tests run against
+ * setup (src/test/setup.ts) installs these into the registry so engine and builder tests run against
  * the shipped Builders with no network; a test of the cluster read itself stubs the fetch instead.
  */
 import { load } from 'js-yaml'

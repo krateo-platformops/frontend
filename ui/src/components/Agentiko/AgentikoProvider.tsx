@@ -192,7 +192,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // Both reset on newThread.
   const [blueprintGate] = useState(createBlueprintGate)
   // The held draft + its broadcast: a surface that EDITS it lives outside this provider's tree (the
-  // composer is a route), so it re-reads from the broadcast rather than computing against stale bytes.
+  // builder is a route), so it re-reads from the broadcast rather than computing against stale bytes.
   // The broadcast says WHO holds the draft and, for a blueprint, what the lint thinks of it — built
   // by the same helper the replay uses, so the two emitters cannot disagree.
   const [blueprintStore] = useState(() => createBroadcastingDraftStore(blueprintGate, draftAutosave.onHeldChange))
@@ -272,7 +272,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // non-read-only verb, so this never mutates.
   // `modality` is THIS turn's own provenance (voice spec FR 67), handed down the same
   // per-turn closure that carries `assistantId` — never read from shared state. That is not
-  // fastidiousness: finalize is async and sets streaming:false (re-enabling the composer)
+  // fastidiousness: finalize is async and sets streaming:false (re-enabling the chat composer)
   // BEFORE it awaits `apply`, so a second turn can legitimately start while this one is
   // suspended in a blast-radius confirm or a destination form. Any "how was the last turn
   // asked" value read after that await belongs to the OTHER turn — which would read a typed
@@ -374,7 +374,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
         chips.push({ label: proposal.label ?? 'drafted the create form', readOnly: true, verb: 'prefillForm' })
       } else if (route === 'publish') {
         // Every builder's publish verb (the Builder that allows it names its publisher) takes
-        // publishDraft, the same path as a composer's Publish button — one destination form, one gate,
+        // publishDraft, the same path as a builder's Publish button — one destination form, one gate,
         // one claim — and publishes the HELD draft, whose record is marked when the claim lands (`held`).
         const { compiled, deepLink, held: heldAtPublish } = await publishDraft(
           { blueprintGate, blueprintStore, builderTargets, config, origin },
@@ -430,7 +430,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
             // FE-BP1/BP2: an APPLIED, lint-clean, SUCCESSFULLY RENDERED inline-draft previewBlueprint
             // HOLDS the previewed tree and arms the blueprint gate for its Chart.yaml name. The rule
             // lives in `recordBlueprintPreview` beside its page twin, so a preview a person starts
-            // from the composer arms the same gate this proposal does.
+            // from the builder arms the same gate this proposal does.
             // A chart held because it rendered: its record carries the hash of the tree that did.
             if (recordBlueprintPreview(proposal.rawTemplates, !blueprintChipRendered(chip), blueprintStore, blueprintGate)) {
               void draftAutosave.markRendered(blueprintStore.get())
@@ -678,7 +678,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
       resetPreviewDataLoop()
       // A NEW USER TURN STOPS SPEECH (FR 75). Not just the ones the keyboard produced: a
       // suggestion chip, a starter prompt and a purely-dictated draft all reach this line
-      // without a keystroke, and the composer's own onChange cancel never fires for them. The
+      // without a keystroke, and the chat composer's own onChange cancel never fires for them. The
       // next turn's finalize also cancels, but that is a stream later — far too late to be the
       // barge-in that the answer-still-talking user just asked for by asking something else.
       agentikoSpeakBackStore.cancel()
@@ -723,7 +723,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     setStreaming(false)
     // Stop means stop: a pending preview-data check sends no follow-up after it.
     resetPreviewDataLoop()
-    // Settle any still-streaming bubble so the UI drops the caret and re-enables the composer.
+    // Settle any still-streaming bubble so the UI drops the caret and re-enables the chat composer.
     setMessages((prev) => prev.map((message) => (message.streaming ? { ...message, streaming: false } : message)))
   }, [resetPreviewDataLoop, setMessages])
 
@@ -735,7 +735,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     abortRef.current = null
     // FR 44: newThread() and switchToThread() abort any capture or upload in flight as
     // well as any speech. A transcript arriving into a thread the user has already left
-    // would land in a composer that belongs to a different conversation.
+    // would land in a chat composer that belongs to a different conversation.
     stopVoice()
     // DENY-BY-DEFAULT on thread reset: a pending approval is rejected (fire-and-forget,
     // no-op handlers — the new thread does not render the released task's stream) so
@@ -772,7 +772,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     setOasHeld(null)
     // THE DRAFT ITSELF SURVIVES. This used to call `blueprintStore.clear()`, on the grounds that
     // the held draft was "dropped with the conversation that produced them". That was true when
-    // every draft came from a conversation. It stopped being true when the composer shipped: a
+    // every draft came from a conversation. It stopped being true when the builder shipped: a
     // person starts a page, drags widgets into it and binds data without Agentiko involved at
     // all — and then starting a fresh thread silently destroyed the page they were building, with
     // no warning and no undo. Worse, starting a fresh thread is exactly what you are told to do
@@ -827,10 +827,10 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   const previewStartedDraft = useCallback((widgets: Record<string, unknown>[], title: string) =>
     apply({ label: `Page preview — ${title}`, verb: 'previewPage', widgets }), [apply])
 
-  // Both held-draft write paths — the Files-tab edit and the composer's add — live in one hook.
+  // Both held-draft write paths — the Files-tab edit and the builder's add — live in one hook.
   // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
   useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity, previewStartedDraft, discardSandbox)
-  // A person starting and rendering a chart (the Blueprint Composer) — see useBlueprintAuthoringBuses.
+  // A person starting and rendering a chart (the Blueprint Builder) — see useBlueprintAuthoringBuses.
   useBlueprintAuthoringBuses(blueprintStore, blueprintGate, config, sandboxWriter, draftAutosave)
   // The draft record's writer (absent without a sandbox: autosave off) and the thread it came from.
   // And the author's own previews from a tab that died, a day old or more, are removed (previewSweep.ts).

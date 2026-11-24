@@ -37,7 +37,7 @@ jobs:
       - name: Unit tests
         run: npx vitest run --reporter=dot
 
-      # The composer derives what it knows about widget kinds — which hold children, what each
+      # The builder derives what it knows about widget kinds — which hold children, what each
       # REQUIRES, the skeleton to create one — from helm/frontend-crds at build time, and commits
       # the result. This re-derives and diffs, so a CRD gaining a required field fails a pull
       # request instead of an apiserver rejection at publish, which is where it used to surface.

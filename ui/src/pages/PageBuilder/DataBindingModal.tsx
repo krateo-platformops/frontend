@@ -3,7 +3,7 @@
  *
  * A data-driven widget is three fields, and every one of the forty-four widget CRDs declares all
  * three: `apiRef` (which RESTAction), `widgetDataTemplate` (jq into widgetData paths), and
- * `resourcesRefsTemplate` (jq generating child refs). The composer exposed none of them. It offered
+ * `resourcesRefsTemplate` (jq generating child refs). The builder exposed none of them. It offered
  * `bind-data`, which writes a RESTAction, an apiRef and exactly ONE widgetDataTemplate entry
  * (`forPath: dataSource`) from three questions over a single API path.
  *

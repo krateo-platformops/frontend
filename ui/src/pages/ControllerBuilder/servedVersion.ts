@@ -1,6 +1,6 @@
 /**
  * The SERVED API VERSION of a controller's Kinds, pinned (frontend#405 round 2). Pure: no React, no
- * network, and no import of the composer modules — the draft store calls `pinServedVersion` on every
+ * network, and no import of the builder modules — the draft store calls `pinServedVersion` on every
  * write of a controller draft, and the store is below them.
  *
  * WHY IT IS PINNED. oasgen-provider derives the version it serves a Kind under from ONE place: the
