@@ -23,6 +23,8 @@ beforeAll(() => {
   installScrollShim()
 })
 beforeEach(() => {
+  // Per case: afterEach unstubs every global, antd's matchMedia with it, and the guide's Steps reads it.
+  installAntdShims()
   graphDouble.reset()
   invalidateAccessTokenCache()
   localStorage.setItem('K_user', JSON.stringify({ accessToken: 'tok-admin' }))

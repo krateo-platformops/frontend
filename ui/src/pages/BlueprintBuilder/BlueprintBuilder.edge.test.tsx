@@ -28,6 +28,8 @@ beforeAll(() => {
   installScrollShim()
 })
 beforeEach(() => {
+  // Per case: afterEach unstubs every global, antd's matchMedia with it, and the guide's Steps reads it.
+  installAntdShims()
   graphDouble.reset()
   draftHistory.clear()
   invalidateAccessTokenCache()
