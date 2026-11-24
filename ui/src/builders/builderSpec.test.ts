@@ -121,6 +121,18 @@ describe('parseBuilder', () => {
     expect(problemsOf(builder)).toEqual(['spec.canvas.plugins is not a Builder field', 'spec.palete is not a Builder field'])
   })
 
+  it('reads the portal\'s guide Card, which is optional, and names a malformed one', () => {
+    const builder = valid()
+    specOf(builder).portal.guideCard = { name: 'demo-guide', namespace: 'builders-page' }
+    const result = parseBuilder(builder)
+    expect(result.ok && result.builder.spec.portal.guideCard).toEqual({ name: 'demo-guide', namespace: 'builders-page' })
+    const without = parseBuilder(valid())
+    expect(without.ok && without.builder.spec.portal.guideCard).toBeUndefined()
+
+    specOf(builder).portal.guideCard = { title: 'How it gets built' }
+    expect(problemsOf(builder)).toEqual(['spec.portal.guideCard.name is required', 'spec.portal.guideCard.title is not a Builder field'])
+  })
+
   it('holds the CRD\'s patterns and enums', () => {
     const builder = valid()
     specOf(builder).canvas.plugin = 'PageGrid'

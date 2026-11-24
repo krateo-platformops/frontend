@@ -63,7 +63,8 @@ export interface BuilderSpec {
     registration: { kind: 'CompositionDefinition'; path: string }
   }
   verbs: { allowed: string[] }
-  portal: { draftsCard: NamespacedRef; deliverablesRestActionRef?: NamespacedRef }
+  /** `guideCard`: the Card the composer shows above its canvas, saying how this builder's work gets built. */
+  portal: { draftsCard: NamespacedRef; deliverablesRestActionRef?: NamespacedRef; guideCard?: NamespacedRef }
 }
 
 export interface Builder {
@@ -399,9 +400,14 @@ const parseSpec = (spec: Obj, problems: string[]): BuilderSpec | null => {
     const cardRaw = inner.object('draftsCard', true)
     const draftsCard = cardRaw ? namespacedRef(cardRaw, 'spec.portal.draftsCard', problems) : undefined
     const deliverablesRestActionRef = optionalRef(inner, 'deliverablesRestActionRef', problems)
+    const guideCard = optionalRef(inner, 'guideCard', problems)
     inner.done()
-    if (draftsCard && deliverablesRestActionRef !== null) {
-      portal = { draftsCard, ...(deliverablesRestActionRef ? { deliverablesRestActionRef } : {}) }
+    if (draftsCard && deliverablesRestActionRef !== null && guideCard !== null) {
+      portal = {
+        draftsCard,
+        ...(deliverablesRestActionRef ? { deliverablesRestActionRef } : {}),
+        ...(guideCard ? { guideCard } : {}),
+      }
     }
   }
 

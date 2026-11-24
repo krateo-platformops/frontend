@@ -206,6 +206,21 @@ spec:
                       required:
                         - name
                       type: object
+                    guideCard:
+                      description: The Card widget the builder's composer shows above its canvas, saying how this builder's work gets built. The person can hide it. Absent, the composer shows no guide.
+                      properties:
+                        name:
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                        namespace:
+                          description: Absent, the frontend's own namespace.
+                          maxLength: 63
+                          minLength: 1
+                          type: string
+                      required:
+                        - name
+                      type: object
                   required:
                     - draftsCard
                   type: object

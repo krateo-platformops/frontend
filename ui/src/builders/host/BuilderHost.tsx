@@ -52,6 +52,7 @@ import type { Builder } from '../builderSpec'
 import { findDraftKindPlugin, type DraftKindNouns } from '../draftKinds'
 import { builderRefusals, resolvePlugin } from '../pluginRegistry'
 
+import BuilderGuide from './BuilderGuide'
 import { FRAME_STYLES } from './frames'
 import { heldModeOf } from './heldMode'
 import type { CanvasPlugin, HostDraft, SlotPlugin, Workbench, WorkbenchPlugin } from './hostTypes'
@@ -278,6 +279,9 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
     ? <Button loading={rendering} onClick={workbench.preview?.run}>{rendering ? 'Previewing…' : 'Preview'}</Button>
     : <Button onClick={() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Preview</Button>
   const undoButton = <Button disabled={!undoDepth} onClick={() => emitDraftUndo()}>Undo</Button>
+  // How it gets built: the portal's Card the Builder names, under the head in every frame and state.
+  const guide = <BuilderGuide builderName={builder.metadata.name} guide={spec.portal.guideCard} />
+
   // Confirmed rather than immediate. The provider drops the held draft, not only this view; whether
   // the draft stays stored (close) or goes (discard) is useCloseDraftCopy's to say.
   const closeButton = (
@@ -352,6 +356,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
           {workbench.notices}
           {publishedAlert}
         </ScreenHeader>
+        {guide}
         {shown ? (
           <>
             {wrap(
@@ -382,6 +387,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
         {workbench.before}
         <ScreenHeader subtitle={summary} title={title} />
         {resumed}
+        {guide}
         {workbench.empty}
       </div>
     )
@@ -448,6 +454,7 @@ const Mounted = ({ builder, parts }: { builder: Builder; parts: Parts }) => {
         {workbench.notices}
         {publishedAlert}
       </ScreenHeader>
+      {guide}
 
       {wrap(
         <div className={styles.body}>

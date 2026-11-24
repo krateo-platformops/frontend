@@ -222,6 +222,10 @@ const FiltersProvider = ({ children }: { children: ReactNode }) => {
 
 export default FiltersProvider
 
+/** Whether a FiltersProvider is above: false where a widget tree cannot render (a surface mounted
+ * bare, as the composer is in its tests). The app mounts one at its root. */
+export const useInFiltersProvider = (): boolean => useContext(FiltersContext) !== undefined
+
 export const useFilter = () => {
   const context = useContext(FiltersContext)
   if (!context) {
