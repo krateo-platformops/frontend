@@ -126,8 +126,12 @@ export const buildExtrasParam = (
   for (const [key, value] of Object.entries(fragmentExtras)) {
     extras[key] = value
   }
+  // A page's route inputs are its NAMED params. `*` is react-router's splat, and it is how the shell
+  // serves its pages (RoutesProvider: descendant routes under one `*`), not something a page declared:
+  // in the envelope it is an undeclared key, so snowplow declines to cache the read and gives it no
+  // live-refresh key (1.8.75 to 1.8.82 sent it on every page read).
   for (const [key, value] of Object.entries(routeParams)) {
-    if (value !== undefined) { extras[key] = value }
+    if (value !== undefined && key !== '*') { extras[key] = value }
   }
   // Volunteer identity only when snowplow does NOT inject it server-side (capability flag).
   //
