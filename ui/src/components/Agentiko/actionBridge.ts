@@ -16,7 +16,7 @@
  */
 
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { type RouteObject } from 'react-router'
 
 import { useConfigContext } from '../../context/ConfigContext'
@@ -47,7 +47,8 @@ import './previewHandlers'
 // read-only registry (it APPLIES drafts to the quarantined sandbox and renders the
 // root's real widgetEndpoint); absent config the registry's v1 source preview runs
 // untouched. See previewPageV2.ts / previewSandbox.ts.
-import { applyPreviewPageV2, discardPreviewSandbox } from './previewPageV2'
+import { onRecordStored } from './previewOwner'
+import { applyPreviewPageV2, discardPreviewSandbox, ownAppliedPreview } from './previewPageV2'
 import { createPreviewPageSession } from './previewSandbox'
 import type { AgentikoActionChip } from './types'
 import { DRAFT_VERB_REGISTRY, READONLY_VERB_REGISTRY } from './verbRegistry'
@@ -896,6 +897,11 @@ export const useAgentikoActionBridge = (
     return (await spec.apply(proposal, { frontendNamespace, handleAction, renderBaseUrl, routePatterns, snowplowBaseUrl, ...(sandboxWriter ? { sandboxWriter } : {}) }))
       ?? refused(proposal.verb)
   }, [afterPreviewApply, beforePreviewApply, frontendNamespace, onAgentDraftProposal, handleAction, handleActionSet, previewPageSession, queryClient, readAttachedSpec, renderBaseUrl, routePatterns, sandboxNamespace, snowplowBaseUrl])
+
+  // A page's record stored after its preview was applied (an agent's page): the preview belongs to it then.
+  useEffect(() => (sandboxNamespace
+    ? onRecordStored(() => { void ownAppliedPreview({ handleActionSet: (ops, options) => handleActionSet(ops, undefined, options), sandboxNamespace, session: previewPageSession }) })
+    : undefined), [handleActionSet, previewPageSession, sandboxNamespace])
 
   // A discarded draft's live render goes with it: the teardown session taken unconditionally.
   const discardSandbox = useCallback(async (): Promise<void> => {

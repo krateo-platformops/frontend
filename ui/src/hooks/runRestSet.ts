@@ -87,6 +87,8 @@ export interface WriteOpResult {
   /** HTTP status of the response; 0 when the request itself failed (network error / timeout abort). */
   status: number
   message: string
+  /** The written object's uid, from the apiserver's answer; absent on a failure. */
+  uid?: string
 }
 
 /**
@@ -124,7 +126,8 @@ const dispatchOp = async (op: WriteOp, index: number, ctx: RunRestSetContext, pr
     const body = parseJsonResponse(await res.text())
     const message = body.message ?? (res.ok ? 'OK' : `HTTP ${res.status}`)
     // A form with secret fields: an apiserver message can quote the value ("Invalid value: …").
-    return { index, message: op.secretValues ? redactSecretValues(message, op.secretValues) : message, ok: res.ok, status: res.status }
+    const uid = res.ok ? body.metadata?.uid : undefined
+    return { index, message: op.secretValues ? redactSecretValues(message, op.secretValues) : message, ok: res.ok, status: res.status, ...(uid ? { uid } : {}) }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return { index, message: op.secretValues ? redactSecretValues(message, op.secretValues) : message, ok: false, status: 0 }
