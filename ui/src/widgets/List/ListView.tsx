@@ -361,6 +361,11 @@ export const ListView = ({
           } else if (accentCode) {
             valueStyle = { color: accentCode }
           }
+          // The icon is the title's, in the tile's own colour: decoration beside a word that says the same.
+          const title = row.icon
+            ? <span className={styles.statTitle}><FontAwesomeIcon aria-hidden icon={row.icon as IconProp} style={accentCode ? { color: accentCode } : undefined} />{row.primaryText}</span>
+            : row.primaryText
+          const borderless = itemTemplate.tileVariant === 'borderless'
           return (
             <AntdList.Item className={styles.statItem} key={`${rowKey}-${index}`}>
               <Card
@@ -368,9 +373,10 @@ export const ListView = ({
                 hoverable={Boolean(row.navigateTo)}
                 {...rowNavProps(row.navigateTo, (path) => navigateOrExternal(navigate, path))}
                 size='small'
-                style={accentCode ? { borderColor: `color-mix(in srgb, ${accentCode} 45%, var(--border-color))` } : undefined}
+                style={accentCode && !borderless ? { borderColor: `color-mix(in srgb, ${accentCode} 45%, var(--border-color))` } : undefined}
+                {...(borderless ? { variant: 'borderless' as const } : {})}
               >
-                <Statistic styles={{ content: valueStyle }} title={row.primaryText} value={missing ? '—' : row.secondaryText} />
+                <Statistic styles={{ content: valueStyle }} title={title} value={missing ? '—' : row.secondaryText} />
                 {row.subPrimaryText && <Typography.Text className={styles.statCaption} type='secondary'>{row.subPrimaryText}</Typography.Text>}
               </Card>
             </AntdList.Item>
