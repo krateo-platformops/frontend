@@ -58,6 +58,7 @@ import {
 } from './draftRecord'
 import { draftSaveStatus } from './draftSaveStatus'
 import { pageDraftFiles, pageDraftWidgets } from './pageDraft'
+import { recordStored } from './previewOwner'
 import { publishedLocks } from './publishedLocks'
 import { usePreviewSweep } from './usePreviewSweep'
 
@@ -191,7 +192,7 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     }
   }
 
-  const send = async (verb: 'POST' | 'PUT', name: string, namespace: string, payload: Record<string, unknown>, target: SandboxWriter): Promise<{ ok: boolean; status: number; message: string }> => {
+  const send = async (verb: 'POST' | 'PUT', name: string, namespace: string, payload: Record<string, unknown>, target: SandboxWriter): Promise<{ ok: boolean; status: number; message: string; uid?: string }> => {
     try {
       const results = await target.handleActionSet(
         [{ path: buildSetOpPath({ gvr: CONFIGMAPS, name, namespace, verb }), payload, verb }],
@@ -246,6 +247,8 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     if (result.ok) {
       meta.created = true
       meta.saved = fingerprint
+      // The preview objects of this page belong to this record (previewOwner.ts).
+      if (kind === 'page' && result.uid) { recordStored(displayName, { name, uid: result.uid }) }
       report(held, { kind, phase: 'saved', savedAt: body.updatedAt })
       return
     }
@@ -368,6 +371,9 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     noteAgentChange: () => { agentChanged = true },
     onHeldChange,
     seedFromRecord: (body) => {
+      if (body.kind === 'page' && body.uid) {
+        recordStored(body.name, { name: draftRecordName('page', draftOwner(username()), body.name), uid: body.uid })
+      }
       const meta = metaOf(keyOf(body))
       meta.created = true
       meta.state = body.state
