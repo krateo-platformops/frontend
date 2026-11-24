@@ -124,6 +124,8 @@ interface SseConnection {
    * endpoints.
    */
   attempt: number
+  /** The token the server last refused (401) here, until a stream opens: it is never asked about twice. */
+  refusedToken?: string
   /** The pending retry, so a teardown or a reopen can cancel it instead of racing it. */
   retryTimer: ReturnType<typeof setTimeout> | undefined
   /** Has any stream on this connection opened? Decides `onOpen`'s `reopened`. */
@@ -305,6 +307,13 @@ export const createSseClient = (credential: SseCredential): SseClient => {
         return
       }
       if (response.status === 401) {
+        // A token this connection already saw refused is a dead credential, not a fresh expiry: asking
+        // again would raise the resume, reopen with the same token and be refused, without end.
+        if (connection.refusedToken === token) {
+          fail(url, connection)
+          return
+        }
+        connection.refusedToken = token
         // #503 F2. An expired or refused credential is not a transport fault, and treating it
         // as one is the 553-rejection defect: every attempt re-presents the SAME dead token and
         // backs off to the ceiling forever. Raise the in-place resume instead — the same call
@@ -338,6 +347,7 @@ export const createSseClient = (credential: SseCredential): SseClient => {
 
     // Opened: the backoff budget is spent, so clear it (see SseConnection.attempt).
     connection.attempt = 0
+    connection.refusedToken = undefined
     clearRetry(connection)
     const reopened = connection.opened
     connection.opened = true

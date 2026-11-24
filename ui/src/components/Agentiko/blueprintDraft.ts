@@ -38,6 +38,7 @@ import { itemNamesMeet, readPlacedName } from '../../pages/BlueprintBuilder/nami
 
 import type { DraftKind } from './blueprintDraftStore'
 import { OAS_ATTACHMENT_MAX_BYTES, utf8ByteLength } from './oasAttachment'
+import { ownDefinitionProblems } from './ownDefinition'
 
 /** The draft file the lint and the form preview read. */
 export const VALUES_SCHEMA_PATH = 'values.schema.json'
@@ -581,6 +582,7 @@ export const lintBlueprintDraft = (rawTemplates: Record<string, string>, kind: D
     problems.push(...lintChartIdentity(rawTemplates[CHART_YAML_PATH], kind))
   }
   problems.push(...lintDescriptor(rawTemplates))
+  problems.push(...ownDefinitionProblems(rawTemplates, chartYamlName(rawTemplates[CHART_YAML_PATH])))
   if (kind === 'blueprint') {
     problems.push(...lintEmptyImages(rawTemplates))
   }
