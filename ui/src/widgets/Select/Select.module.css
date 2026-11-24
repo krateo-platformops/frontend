@@ -132,7 +132,7 @@
 
 /* a group's rows line up with the ungrouped ones; its heading reads as the panel's own heading does */
 .checkPopup :global(.ant-select-item-option-grouped) {
-  padding-inline-start: 12px;
+  padding-inline-start: var(--spacing-smd);
 }
 
 .checkPopup :global(.ant-select-item-group) {
