@@ -139,7 +139,7 @@ export const ShellRoute = () => {
       <LiveRefreshFirehose />
       <ShellSlotsProvider value={{
         // The routed page owns the route's inputs again (see the 'chrome' scope on the shell below).
-        content: <><div className={styles.contentCrumb}><Breadcrumb /></div><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,
+        content: <><Breadcrumb className={styles.contentCrumb} /><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,
         header: <HeaderChrome />,
         routeKey: pathname,
         siderFooter: <SiderFooter />,
