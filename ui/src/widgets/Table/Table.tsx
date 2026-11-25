@@ -9,12 +9,13 @@ import { useNavigate } from 'react-router'
 import { useFilter } from '../../components/FiltesProvider/FiltersProvider'
 import RefChild, { refChildState } from '../../components/RefChild'
 import { RowActionControls, useFireRowAction } from '../../components/RowActions'
+import TimeText from '../../components/TimeText'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useMeasuredWidth } from '../../hooks/useMeasuredWidth'
 import { getColorCode, getTagStyle, resolveTextColor } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
+import { formatTime, timeFormOf } from '../../utils/dateFormat'
 import { navigateOrExternal } from '../../utils/navigation'
-import { formatISODate, formatRelativeTime } from '../../utils/utils'
 
 import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
@@ -462,15 +463,15 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
 
               switch (type) {
                 case 'string': {
-                  // Optional display format (relative age / formatted date) — the raw
-                  // value stays in the data; only the rendering changes.
-                  const formatted = (() => {
-                    if (!stringValue) { return EMPTY_CELL }
-                    if (format === 'relative') { return formatRelativeTime(stringValue) }
-                    if (format === 'date' || format === 'datetime') { return formatISODate(stringValue, format === 'datetime') }
-                    return stringValue
-                  })()
-                  return <span style={{ color: resolveTextColor(cellColor ?? color) }}>{formatted}</span>
+                  // Optional time form (utils/dateFormat): the RESTAction sends the ISO time, the cell writes it
+                  // as an age, an ago, a moment or a day in the viewer's zone, full date on hover and focus. The
+                  // raw value stays in the data (and sorts as a date); only the rendering changes. A cell's
+                  // explicit `tooltip` stays its only tooltip (withCellTooltip), so it gets the words alone.
+                  const textStyle = { color: resolveTextColor(cellColor ?? color) }
+                  if (!stringValue) { return <span style={textStyle}>{EMPTY_CELL}</span> }
+                  const timeForm = timeFormOf(format)
+                  if (timeForm && !explicitTooltip(cell)) { return <TimeText form={timeForm} style={textStyle} value={stringValue} /> }
+                  return <span style={textStyle}>{timeForm ? formatTime(stringValue, timeForm) : stringValue}</span>
                 }
                 case 'number':
                 case 'integer':

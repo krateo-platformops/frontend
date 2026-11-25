@@ -28,7 +28,7 @@ export interface PageHeader {
        */
       counterLabel?: string
       /**
-       * one line of supporting context below the title. Must NOT restate the title — say it once per page
+       * one line of supporting context below the title. Must NOT restate the title — say it once per page. A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:2026-11-04T10:10:27Z}` ("3 weeks ago"), `{age:…}` ("3 weeks"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"), e.g. "Composition · ns · created {ago:2026-11-04T10:10:27Z}". Never an age computed in jq: snowplow caches the rendered text with `now` frozen.
        */
       subtitle?: string
       /**
@@ -58,7 +58,7 @@ export interface PageHeader {
         tooltip?: string
       }
       /**
-       * something on this page is in progress (an analysis, a check): one line under the title saying since when, with the elapsed minutes ticking in the browser while `live` is true. No ETA. The page itself updates when the state changes; this line only keeps the wait visible. null means no progress line: a RESTAction that has nothing in progress sends null, because a widgetDataTemplate cannot leave the path unset (snowplow writes "" for no output) and the CRD must admit what it then writes.
+       * something on this page is in progress (an analysis, a check): one line under the title saying since when, with the time waited ticking in the browser while `live` is true ("Re-analysis since 21 Nov, 12:54 · 12 minutes"). No ETA. The page itself updates when the state changes; this line only keeps the wait visible. null means no progress line: a RESTAction that has nothing in progress sends null, because a widgetDataTemplate cannot leave the path unset (snowplow writes "" for no output) and the CRD must admit what it then writes.
        */
       progress?: {
         /**
@@ -66,11 +66,11 @@ export interface PageHeader {
          */
         label: string
         /**
-         * RFC 3339 timestamp it started (or settled); shown as HH:MM UTC
+         * RFC 3339 timestamp it started (or settled); shown as a moment in the viewer's time zone ("21 Nov, 12:54"), the full date on hover
          */
         since: string
         /**
-         * still running: show the elapsed minutes, ticking, and a live mark. False or absent: a settled time only, nothing ticks
+         * still running: show the time waited (an age, "12 minutes"), ticking, and a live mark. False or absent: a settled time only, nothing ticks
          */
         live?: boolean
         /**

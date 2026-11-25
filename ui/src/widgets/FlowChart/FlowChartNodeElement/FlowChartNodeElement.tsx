@@ -2,27 +2,12 @@ import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Avatar, Flex, Space, Tooltip } from 'antd'
 
+import TimeText from '../../../components/TimeText'
 import { getColorCode } from '../../../theme/palette'
-import { formatISODate } from '../../../utils/utils'
+import { toInstant } from '../../../utils/dateFormat'
 import type { FlowChartNodeData } from '../FlowChart'
 
 import styles from './FlowChartNodeElement.module.css'
-
-/**
- * "N days" since `isoDate`, or null when there is no date to count from. `date` became optional when
- * the architecture variant loosened the item's required fields, and a missing or unparseable date
- * rendered "NaN days".
- */
-const getDaysPeriod = (isoDate: string | undefined): string | null => {
-  const then = isoDate ? new Date(isoDate).getTime() : Number.NaN
-  if (Number.isNaN(then)) {
-    return null
-  }
-  const deltaMSeconds = new Date().getTime() - then
-  const days = Math.floor(deltaMSeconds / 24 / 60 / 60 / 1000)
-
-  return days !== 1 ? `${days} days` : `${days} day`
-}
 
 const fallbackIcon = { color: getColorCode('gray'), name: 'fa-question' }
 
@@ -44,7 +29,6 @@ const renderIcon = (icon: { name?: string; color?: string; message?: string }, s
 
 const FlowChartNodeElement = ({ data }: { data: FlowChartNodeData }) => {
   const { date, icon, kind, name, namespace, statusIcon, version } = data
-  const period = getDaysPeriod(date)
 
   return (
     <div className={styles.node}>
@@ -56,13 +40,9 @@ const FlowChartNodeElement = ({ data }: { data: FlowChartNodeData }) => {
           <div className={styles.body}>{kind}</div>
           <Flex align='center' className={styles.footer} gap={5}>
             {renderIcon(statusIcon || fallbackIcon, 32)}
-            {date && period
-              ? (
-                <Tooltip title={formatISODate(date, true)}>
-                  <div className={styles.tagFlow}>{period}</div>
-                </Tooltip>
-              )
-              : null}
+            {/* How old the resource is ("7 weeks"), full date on hover and focus. A missing or unparseable
+                date shows nothing: it rendered "NaN days" once `date` became optional. */}
+            {toInstant(date) ? <TimeText className={styles.tagFlow} form='age' value={date} /> : null}
             {version ? <div className={styles.tagFlow}>{version}</div> : null}
           </Flex>
         </div>

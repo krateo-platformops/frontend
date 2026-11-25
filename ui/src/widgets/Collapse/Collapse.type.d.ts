@@ -227,21 +227,21 @@ export interface Collapse {
          */
         formats?: {
           /**
-           * How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.
+           * How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.
            */
-          primaryText?: 'text' | 'datetime' | 'relative'
+          primaryText?: 'text' | 'age' | 'ago' | 'moment' | 'date' | 'datetime' | 'relative'
           /**
-           * How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.
+           * How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.
            */
-          secondaryText?: 'text' | 'datetime' | 'relative'
+          secondaryText?: 'text' | 'age' | 'ago' | 'moment' | 'date' | 'datetime' | 'relative'
           /**
-           * How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.
+           * How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.
            */
-          subPrimaryText?: 'text' | 'datetime' | 'relative'
+          subPrimaryText?: 'text' | 'age' | 'ago' | 'moment' | 'date' | 'datetime' | 'relative'
           /**
-           * How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.
+           * How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.
            */
-          subSecondaryText?: 'text' | 'datetime' | 'relative'
+          subSecondaryText?: 'text' | 'age' | 'ago' | 'moment' | 'date' | 'datetime' | 'relative'
         }
         /**
          * per-row action controls rendered on each row as a kebab (⋯) menu or as buttons (see rowActionsDisplay); each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).
