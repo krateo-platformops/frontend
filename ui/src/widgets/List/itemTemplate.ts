@@ -83,6 +83,12 @@ export interface ItemTemplate {
   iconVariant?: 'avatar' | 'tile' | 'dot'
   /** statistic rowVariant: the tile's antd Card `variant` (default outlined). */
   tileVariant?: 'outlined' | 'borderless'
+  /**
+   * statistic rowVariant: `{path}` to a boolean the RESTAction computes. `true` draws the border in the
+   * tile's `color`; anything else is the neutral border. The tile never decides from its own value, so
+   * it knows nothing about what it counts. Absent: the border follows `color`, as before this field.
+   */
+  highlight?: string
   color?: ColorSpec
   /** Per-slot value formatting; `datetime` → absolute date+time, `relative` → "3h ago". */
   formats?: Partial<Record<RowSlot, 'text' | 'datetime' | 'relative'>>
@@ -230,6 +236,13 @@ export const resolveAccent = (spec: ColorSpec | undefined, item: unknown): strin
   if (spec.map) { return spec.map[resolved] ?? spec.default ?? '' }
   return resolved || spec.default || ''
 }
+
+/** Whether a statistic tile's border is drawn: the template's `highlight`, or its colour where there is none. */
+export const resolveHighlight = (template: ItemTemplate, item: unknown): boolean => (
+  template.highlight === undefined
+    ? resolveAccent(template.color, item) !== ''
+    : interpolate(template.highlight, item) === 'true'
+)
 
 export const resolveStatus = (spec: StatusSpec, item: unknown): ResolvedStatus => ({
   color: interpolate(spec.color, item) || 'gray',
