@@ -25,3 +25,62 @@ spec:
     xField: namespace
     yField: count
     colorField: namespace
+---
+# Time slots (`slotField`) on grouped daily counts: today's bars are still filling (`slot: partial`), drawn as a
+# faint fill in a dashed outline, "so far". A measured 0 is a grey hairline on the baseline, never a coloured bar.
+kind: BarChart
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-barchart-slots
+  namespace: krateo-system
+spec:
+  widgetData:
+    data:
+      - { day: 1795046400, series: Opened, count: 1 }
+      - { day: 1795046400, series: Resolved, count: 0 }
+      - { day: 1795132800, series: Opened, count: 1 }
+      - { day: 1795132800, series: Resolved, count: 0 }
+      - { day: 1795219200, series: Opened, count: 0 }
+      - { day: 1795219200, series: Resolved, count: 2 }
+      - { day: 1795305600, series: Opened, count: 3 }
+      - { day: 1795305600, series: Resolved, count: 0 }
+      - { day: 1795392000, series: Opened, count: 0 }
+      - { day: 1795392000, series: Resolved, count: 1 }
+      - { day: 1795478400, series: Opened, count: 2 }
+      - { day: 1795478400, series: Resolved, count: 0 }
+      - { day: 1795564800, series: Opened, count: 2, slot: partial }
+      - { day: 1795564800, series: Resolved, count: 0, slot: partial }
+    xField: day
+    yField: count
+    colorField: series
+    group: true
+    xTimeUnit: day
+    slotField: slot
+---
+# A slot with no data (`slot: missing`, its value null) draws no bar but a hatched "No data" band; the zeros either
+# side of it are measured, so they are hairlines.
+kind: BarChart
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-barchart-slots-missing
+  namespace: krateo-system
+spec:
+  widgetData:
+    data:
+      - { hour: 1795590000, opened: 0 }
+      - { hour: 1795593600, opened: 0 }
+      - { hour: 1795597200, opened: 1 }
+      - { hour: 1795600800, opened: 0 }
+      - { hour: 1795604400, opened: 0 }
+      - { hour: 1795608000, opened: null, slot: missing }
+      - { hour: 1795611600, opened: null, slot: missing }
+      - { hour: 1795615200, opened: 0 }
+      - { hour: 1795618800, opened: 0 }
+      - { hour: 1795622400, opened: 1 }
+      - { hour: 1795626000, opened: 0 }
+      - { hour: 1795629600, opened: 1, slot: partial }
+    xField: hour
+    yField: opened
+    xTimeUnit: hour
+    slotField: slot
+    legend: false

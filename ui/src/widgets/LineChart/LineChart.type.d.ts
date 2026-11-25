@@ -84,6 +84,10 @@ export interface LineChart {
        */
       xTimeUnit?: 'hour' | 'day'
       /**
+       * The row field that says a slot is not a whole measurement: `partial` for the slot still filling (the one that holds now), `missing` for a slot where nothing was recorded (send its value as null, never 0). Any other value, or none, is a whole slot. A slot with no data breaks the line over a hatched band labelled 'No data', whose hover reads 'No data · 25 Nov, 09:50 to 10:20'; the slot still filling ends the line with a dashed segment and a hollow point labelled 'so far', and its hover value ends 'so far'. A legend entry 'so far' or 'no data' is added under the chart only when such a slot is drawn. With several series a band is drawn only where every series has no data; one series without a value breaks only its own line. Meant for a time axis (`xTimeUnit`), where the band's hover names its times in the viewer's zone.
+       */
+      slotField?: string
+      /**
        * map each colorField category to a Krateo palette colour name (e.g. {"Created":"cyan"}); sets the G2 color scale domain/range so the line + points render in the brand colour, not G2's default blue palette
        */
       colorMap?: {
