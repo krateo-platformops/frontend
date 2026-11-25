@@ -147,9 +147,15 @@ spec:
                     description:
                       description: the alert detail text
                       type: string
+                    details:
+                      description: the full message, folded inside the alert under a collapsed "Details" disclosure; plain text, line breaks kept. Omit it for no disclosure.
+                      type: string
                     showIcon:
                       description: whether to show the severity icon
                       type: boolean
+                    tag:
+                      description: a short reason drawn beside the title as a tag in the alert's own type colour, for example `CrashLoopBackOff`. Omit it for no tag.
+                      type: string
                     title:
                       description: the alert title
                       type: string

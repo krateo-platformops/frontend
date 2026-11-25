@@ -31,6 +31,8 @@ Alert displays an inline contextual message
 | showIcon | no | whether to show the severity icon | boolean |
 | banner | no | render as a full-width banner | boolean |
 | closable | no | whether the alert can be dismissed | boolean |
+| tag | no | a short reason drawn beside the title as a tag in the alert's own type colour, for example `CrashLoopBackOff`. Omit it for no tag. | string |
+| details | no | the full message, folded inside the alert under a collapsed "Details" disclosure; plain text, line breaks kept. Omit it for no disclosure. | string |
 
 
 [Examples](../src/examples/widgets/Alert/Alert.example.yaml)
