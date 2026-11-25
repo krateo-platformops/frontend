@@ -38,7 +38,7 @@ export type PageHeaderWidgetData = NonNullable<WidgetType['spec']>['widgetData']
  * because only the author knows which one a page is for. The layout affords exactly one.
  */
 const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWidgetData>) => {
-  const { counter, counterLabel, items, progress, subtitle, tags, title } = widgetData
+  const { counter, counterLabel, items, note, progress, subtitle, tags, title } = widgetData
   const navigate = useNavigate()
 
   /*
@@ -143,6 +143,13 @@ const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWi
                   <span className={styles.childWhose}>resources</span>
                   <StatusPill color={CHILD_STATE_COLOR[childHealth.state]} label={CHILD_STATE_LABEL[childHealth.state]} />
                 </span>
+              </Tooltip>
+            )}
+            {note?.text && (
+            // Quiet by design: the pills stay true and keep their colour; this only says they are
+            // about to change (e.g. a status that still describes the previous version of a spec).
+              <Tooltip title={note.tooltip}>
+                <span className={styles.note} tabIndex={note.tooltip ? 0 : undefined}>{note.text}</span>
               </Tooltip>
             )}
           </Flex>

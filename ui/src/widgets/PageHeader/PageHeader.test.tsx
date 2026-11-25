@@ -95,6 +95,24 @@ describe('PageHeader', () => {
     expect(screen.queryByText(/\{displayName\}/)).toBeNull()
   })
 
+  it('draws a note after the pills, muted, with its tooltip text on hover', () => {
+    const { container } = renderHeader({ note: { text: 'about the previous version · updating', tooltip: 'version 4 not processed yet' }, tags: [{ color: 'green', label: 'Ready' }] })
+    const line = container.querySelector('[class*="titleLine"]')!
+    const note = screen.getByText('about the previous version · updating')
+    expect(line.contains(note)).toBe(true)
+    // After the pill, in reading order.
+    expect(line.textContent?.indexOf('Ready')).toBeLessThan(line.textContent?.indexOf('about the previous') ?? -1)
+    expect(note.getAttribute('tabindex')).toBe('0')
+  })
+
+  it('draws no note for none, or for an empty text', () => {
+    renderHeader({ note: { text: '' } })
+    expect(screen.queryByText(/previous version/)).toBeNull()
+    cleanup()
+    const { container } = renderHeader({})
+    expect(container.querySelector('[class*="note"]')).toBeNull()
+  })
+
   it('places tags on the title line', () => {
     renderHeader({ tags: [{ color: 'green', label: 'Healthy' }] })
     expect(screen.getByText('Healthy')).toBeTruthy()

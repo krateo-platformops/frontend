@@ -135,3 +135,9 @@
   color: var(--gray-color);
   font-size: var(--krateo-text-caption);
 }
+
+/* `note`: muted text after the pills, on the title line (the "resources" word's ink and size). */
+.note {
+  color: var(--gray-color);
+  font-size: var(--krateo-text-caption);
+}

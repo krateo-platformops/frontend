@@ -74,6 +74,24 @@
                 }
               }
             },
+            "note": {
+              "type": "object",
+              "description": "a quiet line of muted text after the pills on the title line, e.g. \"about the previous version · updating\": what the pills say is true but about to change. Absent or empty text, nothing is drawn",
+              "additionalProperties": false,
+              "required": [
+                "text"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "description": "the note, in plain words; an empty string draws nothing"
+                },
+                "tooltip": {
+                  "type": "string",
+                  "description": "the longer explanation shown on hover and focus"
+                }
+              }
+            },
             "progress": {
               "type": [
                 "object",
