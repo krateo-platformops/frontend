@@ -62,51 +62,54 @@ const axisWithInk = (axis: LineChartWidgetData['axis']) => {
   return { ...axisObj, x: merge('x'), y: merge('y') }
 }
 
+type TimeUnit = NonNullable<LineChartWidgetData['xTimeUnit']>
+
+const DAY: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
+const dayLabel = (date: Date): string => date.toLocaleDateString('en-US', DAY)
+const timeLabel = (date: Date): string => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+const isMidnight = (date: Date): boolean => date.getHours() === 0 && date.getMinutes() === 0
+
 /**
- * Format a UNIX epoch (seconds) to an x-axis label in the BROWSER's local timezone — the fix
- * for server-side `gmtime|strftime` rendering UTC (a 21:00-Rome bucket showed 19:00). `Date`
- * accessors (`getHours`) and `toLocaleDateString` both resolve to the local zone (full IANA
- * rules incl. DST), so this is correct even across a DST boundary inside a 30-day window.
- * Non-numbers pass through unchanged (already-formatted labels / non-epoch xFields).
+ * A tick on a time axis, in the BROWSER's timezone (a server-side strftime is UTC: a 21:00-Rome bucket read
+ * 19:00). `Date`'s accessors follow the local zone's rules, DST included. An hourly axis names the day where it
+ * changes, so a week reads as days and a day as hours; a daily axis labels days only.
  */
-const formatEpochLabel = (value: unknown, unit: 'hour' | 'day'): unknown => {
-  if (typeof value !== 'number') {
-    return value
-  }
-  const date = new Date(value * 1000)
-  if (unit === 'hour') {
-    return `${String(date.getHours()).padStart(2, '0')}:00`
-  }
-  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+export const timeTick = (value: unknown, unit: TimeUnit): unknown => {
+  if (!(value instanceof Date)) { return value }
+  if (unit === 'day') { return isMidnight(value) ? dayLabel(value) : '' }
+  return isMidnight(value) ? dayLabel(value) : timeLabel(value)
+}
+
+/** A point's own time, whole: the tooltip's title. */
+export const timeTitle = (value: unknown, unit: TimeUnit): unknown => {
+  if (!(value instanceof Date)) { return value }
+  return unit === 'day' ? dayLabel(value) : `${dayLabel(value)}, ${timeLabel(value)}`
 }
 
 /**
- * Localize every `xField` value (epoch → local label) in the data AND in any annotations that
- * carry the same field, so the peak `point` (objects with `xField`) and the `lineX` "now" mark
- * (bare x values) stay aligned to their categorical band after the data is relabelled.
+ * Every `xField` epoch (seconds) becomes its moment, in the data AND in the annotations that carry the field (the
+ * peak `point`, the `lineX` "now" mark), so the axis places points by TIME. They used to become their label
+ * ("11:00") on a categorical axis: a day apart was the same place, so a 24 h line ran back across the plot and a
+ * week was folded onto a few hours.
  */
-const localizeXField = (
+const placeInTime = (
   data: LineChartWidgetData['data'],
   annotations: LineChartWidgetData['annotations'],
   xField: string,
-  unit: 'hour' | 'day',
 ) => {
-  const fmt = (value: unknown) => formatEpochLabel(value, unit)
-  const localData = data.map((row) => ({ ...row, [xField]: fmt(row[xField]) }))
-  const localAnnotations = annotations?.map((mark) => {
+  const moment = (value: unknown) => (typeof value === 'number' ? new Date(value * 1000) : value)
+  const timedData = data.map((row) => ({ ...row, [xField]: moment(row[xField]) }))
+  const timedAnnotations = annotations?.map((mark) => {
     const markData = (mark as { data?: unknown }).data
     if (!Array.isArray(markData)) {
       return mark
     }
-    const relabeled = markData.map((item) => {
-      if (item && typeof item === 'object') {
-        return { ...(item as object), [xField]: fmt((item as Record<string, unknown>)[xField]) }
-      }
-      return fmt(item)
-    })
-    return { ...mark, data: relabeled }
+    const moved = markData.map((item) => (item && typeof item === 'object'
+      ? { ...(item as object), [xField]: moment((item as Record<string, unknown>)[xField]) }
+      : moment(item)))
+    return { ...mark, data: moved }
   })
-  return { localAnnotations, localData }
+  return { timedAnnotations, timedData }
 }
 
 /**
@@ -141,11 +144,12 @@ const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
     return <WidgetEmpty description='No data to chart' />
   }
 
-  // When the CR marks xField as epochs (`xTimeUnit`), relabel data + annotations to the browser's
-  // local timezone here — otherwise pass both through verbatim (server already supplied labels).
-  const { localAnnotations, localData } = widgetData.xTimeUnit
-    ? localizeXField(widgetData.data, widgetData.annotations, widgetData.xField, widgetData.xTimeUnit)
-    : { localAnnotations: widgetData.annotations, localData: widgetData.data }
+  // When the CR marks xField as epochs (`xTimeUnit`), the x axis is time — otherwise data and annotations
+  // pass through verbatim (the server already supplied labels).
+  const { xField, xTimeUnit } = widgetData
+  const { timedAnnotations, timedData } = xTimeUnit
+    ? placeInTime(widgetData.data, widgetData.annotations, xField)
+    : { timedAnnotations: widgetData.annotations, timedData: widgetData.data }
 
   // SERIES colours: map each colorField category → a palette hex (mirrors PieChart.colorMap),
   // merged into the CR's scale. Without an operator colorMap, auto-assigned series (and a single
@@ -155,26 +159,32 @@ const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
   const scale = colorMap
     ? { ...widgetData.scale, color: { domain: Object.keys(colorMap), range: Object.keys(colorMap).map((key) => getColorCode(colorMap[key])) } }
     : { color: { range: getChartCatPalette() }, ...widgetData.scale }
+  // A CR's own scale.x or axis.x still wins, as everywhere in this widget.
+  const timeScale = xTimeUnit ? { ...scale, x: { type: 'time', ...(scale as { x?: object }).x } } : scale
+  const axis = axisWithInk(widgetData.axis)
+  const timeAxis = xTimeUnit ? { ...axis, x: { labelFormatter: (value: unknown) => timeTick(value, xTimeUnit), ...axis.x } } : axis
+  const tooltip = xTimeUnit ? { title: (row: Record<string, unknown>) => timeTitle(row[xField], xTimeUnit) } : undefined
 
   return (
     <div className={styles.lineChart} ref={boxRef} style={{ height }}>
       {width > 0 && drawIn !== undefined ? (
         <Line
           animate={drawIn ? DRAW_IN : false}
-          annotations={localAnnotations}
+          annotations={timedAnnotations}
           area={widgetData.area ? brandAreaFill() : undefined}
           autoFit
-          axis={axisWithInk(widgetData.axis)}
+          axis={timeAxis}
           colorField={widgetData.colorField}
-          data={localData}
+          data={timedData}
           key={uid}
           legend={widgetData.legend === false ? false : centeredLegend()}
           onReady={onReady}
           point={widgetData.point}
-          scale={scale}
+          scale={timeScale}
           shapeField={widgetData.shapeField}
           stack={widgetData.stack}
           title={widgetData.title}
+          {...(tooltip ? { tooltip } : {})}
           xField={widgetData.xField}
           yField={widgetData.yField}
         />
