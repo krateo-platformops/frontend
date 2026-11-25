@@ -35,8 +35,7 @@ jobs:
     needs:
       - build
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
 
     steps:
 
@@ -89,161 +88,25 @@ jobs:
           name: frontend-crds-yaml-files
           path: ${{ github.workspace }}/ui/scripts/generated-crds/*.yaml
 
-      # The cross-repo push CANNOT use the default GITHUB_TOKEN: it is scoped to this repo
-      # (krateo-platformops/frontend) only, so any push/PR to krateo-platformops/frontend
-      # 401s ("Bad credentials" / "Permission denied"). A cross-repo token (`PAT`) is required —
-      # see docs/RELEASING.md for the one-time setup (secret name + exact scopes). This step is
-      # GATED on that secret: when it is absent (or empty/expired) we skip with a clear, actionable
-      # log instead of hard-failing the release with a cryptic 401, and print the exact manual
-      # command to run. When present, the CRD sync PR opens automatically.
-      - name: Push CRDs to krateo-platformops/frontend (helm/frontend-crds) via PR
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
+      # The chart this tag ships is the tag's own helm/frontend-crds (release-oci packages it from
+      # this commit), and the drift gate keeps it equal to the generator on every PR. So the
+      # release checks that equality AT THE TAG instead of pushing a sync PR to main: comparing the
+      # tag's generator output with main's chart was a race (a widget merged on main while a tag
+      # was releasing made a diff that the tag never had, as at 1.8.99), and the push needed a
+      # cross-repo token for what is now the same repo.
+      - name: The tag's chart carries the CRDs its widgets generate
         run: |
           set -eo pipefail
           cd "$GITHUB_WORKSPACE"
-
-          # --- Gate: require the cross-repo token before touching the chart repo. -------------
-          # `secrets.PAT` expands to an empty string when the secret is unset. Without this gate,
-          # an empty token silently produces `https://x-access-token:@github.com/...` and the push
-          # 401s deep in the step. Detect it up front and skip cleanly (exit 0) so the release
-          # tag/image publish stays green and the fix is discoverable.
-          if [ -z "${GH_TOKEN:-}" ]; then
-            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "main")
-            {
-              echo "### ⚠️ Widget-CRD auto-sync SKIPPED — cross-repo token \`PAT\` is not set"
-              echo ""
-              echo "The default \`GITHUB_TOKEN\` cannot push to \`krateo-platformops/frontend\`"
-              echo "(it is scoped to this repo only). Add a fine-grained PAT as the repo secret"
-              echo "\`PAT\` — see [docs/RELEASING.md](docs/RELEASING.md) for the exact scopes."
-              echo ""
-              echo "Until then, sync the CRDs manually (generated CRDs are attached to this run as"
-              echo "the \`frontend-crds-yaml-files\` artifact):"
-              echo ""
-              echo '```'
-              echo "cd ui && npm ci && npm run generate-crds   # regenerates ui/scripts/generated-crds/*.yaml for tag ${LATEST_TAG}"
-              echo "# then copy ui/scripts/generated-crds/*.yaml into"
-              echo "# krateo-platformops/frontend:helm/frontend-crds/templates/ and open a PR to main"
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-
-            echo "::warning title=Widget-CRD auto-sync skipped::Repo secret 'PAT' is not set; the CRD sync PR to krateo-platformops/frontend was NOT opened. See docs/RELEASING.md, or sync manually (crds attached as the frontend-crds-yaml-files artifact)."
-            echo "Skipping cross-repo CRD sync: secret 'PAT' is absent/empty. Not a release-blocking failure."
-            exit 0
-          fi
-          # ------------------------------------------------------------------------------------
-
-          TARGET_REPO="krateo-platformops/frontend"
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "main")
-          BRANCH="generated-crds-${LATEST_TAG}"
-          echo "Target repo: $TARGET_REPO | tag: $LATEST_TAG | branch: $BRANCH"
-
-          # The generated CRDs must exist locally before we touch the chart repo.
           shopt -s nullglob
-          LOCAL_CRDS=("$GITHUB_WORKSPACE"/ui/scripts/generated-crds/*.yaml)
-          if [ "${#LOCAL_CRDS[@]}" -eq 0 ]; then
-            echo "ERROR: no generated CRDs found in scripts/generated-crds" >&2
+          gen=(ui/scripts/generated-crds/*.crd.yaml)
+          [ "${#gen[@]}" -gt 0 ] || { echo "::error::no generated CRDs in ui/scripts/generated-crds"; exit 1; }
+          mkdir -p /tmp/gen /tmp/chart
+          cp ui/scripts/generated-crds/*.crd.yaml /tmp/gen/
+          cp helm/frontend-crds/templates/*.crd.yaml /tmp/chart/
+          if ! diff -r /tmp/gen /tmp/chart > /tmp/crd.diff; then
+            echo "::error title=Widget CRDs drifted at this tag::helm/frontend-crds/templates does not match what this tag's widgets generate; the published frontend-crds chart would be wrong. Run generate-crds on main, copy into helm/frontend-crds/templates, release again."
+            cat /tmp/crd.diff
             exit 1
           fi
-          echo "Generated ${#LOCAL_CRDS[@]} CRD file(s)."
-
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Clone the chart repo and authenticate the push remote.
-          gh repo clone "$TARGET_REPO" /tmp/chart
-          cd /tmp/chart
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPO}.git"
-          git fetch origin
-          git checkout main
-          git pull origin main
-
-          # Publish target = the monorepo CRD chart helm/frontend-crds/templates/ (the chart the
-          # frontend-crd CompositionDefinition actually pulls). Retire any pre-monorepo orphan dir
-          # (crds-subchart/, or the even-older crd-chart/crds-chart) if a stale copy resurfaces —
-          # those are packaged by NOTHING post-migration, so a generated CRD landing there silently
-          # never reaches the deployed CRD (widgetData is strict → the missing field is pruned, no
-          # error). This is exactly the drift that stranded Table.fitContent before this fix.
-          mkdir -p helm/frontend-crds/templates
-          for legacy in crds-subchart crds-chart crd-chart; do
-            if [ -d "$legacy" ]; then echo "Removing orphan CRD dir: $legacy"; git rm -r "$legacy" >/dev/null; fi
-          done
-
-          # Teardown-completeness: CRDs are published WITHOUT helm.sh/resource-policy: keep, so
-          # `helm uninstall` of the frontend-crds release deletes them and teardown reaches a clean
-          # slate (no orphan CRDs). Safe because each CRD has a single Helm owner — the dedicated
-          # frontend-crds chart; no parent chart templates it — and the cdc no longer empty-renders
-          # on a stale discovery cache (CRD-watch invalidation, cdc >= 1.0.3). Upgrades are unaffected:
-          # Helm only prunes resources that leave the chart, and the CRD never leaves it. Do NOT
-          # re-add keep — it silently orphans every component CRD on teardown.
-
-          # Refresh the CRD templates: drop the previous set, copy the freshly generated ones.
-          rm -f helm/frontend-crds/templates/*.crd.yaml
-          cp "$GITHUB_WORKSPACE"/ui/scripts/generated-crds/*.yaml helm/frontend-crds/templates/
-
-          git add -A
-
-          if git diff --cached --quiet; then
-            echo "✅ helm/frontend-crds already matches the generated CRDs — nothing to push."
-            exit 0
-          fi
-
-          echo "=== Changes to publish ==="
-          git diff --cached --name-status
-
-          # Recreate a clean per-tag branch off main, then carry the staged changes onto it.
-          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
-            echo "Deleting stale remote branch '$BRANCH'"
-            git push origin --delete "$BRANCH" || true
-          fi
-          git checkout -b "$BRANCH"
-
-          git commit -m "Update widget CRDs (helm/frontend-crds) from tag ${LATEST_TAG}
-
-          Regenerated from krateo-platformops/frontend @ ${LATEST_TAG} via the in-repo crdgen, written to
-          helm/frontend-crds/templates/ (the published CRD chart the frontend-crd composition pulls).
-          Retires the pre-monorepo orphan crds-subchart/. Chart name unchanged: frontend-crd.
-          Workflow run: ${GITHUB_RUN_ID}"
-
-          git push origin "$BRANCH"
-
-          # Open a PR against the chart repo, or update the existing one for this branch.
-          PR_TITLE="Update widget CRDs (helm/frontend-crds) — ${LATEST_TAG}"
-          PR_BODY="Automated update of widget CRDs in \`helm/frontend-crds/templates/\` (the published CRD chart the frontend-crd composition pulls) from \`krateo-platformops/frontend\` @ \`${LATEST_TAG}\` (krateoctl). Retires the pre-monorepo orphan \`crds-subchart/\`. Helm chart name unchanged: \`frontend-crd\`.
-
-          Workflow run: \`${GITHUB_RUN_ID}\`."
-
-          PR_STATE=$(gh pr view "$BRANCH" --repo "$TARGET_REPO" --json state -q .state 2>/dev/null || echo "NONE")
-          case "$PR_STATE" in
-            OPEN)
-              echo "✅ Existing open PR for '$BRANCH' was updated by the push."
-              ;;
-            CLOSED)
-              gh pr reopen "$BRANCH" --repo "$TARGET_REPO" \
-                || gh pr create --title "$PR_TITLE" --body "$PR_BODY" --head "$BRANCH" --base main --repo "$TARGET_REPO"
-              ;;
-            *)
-              gh pr create --title "$PR_TITLE" --body "$PR_BODY" --head "$BRANCH" --base main --repo "$TARGET_REPO"
-              ;;
-          esac
-
-          # --- Supersede older CRD-sync PRs so stale branches don't accumulate. -----------------
-          # Each release opens a fresh generated-crds-<tag> PR; older ones are obsolete (every PR
-          # is a FULL CRD snapshot, so the newest subsumes them). Close every OTHER open sync PR
-          #
-          # THE PREFIX HERE AND `BRANCH=` ABOVE ARE ONE THING. The matcher is how a release closes
-          # the previous release's PR, so a prefix that disagrees with the branch it creates leaves
-          # every old sync PR open forever while reporting nothing. They were renamed together from
-          # `krateoctl-*` when the retired generator's name left the output directory, and there was
-          # no open `krateoctl-*` PR at that moment — checked, because one would have become
-          # permanently unmatched by this filter.
-          # and delete its head branch. Pairs with delete_branch_on_merge on the chart repo (which
-          # covers the merge path); this covers supersession, so branches no longer pile up.
-          gh pr list --repo "$TARGET_REPO" --state open --limit 200 --json number,headRefName \
-            --jq '.[] | select(.headRefName | startswith("generated-crds-")) | "\(.number) \(.headRefName)"' \
-          | while read -r PR_NUM PR_HEAD; do
-              { [ -n "$PR_NUM" ] && [ "$PR_HEAD" != "$BRANCH" ]; } || continue
-              echo "Superseding older CRD-sync PR #$PR_NUM ($PR_HEAD) — deleting its branch"
-              gh pr close "$PR_NUM" --repo "$TARGET_REPO" --delete-branch \
-                --comment "Superseded by the CRD sync for ${LATEST_TAG}; closing and deleting its branch." || true
-            done
+          echo "helm/frontend-crds at ${GITHUB_REF_NAME} matches the ${#gen[@]} generated CRDs."

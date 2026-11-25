@@ -32,6 +32,7 @@ import {
   EllipsisOutlined,
   FilterOutlined,
   FormOutlined,
+  HistoryOutlined,
   LoadingOutlined,
   MenuOutlined,
   MinusOutlined,
@@ -117,6 +118,7 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
   tabs: PicCenterOutlined,
   tags: TagOutlined,
   themes: BgColorsOutlined,
+  timelines: HistoryOutlined,
   uploads: UploadOutlined,
   yamlviewers: CodeOutlined,
 }

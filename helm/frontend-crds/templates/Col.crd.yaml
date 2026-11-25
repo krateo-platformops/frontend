@@ -195,6 +195,7 @@ spec:
                           - tablists
                           - tabs
                           - tags
+                          - timelines
                           - uploads
                           - yamlviewers
                       type: array

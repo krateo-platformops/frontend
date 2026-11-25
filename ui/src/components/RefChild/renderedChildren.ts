@@ -2,7 +2,7 @@
  * WHICH CHILDREN A CONTAINER DRAWS THE MOMENT ITS ANSWER ARRIVES, by kind (prefetch children on
  * answer, approved by Diego 2026-11-22; hooks/prefetchChildren.ts reads this).
  *
- * Only the eight containers that render children through RefChild or a slot are listed, and each
+ * Only the nine containers that render children through RefChild or a slot are listed, and each
  * lists only what it draws on first render, by the same rule the widget applies:
  *   Card     cover, extraRefId, items (afterCard moves some of them below the card), footer items
  *   Col, Flex, Row   items
@@ -12,6 +12,7 @@
  *   Table    the `widget` cells of the rows on its first page; NOTHING in virtual mode, which draws
  *            only the rows in view
  *   Tabs     the active pane: the item `?tab=` names (by label, case-insensitive), else the first
+ *   Timeline every item's child: a timeline draws all its items at once
  * Any other kind prefetches nothing: a Menu's items name PAGES, which are routes, not children.
  * A kind's test asserts that what its widget mounts equals what it declares here, so the two cannot
  * drift apart.
@@ -86,6 +87,7 @@ const BY_KIND: Readonly<Record<string, (data: Data, search: URLSearchParams) => 
   Row: items,
   Table: table,
   Tabs: tabs,
+  Timeline: items,
 }
 
 /** The resourceRefIds a widget of `kind` draws on first render, given its widgetData; [] for any other kind. */
