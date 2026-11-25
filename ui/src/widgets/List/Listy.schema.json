@@ -180,6 +180,14 @@
                   ],
                   "description": "leading-indicator style: avatar (solid disc + glyph, default), tile (soft-tint rounded square + glyph), dot (small status dot + halo)"
                 },
+                "tileVariant": {
+                  "type": "string",
+                  "enum": [
+                    "outlined",
+                    "borderless"
+                  ],
+                  "description": "statistic rowVariant: the tile's antd Card `variant`. outlined (default) frames each tile; borderless draws none, for a strip that already sits in a Card"
+                },
                 "rowVariant": {
                   "type": "string",
                   "enum": [
