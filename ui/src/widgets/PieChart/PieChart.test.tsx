@@ -80,6 +80,22 @@ describe('PieChart widget — legend text legible on the dark theme', () => {
     expect(legend?.color?.itemLabelFill, 'the ink must survive a non-default legendPosition — it is set in the same object the position goes into').toBe(legendInk())
   })
 
+  it('gives a legend beside the donut room for every entry in one column', () => {
+    const rows = (count: number) => Array.from({ length: count }, (_row, index) => ({ k: `k${index}`, v: 1 }))
+    const of = (data: Partial<PieChartWidgetData>) => {
+      const props = renderPie(data)
+      return { height: props.height, length: (props.legend as LegendShape).color?.length }
+    }
+    // Room for n entries is n + 1 rows of 24; the chart grows only when its own height is short of it.
+    expect(of({ data: rows(6), height: 180, legendPosition: 'right' })).toEqual({ height: 180, length: 168 })
+    expect(of({ data: rows(9), height: 180, legendPosition: 'left' })).toEqual({ height: 240, length: 240 })
+    // The operator's categories are in the legend with or without a slice, and so is one they left out.
+    expect(of({ colorMap: { k0: 'red', zero: 'gray' }, data: rows(2), height: 180, legendPosition: 'right' })).toEqual({ height: 180, length: 96 })
+    // Under the donut it is a row, and the height is the operator's.
+    expect(of({ data: rows(9), height: 180 })).toEqual({ height: 180, length: undefined })
+    expect(renderPie({ data: rows(9), height: 180, legend: false, legendPosition: 'right' }).height).toBe(180)
+  })
+
   it('honours legend:false rather than forcing an inked legend', () => {
     expect(renderPie({ legend: false }).legend, 'legend:false must pass through as `false`, not as an inked legend object').toBe(false)
   })
