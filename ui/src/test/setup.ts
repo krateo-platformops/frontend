@@ -33,6 +33,15 @@ installBuilders(fixtureBuilders())
 configure({ asyncUtilTimeout: 5000 })
 
 /**
+ * jsdom implements no `scrollIntoView` (it lays nothing out), and the sidebar Menu calls it whenever
+ * its selection changes. A no-op here, where a document exists, so every suite that renders the Menu
+ * does not need its own; a test that asserts the call replaces it with a spy.
+ */
+if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
+  Element.prototype.scrollIntoView = () => undefined
+}
+
+/**
  * A TIMER THAT OUTLIVED ITS DOCUMENT DOES NOTHING, instead of reddening the run.
  *
  * `@rc-component/util`'s `useDelayState` — which drives antd's Modal, Popconfirm and Collapse
