@@ -46,7 +46,16 @@
                   },
                   "color": {
                     "type": "string",
-                    "description": "the dot color: an antd preset (`blue`, `red`, `green`, `gray`) or any CSS color"
+                    "enum": [
+                      "blue",
+                      "darkBlue",
+                      "orange",
+                      "gray",
+                      "red",
+                      "green",
+                      "violet"
+                    ],
+                    "description": "the dot colour: a palette colour NAME (resolved through the shared palette for the light or dark mode, never an antd preset or a hex). Unset, the dot takes the primary colour"
                   },
                   "icon": {
                     "type": "string",
@@ -93,11 +102,10 @@
               "description": "render the items in reverse order"
             },
             "titleSpan": {
-              "type": [
-                "integer",
-                "string"
-              ],
-              "description": "how much of the row the `title` column takes: a 24-grid span (eg: `6`) or a CSS length (eg: `120px`) (antd Timeline `titleSpan`)"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 23,
+              "description": "how many of the 24 grid columns the `title` column takes (eg: `4` for a column of timestamps) (antd Timeline `titleSpan`)"
             },
             "variant": {
               "type": "string",

@@ -204,7 +204,15 @@ spec:
                       items:
                         properties:
                           color:
-                            description: 'the dot color: an antd preset (`blue`, `red`, `green`, `gray`) or any CSS color'
+                            description: 'the dot colour: a palette colour NAME (resolved through the shared palette for the light or dark mode, never an antd preset or a hex). Unset, the dot takes the primary colour'
+                            enum:
+                              - blue
+                              - darkBlue
+                              - orange
+                              - gray
+                              - red
+                              - green
+                              - violet
                             type: string
                           content:
                             description: the body of the node, e.g. the event reason and message (antd item `content`, formerly `children`)
@@ -246,8 +254,10 @@ spec:
                       description: render the items in reverse order
                       type: boolean
                     titleSpan:
-                      description: 'how much of the row the `title` column takes: a 24-grid span (eg: `6`) or a CSS length (eg: `120px`) (antd Timeline `titleSpan`)'
-                      x-kubernetes-int-or-string: true
+                      description: 'how many of the 24 grid columns the `title` column takes (eg: `4` for a column of timestamps) (antd Timeline `titleSpan`)'
+                      maximum: 23
+                      minimum: 1
+                      type: integer
                     variant:
                       description: the dot style (antd Timeline `variant`)
                       enum:

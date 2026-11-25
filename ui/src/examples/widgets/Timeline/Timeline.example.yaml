@@ -26,7 +26,7 @@ metadata:
 spec:
   widgetData:
     mode: start
-    titleSpan: "120px"
+    titleSpan: 3
     items:
       - title: "13:57:02"
         content: "Created: composition fireworks-app created"

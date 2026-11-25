@@ -32,9 +32,9 @@ export interface Timeline {
          */
         content?: string
         /**
-         * the dot color: an antd preset (`blue`, `red`, `green`, `gray`) or any CSS color
+         * the dot colour: a palette colour NAME (resolved through the shared palette for the light or dark mode, never an antd preset or a hex). Unset, the dot takes the primary colour
          */
-        color?: string
+        color?: 'blue' | 'darkBlue' | 'orange' | 'gray' | 'red' | 'green' | 'violet'
         /**
          * a font awesome icon name rendered instead of the dot (eg: `fa-check`) (antd item `icon`, formerly `dot`)
          */
@@ -65,9 +65,9 @@ export interface Timeline {
        */
       reverse?: boolean
       /**
-       * how much of the row the `title` column takes: a 24-grid span (eg: `6`) or a CSS length (eg: `120px`) (antd Timeline `titleSpan`)
+       * how many of the 24 grid columns the `title` column takes (eg: `4` for a column of timestamps) (antd Timeline `titleSpan`)
        */
-      titleSpan?: number | string
+      titleSpan?: number
       /**
        * the dot style (antd Timeline `variant`)
        */

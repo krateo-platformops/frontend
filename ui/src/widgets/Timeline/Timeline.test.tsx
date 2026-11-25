@@ -4,6 +4,8 @@ import { fas } from '@fortawesome/free-solid-svg-icons'
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
+import { getColorCode } from '../../theme/palette'
+
 import Timeline from './Timeline'
 import type { TimelineWidgetData } from './Timeline'
 
@@ -76,6 +78,12 @@ describe('Timeline widget', () => {
   it('keeps the node text when its resourceRefId cannot be resolved', () => {
     const container = renderTimeline({ items: [{ content: 'Release notes', resourceRefId: 'missing-ref' }] })
     expect(container.querySelector('.ant-timeline-item')?.textContent).toContain('Release notes')
+  })
+
+  it('resolves a palette colour name to the theme colour, not antd\'s preset', () => {
+    const container = renderTimeline({ items: [{ color: 'red', content: 'ReconcileError' }] })
+    const html = container.innerHTML.toLowerCase()
+    expect(html).toContain(getColorCode('red').toLowerCase())
   })
 
   it('sets a title in the data face, so a column of timestamps reads as data', () => {
