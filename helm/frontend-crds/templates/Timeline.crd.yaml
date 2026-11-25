@@ -1,0 +1,331 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: timelines.widgets.templates.krateo.io
+spec:
+  group: widgets.templates.krateo.io
+  names:
+    categories:
+      - widgets
+      - krateo
+    kind: Timeline
+    listKind: TimelineList
+    plural: timelines
+    singular: timeline
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: 'The widget''s contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides.'
+              properties:
+                apiRef:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                    - namespace
+                  type: object
+                resourcesRefs:
+                  properties:
+                    items:
+                      items:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          slice:
+                            properties:
+                              continue:
+                                type: boolean
+                              offset:
+                                type: integer
+                              page:
+                                type: integer
+                              perPage:
+                                type: integer
+                            required:
+                              - perPage
+                            type: object
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                      type: array
+                    slice:
+                      properties:
+                        continue:
+                          type: boolean
+                        offset:
+                          type: integer
+                        page:
+                          type: integer
+                        perPage:
+                          type: integer
+                      required:
+                        - perPage
+                      type: object
+                  required:
+                    - items
+                  type: object
+                resourcesRefsTemplate:
+                  items:
+                    properties:
+                      iterator:
+                        type: string
+                      template:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                    type: object
+                  type: array
+                widgetData:
+                  description: The properties Timeline renders. Where Timeline wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them.
+                  properties:
+                    allowedResources:
+                      description: the resource plurals this container may hold as children. The enum is what this KIND can ever hold, by role. WHICH of them this instance accepts is its own declaration, checked against its real children by the X5 lint. Empty means unconstrained.
+                      items:
+                        type: string
+                        enum:
+                          - alerts
+                          - badges
+                          - barcharts
+                          - breadcrumbs
+                          - buttongroups
+                          - buttons
+                          - cards
+                          - checkboxes
+                          - collapses
+                          - cols
+                          - columns
+                          - datagrids
+                          - datepickers
+                          - descriptions
+                          - dividers
+                          - dropdowns
+                          - eventlists
+                          - filters
+                          - flexes
+                          - flowcharts
+                          - forms
+                          - images
+                          - inputnumbers
+                          - inputs
+                          - linecharts
+                          - listies
+                          - markdowns
+                          - menus
+                          - navmenuitems
+                          - navmenus
+                          - pageheaders
+                          - pages
+                          - panels
+                          - paragraphs
+                          - piecharts
+                          - progresses
+                          - qrcodes
+                          - radios
+                          - rangepickers
+                          - results
+                          - routes
+                          - routesloaders
+                          - rows
+                          - selects
+                          - sliders
+                          - statistics
+                          - steps
+                          - switches
+                          - tables
+                          - tablists
+                          - tabs
+                          - tags
+                          - timelines
+                          - uploads
+                          - yamlviewers
+                      type: array
+                    items:
+                      description: the timeline nodes, in display order (antd Timeline `items`)
+                      items:
+                        properties:
+                          color:
+                            description: 'the dot colour: a palette colour NAME (resolved through the shared palette for the light or dark mode, never an antd preset or a hex). Unset, the dot takes the primary colour'
+                            enum:
+                              - blue
+                              - darkBlue
+                              - orange
+                              - gray
+                              - red
+                              - green
+                              - violet
+                            type: string
+                          content:
+                            description: the body of the node, e.g. the event reason and message (antd item `content`, formerly `children`)
+                            type: string
+                          icon:
+                            description: 'a font awesome icon name rendered instead of the dot (eg: `fa-check`) (antd item `icon`, formerly `dot`)'
+                            type: string
+                          loading:
+                            description: render this node as in-progress (a spinning dot). Replaces antd's deprecated `pending` prop
+                            type: boolean
+                          placement:
+                            description: which side of the rail the content sits on when `mode` is `alternate` (antd item `placement`, formerly `position`)
+                            enum:
+                              - start
+                              - end
+                            type: string
+                          resourceRefId:
+                            description: optional id of a widget to render inline below this node's content (e.g. a button opening the event's object)
+                            type: string
+                          title:
+                            description: the label on the opposite side of the rail, e.g. a timestamp (antd item `title`, formerly `label`)
+                            type: string
+                        type: object
+                      type: array
+                    mode:
+                      description: where the content sits relative to the rail (antd Timeline `mode`)
+                      enum:
+                        - start
+                        - end
+                        - alternate
+                      type: string
+                    orientation:
+                      description: the layout orientation of the timeline (antd Timeline `orientation`)
+                      enum:
+                        - vertical
+                        - horizontal
+                      type: string
+                    reverse:
+                      description: render the items in reverse order
+                      type: boolean
+                    titleSpan:
+                      description: 'how many of the 24 grid columns the `title` column takes (eg: `4` for a column of timestamps) (antd Timeline `titleSpan`)'
+                      maximum: 23
+                      minimum: 1
+                      type: integer
+                    variant:
+                      description: the dot style (antd Timeline `variant`)
+                      enum:
+                        - outlined
+                        - filled
+                      type: string
+                    watch:
+                      description: 'live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.'
+                      items:
+                        properties:
+                          apiVersion:
+                            description: group/version, e.g. composition.krateo.io/v1alpha1
+                            type: string
+                          kind:
+                            description: e.g. DemoClaim
+                            type: string
+                          name:
+                            description: a specific object; omit to match any object of this kind ("GVR-level")
+                            type: string
+                          namespace:
+                            description: scope to a namespace; omit to match any
+                            type: string
+                        required:
+                          - apiVersion
+                          - kind
+                        type: object
+                      type: array
+                  required:
+                    - items
+                  type: object
+                widgetDataTemplate:
+                  items:
+                    properties:
+                      expression:
+                        type: string
+                      forPath:
+                        type: string
+                    type: object
+                  type: array
+                identityContext:
+                  items:
+                    enum:
+                      - username
+                      - groups
+                    type: string
+                  type: array
+                keyExtras:
+                  description: 'F6 (snowplow#130): the request-extras keys (route params / URL query folded into ?extras=) whose values this widget''s resolution depends on. Only declared keys partition the widget cache cell. Absent/empty = the widget does not vary by any request extra (chrome/layout default).'
+                  items:
+                    type: string
+                  type: array
+                freshness:
+                  description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).'
+                  type: boolean
+              required:
+                - widgetData
+              type: object
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ''
+    plural: ''
+  conditions: null
+  storedVersions: null
