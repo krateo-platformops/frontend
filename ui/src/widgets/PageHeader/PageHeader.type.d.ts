@@ -45,6 +45,19 @@ export interface PageHeader {
         color?: 'blue' | 'darkBlue' | 'orange' | 'gray' | 'red' | 'green' | 'violet'
       }[]
       /**
+       * a quiet line of muted text after the pills on the title line, e.g. "about the previous version · updating": what the pills say is true but about to change. Absent or empty text, nothing is drawn
+       */
+      note?: {
+        /**
+         * the note, in plain words; an empty string draws nothing
+         */
+        text: string
+        /**
+         * the longer explanation shown on hover and focus
+         */
+        tooltip?: string
+      }
+      /**
        * something on this page is in progress (an analysis, a check): one line under the title saying since when, with the elapsed minutes ticking in the browser while `live` is true. No ETA. The page itself updates when the state changes; this line only keeps the wait visible. null means no progress line: a RESTAction that has nothing in progress sends null, because a widgetDataTemplate cannot leave the path unset (snowplow writes "" for no output) and the CRD must admit what it then writes.
        */
       progress?: {
