@@ -149,6 +149,26 @@ export const numericColumnWidth = (column: Column, rows: Row[], tokens: ColumnTo
   return Math.max(fit, headerWidth(column, tokens), pxWidth(column) ?? 0, column.minWidth ?? 0)
 }
 
+/**
+ * The measure a sentence wraps at inside a cell, in characters: Table.module.css `.sentence` caps the
+ * cell's text at this many `ch`. Text longer than this with a space in it is a sentence; a name, a
+ * path or an id (no space) keeps its one line.
+ */
+export const SENTENCE_CHARS = 60
+
+/** Whether a cell's text is a sentence that wraps at SENTENCE_CHARS rather than widening its column. */
+export const isSentence = (text: string): boolean => text.length > SENTENCE_CHARS && /\s/.test(text.trim())
+
+/**
+ * How far below their header floors a fitContent table's text columns are squeezed rather than the
+ * table scroll sideways: 24px, or a tenth of the floors when that is more. A fitContent table whose
+ * floors overran its container by a few px drew a full-width scrollbar under the table for those few
+ * px (UX audit TBL-1: /agents' token tables, 470px of room for 478px of floors). Within this slack
+ * the text columns share the room as a virtual table's do, their headers ellipsized with the full
+ * title on hover; past it the table really does not fit, and scrolls.
+ */
+export const squeezeSlack = (floorSum: number): number => Math.max(24, Math.round(floorSum / 10))
+
 export type ColumnLayout = {
   /** Whether each column is numeric (right-aligned). */
   numeric: boolean[]
@@ -172,7 +192,8 @@ export type ColumnLayout = {
  *   two-line width, and the rest is split in proportion to how much more its content asks for.
  * - A virtual table cannot scroll sideways in view (its scrollbar is hidden at rest, at the foot of
  *   the viewport), so when the text columns' headers do not fit it squeezes them proportionally and
- *   their headers ellipsize, full title on hover. A fitContent table keeps them and scrolls.
+ *   their headers ellipsize, full title on hover. A fitContent table does the same within
+ *   `squeezeSlack` of fitting, and past it keeps their floors and scrolls.
  *
  * A VIRTUAL table gets a width for EVERY column, and a scroll.x that is their sum. antd draws it as
  * two pieces lined up only by those widths: a fixed-layout header table, and a virtual list whose
@@ -210,22 +231,24 @@ export const columnLayout = (
   }
 
   const room = containerWidth - fixedSum
-  if (containerWidth <= 0 || !text.length || (room < floorSum && !virtual)) {
+  const scrolls = room < floorSum && floorSum - room > squeezeSlack(floorSum)
+  if (containerWidth <= 0 || !text.length || (scrolls && !virtual)) {
     // A virtual table not measured yet, or with nothing to share, takes each text column at its floor.
     return virtual ? virtualLayout([]) : { numeric, scrollX, widths: sized }
   }
 
   const widths = [...sized]
   if (room < floorSum) {
-    // Squeezed (virtual only): every text column keeps the same share of its floor, and the last one
-    // the rounding, so together they fill the room exactly. Never below a column's padding.
+    // Squeezed (a virtual table, or a fitContent one within squeezeSlack of fitting): every text
+    // column keeps the same share of its floor, and the last one the rounding, so together they fill
+    // the room exactly. Never below a column's padding.
     let left = room
     text.forEach((index, position) => {
       const share = position === text.length - 1 ? left : Math.floor((floors.get(index) ?? 0) * room / floorSum)
       widths[index] = Math.max(tokens.cellPadding, share)
       left -= share
     })
-    return virtualLayout(widths)
+    return virtual ? virtualLayout(widths) : { numeric, scrollX: fixedSum + room, widths }
   }
   const wants = new Map(text.map((index) => {
     const content = Math.ceil(longestValue(rows, columns[index].valueKey, () => true) * tokens.cellFontSize * TEXT_GLYPH_EM + tokens.cellPadding)
