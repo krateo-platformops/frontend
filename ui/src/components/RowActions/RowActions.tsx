@@ -19,8 +19,13 @@ import type { ResourcesRefs, Widget, WidgetAction, WidgetActions } from '../../t
  */
 export interface RowAction {
   actionId: string
+  /**
+   * The item's label. On a List `card` row it may carry `{path}` placeholders resolved against the
+   * row (e.g. `{actionLabel}`); a card action whose label resolves empty is not rendered. Elsewhere
+   * (the kebab, `buttons` display, Table) it is shown as written.
+   */
   label: string
-  /** Optional Font Awesome icon name for the menu item. */
+  /** Optional Font Awesome icon name for the menu item; on a List `card` row, `{path}` placeholders resolve against the row. */
   icon?: string
   /** Render the menu item in a destructive (red) style. */
   danger?: boolean
