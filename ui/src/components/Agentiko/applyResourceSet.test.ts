@@ -310,7 +310,7 @@ describe('applyResourceSet — dispatch through the W0-4 gate', () => {
   })
 
   it('a write the apiserver REFUSED is on the chip — dispatched is not landed', async () => {
-    // A composer read a chip with no failure as "published" and linked a change request nobody
+    // A builder read a chip with no failure as "published" and linked a change request nobody
     // opened: the 403 was in the results, and nothing looked at them.
     const { deps } = makeDeps([
       { index: 0, message: 'OK', ok: true, status: 201 },

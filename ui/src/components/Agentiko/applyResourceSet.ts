@@ -234,7 +234,7 @@ export interface ApplyResourceSetChip {
   /**
    * Why the set did not land — the first op the apiserver refused (or that never reached it).
    * Absent when every op landed. DISPATCHED IS NOT LANDED: a chip without this field used to mean
-   * both, so a composer read a 403 on its BuilderPublish claim as "published".
+   * both, so a builder read a 403 on its BuilderPublish claim as "published".
    */
   failure?: string
 }

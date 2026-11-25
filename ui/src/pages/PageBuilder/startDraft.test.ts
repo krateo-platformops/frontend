@@ -128,7 +128,7 @@ describe('startDraft — the seed the cluster accepts', () => {
       // Both are optional in the RA's jq. An invented icon or a section the page does not belong to
       // is worse than an unadorned top-level entry.
       //
-      // Scoped to the NAV annotations rather than to every key: the root also carries the composer's
+      // Scoped to the NAV annotations rather than to every key: the root also carries the builder's
       // allowed-resources provenance marker, which is not a nav concern and is asserted below.
       expect(Object.keys(annotations()).filter((key) => key.startsWith('krateo.io/nav')).sort())
         .toEqual(['krateo.io/nav-label', 'krateo.io/nav-order', 'krateo.io/nav-path'])

@@ -447,7 +447,7 @@ describe('lintBlueprintDraft — size cap + schema gate', () => {
         // Whichever of the two comes first in the descriptor.
         expect(withArch(wrapped(node('web-10', '', single('web-10')), node('web', '', ranged(bare)))))
           .toContain('resources[1].name — one object per item of .Values.envs, and item 10 is named <release>-web-10, the name resources[0] (web-10) gives its object')
-        // The composer's own per-item name never meets an id it hands out…
+        // The builder's own per-item name never meets an id it hands out…
         expect(withArch(wrapped(node('web', '', ranged(placedNameExpression('web', true))), node('web-2', '', single('web-2'))))).toBe('')
         // …only a name written to meet it; and a name that is not an index (`-02`, `-2x`) is no item.
         expect(withArch(wrapped(node('web', '', ranged(placedNameExpression('web', true))), node('web-i0', '', single('web-i0'))))).toContain('item 0 is named <release>-web-i0')

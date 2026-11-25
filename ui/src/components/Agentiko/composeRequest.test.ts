@@ -3,12 +3,12 @@
  * THE ASKER HEARS AN OUTCOME, OR HEARS A TIMEOUT — never silence.
  *
  * The compose bus used to be fire-and-forget: the bridge dispatched an event and immediately told
- * the user "Moved card-b into page-x", whether the composer had applied it, refused it, or was not
+ * the user "Moved card-b into page-x", whether the builder had applied it, refused it, or was not
  * mounted at all. That is a lying UI on its own merits, and it is also why the agent could not
  * recover: with no environment signal there is nothing to reflect on, so a refused proposal was
  * repeated verbatim or built upon as though it had landed.
  *
- * These pin the channel itself. That the COMPOSER answers on every path is pinned next door, in
+ * These pin the channel itself. That the BUILDER answers on every path is pinned next door, in
  * PageBuilder.agent.test.tsx.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -21,7 +21,7 @@ import {
 
 afterEach(() => { vi.useRealTimers() })
 
-/** A composer that answers every request the way the real one does. */
+/** A builder that answers every request the way the real one does. */
 const answerWith = (answer: (id: string) => Parameters<typeof emitComposeResult>[0]) =>
   onComposeRequest((request) => { emitComposeResult(answer(request.id)) })
 
@@ -61,7 +61,7 @@ describe('requestCompose', () => {
 
   it('ignores an answer addressed to a DIFFERENT request', async () => {
     vi.useFakeTimers()
-    // Two composers, or a stale answer in flight: an id that is not ours must not resolve us.
+    // Two builders, or a stale answer in flight: an id that is not ours must not resolve us.
     const stop = onComposeRequest(() => {
       emitComposeResult({ applied: true, id: 'someone-elses', paths: ['x.yaml'], reason: null })
     })

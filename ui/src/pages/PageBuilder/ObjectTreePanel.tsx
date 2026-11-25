@@ -113,7 +113,7 @@ const toDataNode = (
         : null}
       {/* ON EVERY DRAFTED WIDGET, not only a container. `apiRef`, `widgetDataTemplate` and
           `resourcesRefsTemplate` are declared by all forty-four widget CRDs, so "where does this
-          widget's data come from" is a question every one of them can answer. The composer only
+          widget's data come from" is a question every one of them can answer. The builder only
           ever asked it of containers, and only through bind-data, which is why a page's data could
           come from one API path and nothing else. */}
       {node.drafted
@@ -164,7 +164,7 @@ const toDataNode = (
             </Tooltip>
             {/*
               CONFIRMED, because it is unrecoverable: removing the last placement of a drafted
-              object now deletes its file, and the composer has no undo of any kind. This was a bare
+              object now deletes its file, and the builder has no undo of any kind. This was a bare
               onClick on an operation that silently orphaned a file; it is now a decision.
             */}
             <Popconfirm cancelButtonProps={dismissButtonProps} cancelText='Keep'
@@ -591,7 +591,7 @@ export const ObjectTreePanel = ({ files, onSelect, snowplowBaseUrl }: {
           skips anything containing `{{` — so it returns null for exactly the drafts this modal is
           for, and the guard silently rendered nothing. The button appeared, the click set state,
           and no modal came: the failure mode a unit test cannot see, because it never mounts the
-          component with realistic held files. The composer already resolved this the same way for
+          component with realistic held files. The builder already resolved this the same way for
           its own authoring path (`authoringNamespace`). */}
       {dataTarget?.path && files[dataTarget.path]
         ? (

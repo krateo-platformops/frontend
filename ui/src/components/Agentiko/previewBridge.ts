@@ -350,7 +350,7 @@ const pagePublishTarget = (widgets: Record<string, unknown>[]): Pick<AgentikoPre
 
 export const buildPagePreviewPayload = (widgets: Record<string, unknown>[]): AgentikoPreviewPayload => ({
   // A set the store cannot hold as a page — no page-<slug> root — is looked at, not held: its files
-  // must not be editable (an edit writes into whatever IS held), and no composer may adopt it.
+  // must not be editable (an edit writes into whatever IS held), and no builder may adopt it.
   ...(pageDraftFiles(widgets) === null ? { builder: 'inspect' as const } : {}),
   caption: PAGE_PREVIEW_CAPTION,
   // The proposed widget CRs, each at the destination a publish ACTUALLY writes it to — routed

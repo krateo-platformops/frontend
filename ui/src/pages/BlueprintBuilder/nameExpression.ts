@@ -68,7 +68,7 @@ export type NameExpression = { ok: true; expr: string } | { ok: false; reason: s
 
 /**
  * The expression `path`'s object is named by, as the descriptor's `name` holds it — or the sentence
- * that says why the composer cannot tell. `id` and `path` are only for that sentence.
+ * that says why the builder cannot tell. `id` and `path` are only for that sentence.
  */
 export const nameExpressionOf = (template: string, { id, path }: { id: string; path: string }): NameExpression => {
   const lines = stripComments(template).split('\n')

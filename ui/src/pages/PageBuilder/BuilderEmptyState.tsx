@@ -1,10 +1,10 @@
 /**
- * What the page composer shows when nothing it can edit is open.
+ * What the portal builder shows when nothing it can edit is open.
  *
  * Either no draft at all — say how to start one — or the draft this thread holds is a CHART: not a
  * fake canvas and not silence, but a sentence naming it, because this surface has no business
  * rewriting a blueprint. And a way out: one store holds one draft, so a parked chart blocks every
- * page start until it is discarded, and a composer that only said so would leave the person to
+ * page start until it is discarded, and a builder that only said so would leave the person to
  * find the drawer that can.
  */
 import { Button, Popconfirm } from 'antd'

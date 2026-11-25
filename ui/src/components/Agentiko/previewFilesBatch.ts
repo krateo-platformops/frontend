@@ -2,7 +2,7 @@
  * The BATCH counterpart of previewFileEdit / previewFileAdd / previewFileRemove: several files of the
  * held draft, written as ONE change or not at all.
  *
- * WHY A FOURTH BUS. One composer gesture can be several files. Placing a node writes its template
+ * WHY A FOURTH BUS. One builder gesture can be several files. Placing a node writes its template
  * AND rewrites templates/architecture.yaml; accepting an edge rewrites the descriptor and every
  * template it re-gates. On the single-file buses that was one event per file — so a refusal of the
  * second left the first written (a node in the descriptor with no template, or the reverse), each

@@ -285,7 +285,7 @@ describe('a draft that CHANGES after it started', () => {
  * in the drawer — and a live hole for a blueprint: a hand edit to values.schema.json that adds a
  * populated object default (core-provider#46) had no verdict anywhere, so the gate re-armed, the
  * chart was publishable, and it wedges its CompositionDefinition at Ready=False on registration.
- * Reachable through the drawer's Files tab before any blueprint composer existed.
+ * Reachable through the drawer's Files tab before any blueprint builder existed.
  */
 describe('a blueprint draft edited by hand', () => {
   const chart = {

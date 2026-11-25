@@ -4,7 +4,7 @@
  *
  * `teardownThread` cleared the held draft, on the stated grounds that it was "dropped with the
  * conversation that produced them". That was true when every draft came from a conversation. The
- * composer ended it: a person starts a page, drags widgets in and binds data with no agent
+ * builder ended it: a person starts a page, drags widgets in and binds data with no agent
  * involved — and clicking New thread silently destroyed the page, with no warning and no undo.
  *
  * Reproduced on krateo-057 before the fix: the canvas went from 2 frames to 0 on the click. And
@@ -93,7 +93,7 @@ describe('a new thread keeps the page you are building', () => {
     act(() => { api.newThread() })
 
     // The regression: teardownThread called blueprintStore.clear(), whose onChange broadcast an
-    // empty file map — which is what emptied the composer's canvas.
+    // empty file map — which is what emptied the builder's canvas.
     expect(broadcasts.at(-1)).toBeGreaterThan(0)
   })
 

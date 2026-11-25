@@ -266,7 +266,7 @@ export const projectionForFiles = (files: Readonly<Record<string, string>>): Ext
  *   - which node ids each serves <- the `$steps` literal the fold opens with
  *
  * so a published blueprint can be recompiled from the live CR alone: no chart, no re-publish, no
- * composer. That is what makes a regeneration ACTION possible, and it is the half of #483 that
+ * builder. That is what makes a regeneration ACTION possible, and it is the half of #483 that
  * actually repairs the installed base — chart ownership (the issue's other suggestion) cannot,
  * because a blueprint chart is itself published once and pinned, which freezes the same copy one
  * level down.

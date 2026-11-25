@@ -320,8 +320,8 @@ export const chartYamlVersion = (chartYaml: string | undefined): string | null =
  * data.architecture as it is now, under Chart.yaml's name (architecture.ts regenerateGraphBlock).
  *
  * The canvas tells a person to add a resource by editing templates/architecture.yaml, and that edit
- * has to be previewable: the block is the composer's to keep in step, never the author's. So the
- * draft store runs this on every write to a held blueprint — Chart files, the composer, Undo — and
+ * has to be previewable: the block is the builder's to keep in step, never the author's. So the
+ * draft store runs this on every write to a held blueprint — Chart files, the builder, Undo — and
  * parseRawTemplates on every tree Agentiko proposes, BEFORE it is linted, rendered and held, so the
  * bytes rendered are the bytes held. Each is still one ordinary write: it disarms the gate, and only
  * a render arms it again. The same object comes back when nothing changed.
@@ -413,7 +413,7 @@ const heldFile = (files: Record<string, string>, path: string): string | undefin
  * `deployment-2`'s `<release>-deployment-2` — and then the cluster holds one object for both and the
  * graph block lists that name under both nodes. Read only for names of the placed shape
  * (naming.readPlacedName), for a release short enough that neither is truncated; a name of any
- * other shape is not second-guessed. The composer's own per-item names (`-i<n>`) never meet an id it
+ * other shape is not second-guessed. The builder's own per-item names (`-i<n>`) never meet an id it
  * hands out, so this is the backstop for names that reached the chart some other way.
  */
 const itemNameProblems = (arch: ChartArchitecture): string[] => {
@@ -477,7 +477,7 @@ const REGENERATE = 'The block is compiled from data.architecture and never writt
 
 /**
  * The chart name and the graph block (L2, L3). The label and `graph.chart` carry Chart.yaml's name,
- * which is also the one the composer compiles with, so the descriptor's `chart` must be the same.
+ * which is also the one the builder compiles with, so the descriptor's `chart` must be the same.
  * The block must be exactly what the descriptor compiles to: a stale one would publish a graph the
  * descriptor does not describe, and the detail page would draw it.
  */
@@ -496,7 +496,7 @@ const descriptorGraphProblems = (arch: ChartArchitecture, descriptor: string, te
 }
 
 /**
- * The architecture file, when the chart has one, must say something the composer and the
+ * The architecture file, when the chart has one, must say something the builder and the
  * composition detail page can read: the descriptor in the ConfigMap's data.architecture, well
  * formed, without a dependency cycle (a chart with a cycle never leaves its first state), its nodes
  * named as their templates name them, and the graph block compiled from exactly this descriptor.

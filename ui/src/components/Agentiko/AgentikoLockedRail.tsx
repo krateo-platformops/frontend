@@ -2,7 +2,7 @@
  * The rail when the agent is NOT LICENSED (licence.ts). Same dock, width and header as the live
  * rail, so opening it from the locked toggle — or from an "Ask Agentiko →" button, via the `?ask=`
  * deep-link — reads as the agent's own surface, switched off. It says what Agentiko does and
- * links to where the licence is bought; nothing else is live (no composer, no history).
+ * links to where the licence is bought; nothing else is live (no chat composer, no history).
  *
  * Neutral on purpose: no brand gradient, the gecko in grey. The one coloured control is
  * "Activate licence", in the brand gradient under white — it IS the way to switch the agent on.

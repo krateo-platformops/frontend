@@ -112,7 +112,7 @@ export interface FilesChange {
 /**
  * A tree as the store holds it. A CHART's architecture file is regenerated on every write
  * (blueprintDraft's regenerateArchitecture): every way a held chart changes comes through here — an
- * edit in Chart files, a file the composer adds, a composer gesture's batch (a node placed, a node
+ * edit in Chart files, a file the builder adds, a builder gesture's batch (a node placed, a node
  * ranged), a removal, an Undo, a Start, an agent's rendered proposal — so none of them can leave the
  * `krateo:graph` block behind its descriptor. It stays one ordinary write: the gate is disarmed and a
  * render arms it, as for any other. A page set has no architecture file, and is held as given.
@@ -203,7 +203,7 @@ export interface BlueprintDraftStore {
    * publish set. Making it upsert would delete that guarantee for every existing caller in order to
    * serve one new one.
    *
-   * So this is the explicit, narrow counterpart: the composer creating a container or a widget it
+   * So this is the explicit, narrow counterpart: the builder creating a container or a widget it
    * has just authored. It refuses a path that ALREADY exists (that is an edit, and `updateFile` is
    * where edits belong, with its own checks) and it applies the same 512 KiB cap, leaving the held
    * tree untouched when it would be exceeded.
@@ -222,7 +222,7 @@ export interface BlueprintDraftStore {
    */
   removeFile: (path: string) => FileUpdateResult
   /**
-   * ADD, EDIT and REMOVE several files as ONE change — the composer's gestures (a placed node is its
+   * ADD, EDIT and REMOVE several files as ONE change — the builder's gestures (a placed node is its
    * template AND a rewritten descriptor). All or nothing: every precondition `addFile`, `updateFile`
    * and `removeFile` would check is checked FIRST, for every path, plus two of its own — a path may
    * appear in only one list, and an empty change is refused. The 512 KiB cap is measured once, over

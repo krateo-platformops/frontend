@@ -1,6 +1,6 @@
 /**
  * recordBlueprintPreview — the FE-BP1/BP2 arming rule, moved out of the provider so a preview a
- * PERSON starts from the composer arms exactly what a proposed one does. It holds the tree and arms
+ * PERSON starts from the builder arms exactly what a proposed one does. It holds the tree and arms
  * the gate ONLY for a lint-clean draft whose render succeeded; every other case holds nothing.
  */
 import { afterEach, describe, expect, it } from 'vitest'

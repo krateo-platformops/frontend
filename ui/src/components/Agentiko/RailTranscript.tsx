@@ -3,7 +3,7 @@
  * timeline (RunTimeline.tsx) — what the agent did, live and after, including a kagent HITL approval
  * as a step of the turn that asked for it.
  *
- * Split out of AgentikoRail.tsx, which owns the rail shell (head / body / composer) and
+ * Split out of AgentikoRail.tsx, which owns the rail shell (head / body / builder) and
  * the width behaviour. Everything here is presentational and prop-driven.
  */
 

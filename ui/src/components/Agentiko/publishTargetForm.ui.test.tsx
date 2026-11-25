@@ -234,7 +234,7 @@ describe('a seeded destination is named for its chart', () => {
   })
 
   it('a SEEDED publish asks with the slug as the one repository it takes; an unseeded one does not', async () => {
-    // The path the composer and the agent take: publishDraft says whether the new repo is seeded,
+    // The path the builder and the agent take: publishDraft says whether the new repo is seeded,
     // and only then is the repository fixed. Driven through askPublishDestination, not a hand-built
     // request, because that translation is what decides whether the form refuses anything at all.
     render(<PublishTargetFormHost />)

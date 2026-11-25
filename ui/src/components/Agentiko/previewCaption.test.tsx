@@ -3,10 +3,10 @@
  * THE CAPTION HAS TO DESCRIBE THE SURFACE THE READER IS LOOKING AT.
  *
  * `LIVE_PREVIEW_CAPTION` is written for the drawer and says so — it ends "Closing this drawer
- * removes them". The composer embeds the SAME `PreviewContent` inline, in the lower half of its
+ * removes them". The builder embeds the SAME `PreviewContent` inline, in the lower half of its
  * split, where there is no drawer to close and the equivalent control is "Close draft".
  *
- * So the composer was telling a reader to close something that was not on their screen. Spotted by
+ * So the builder was telling a reader to close something that was not on their screen. Spotted by
  * watching a recording of the page, where the sentence sat under the Layout panel reading
  * "…permissions. Closing this drawer removes them."
  */
@@ -45,7 +45,7 @@ describe('the live-preview caption', () => {
     expect(screen.getByText(/Closing this drawer removes them/)).toBeTruthy()
   })
 
-  it('uses the CALLER\'s wording when one is given — the composer has no drawer', () => {
+  it('uses the CALLER\'s wording when one is given — the builder has no drawer', () => {
     render(<ThemeModeProvider><PreviewContent caption={LIVE_PREVIEW_CAPTION_INLINE} editVerdicts={null} onVerdicts={vi.fn()} payload={payload} /></ThemeModeProvider>)
 
     expect(screen.getByText(/Closing the draft removes it/)).toBeTruthy()
@@ -53,7 +53,7 @@ describe('the live-preview caption', () => {
   })
 
   it('the inline wording names a control that EXISTS in the builder', () => {
-    // "Close draft" is the composer's button. A caption naming a control the reader cannot find is
+    // "Close draft" is the builder's button. A caption naming a control the reader cannot find is
     // the same defect as naming a drawer that is not there.
     expect(LIVE_PREVIEW_CAPTION_INLINE.toLowerCase()).toContain('draft')
     expect(LIVE_PREVIEW_CAPTION_INLINE.toLowerCase()).not.toContain('drawer')

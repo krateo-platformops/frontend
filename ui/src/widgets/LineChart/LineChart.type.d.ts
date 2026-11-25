@@ -80,7 +80,7 @@ export interface LineChart {
         [k: string]: unknown
       }
       /**
-       * When set, `xField` values are treated as UNIX epoch SECONDS and formatted to a label in the BROWSER's local timezone at render: 'hour' -> 'HH:00', 'day' -> 'Mon D'. Use this instead of server-side strftime so a 21:00-Rome bucket reads 21:00 (not the server's UTC 19:00). Annotations sharing `xField` are localized identically so peak/now marks stay aligned.
+       * When set, `xField` values are UNIX epoch SECONDS and the x axis is TIME: points are placed by their moment, and ticks are labelled in the BROWSER's timezone: 'hour' -> 'HH:MM', with the day ('Nov 24') where it changes; 'day' -> the day. Use this instead of server-side strftime, which is UTC and repeats across days. Annotations sharing `xField` are placed identically, so peak/now marks stay aligned.
        */
       xTimeUnit?: 'hour' | 'day'
       /**

@@ -3,14 +3,14 @@
  *
  * WHY THIS EXISTS AT ALL. Every widget CRD carries `spec.apiRef`, and an apiRef names a RESTAction
  * — so "give this widget data" has always been two ordinary objects, not a special capability. The
- * composer did not see it that way: the only door it offered was `bind-data`, a three-question form
+ * builder did not see it that way: the only door it offered was `bind-data`, a three-question form
  * that generates BOTH objects from one API path and a map of field paths. That form is a good
  * shortcut and a bad ceiling. A page that needs two sources joined — pod requests from the
  * apiserver against live usage from metrics.k8s.io — cannot be asked for through three questions,
  * so it looked like something only the agent could do. It was not: the agent was simply not going
  * through that door.
  *
- * The RESTAction CRD is an ordinary schema (`spec.api[]` + `spec.filter`), the composer already
+ * The RESTAction CRD is an ordinary schema (`spec.api[]` + `spec.filter`), the builder already
  * renders CRD schemas as forms (CreateWidgetModal over all forty-four widget kinds), and snowplow
  * already lists a category under the caller's RBAC (`/list?category=actions` — the CRD declares
  * `categories: [krateo, rest, actions]`). So this module is wiring, not new machinery.
@@ -167,7 +167,7 @@ export interface RefsTemplateEntry {
 }
 
 /**
- * The OTHER half of binding, and the half the composer never exposed.
+ * The OTHER half of binding, and the half the builder never exposed.
  *
  * `apiRef` says WHERE the data comes from. `widgetDataTemplate` says what to DO with it: each entry
  * is a jq expression and the `widgetData` path it fills, so a Table's `dataSource`, a chart's

@@ -2,12 +2,12 @@
  * THE HEADERS THE APP BUILDS ITSELF follow the same two rules as the PageHeader widget.
  *
  * P26 — A screen's actions sit on the trailing edge, all on one row, with its status just before
- *   them, centred on the title and subtitle together (level with the title when there is none). The Page composer put Publish and Close under its description, on the left — a
+ *   them, centred on the title and subtitle together (level with the title when there is none). The Portal builder put Publish and Close under its description, on the left — a
  *   stylesheet rule said so on purpose — while the Controller Builder put the same buttons top-right.
  *   Both were hand-built `<header>`s inside one component. So: a `<header>` holding a button is
  *   built with ScreenHeader (components/ScreenHeader), which has one place for actions.
  *
- * P27 — One breadcrumb per page, and it is the shell's. The composers printed an eyebrow reading
+ * P27 — One breadcrumb per page, and it is the shell's. The builders printed an eyebrow reading
  *   "Controller Builder / Compose" under the shell breadcrumb that already said exactly that. So:
  *   no element styled as an eyebrow spells a path, and antd's Breadcrumb is used by the two
  *   components whose job it is — the shell's, and the CR widget (which the portal lint holds to

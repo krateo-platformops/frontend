@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * Derive the composer's knowledge of widget kinds FROM THE CRDs, at build time.
+ * Derive the builder's knowledge of widget kinds FROM THE CRDs, at build time.
  *
  * WHAT THIS REPLACES. Four separate hand-maintained facts, each of which had already drifted:
  *
@@ -74,7 +74,7 @@ const holdsChildren = (widgetData: Schema | undefined): boolean => {
 }
 
 /**
- * NAMED SLOTS — the third containment shape, and the one the composer had no vocabulary for.
+ * NAMED SLOTS — the third containment shape, and the one the builder had no vocabulary for.
  *
  * A container holds an ordered `items[]`. A Card ALSO has `cover` and `extraRefId`, and a Layout
  * holds its children entirely through `content`, `header` and `footer`: single properties each

@@ -10,7 +10,7 @@
  *
  * DENY BY DEFAULT. A name is resolved only if it is an own key of its slot's table — never a
  * prototype key, never a near match, never a fallback to some other plugin. An unknown name comes
- * back as a REFUSAL: a sentence naming the slot and the name, for the composer to show where the
+ * back as a REFUSAL: a sentence naming the slot and the name, for the builder to show where the
  * plugin would have been. It never throws: a Builder is data from the cluster, and a CR written for a
  * newer frontend than this one is content to report, not a crash.
  *
@@ -128,7 +128,7 @@ export type PluginResolution<S extends PluginSlot> =
 
 /**
  * NAMED, NOT SHIPPED — a plugin a Builder may already name whose code comes in a later release. Such
- * a name is still a REFUSAL, worded as "not shipped yet" rather than "unknown", so the composer says
+ * a name is still a REFUSAL, worded as "not shipped yet" rather than "unknown", so the builder says
  * what is coming instead of suggesting the Builder is wrong — and a Builder whose palette, canvas and
  * inspector are ALL pending gets no route (builderRoutes.tsx). Empty today: the Controller Builder's
  * three (openapi, restdef-graph, restdef-mapping) were the first to wait here, and shipped in T8
@@ -187,7 +187,7 @@ export const resolvePlugin = <S extends PluginSlot>(slot: S, name: string): Plug
 }
 
 /**
- * The lints and publish gates a Builder may name. Each is code the composers already run (the
+ * The lints and publish gates a Builder may name. Each is code the builders already run (the
  * description says where); a Builder only chooses which apply. Same rule as the plugins: an unknown
  * name is refused, never skipped — a check silently not run would let a draft through that its
  * builder meant to stop.

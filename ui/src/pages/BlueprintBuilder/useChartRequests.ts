@@ -1,9 +1,9 @@
 /**
- * The composer's two questions to the provider — START this chart, PREVIEW the held one — and
+ * The builder's two questions to the provider — START this chart, PREVIEW the held one — and
  * what came back.
  *
  * THE PROVIDER DOES THE WORK; THIS ONLY ASKS AND LISTENS. Both go out on the S3a buses with a
- * correlation id and are answered, by id, on the one render-result bus. The composer fetches
+ * correlation id and are answered, by id, on the one render-result bus. The builder fetches
  * nothing itself: the render is the `blueprint-render` RESTAction over snowplow `/call` under the
  * person's own credential, run by the provider, and a lint-dirty chart is refused before anything
  * leaves the browser. An answer that is not to OUR latest question is ignored — another surface's,
@@ -16,7 +16,7 @@
  *
  * THE LAST RENDER is what the Source tab shows: the objects (or the error) of the most recent
  * preview of the held chart, whoever asked for it. The agent's previewBlueprint of the held draft
- * arrives on the preview bus instead, and the composer hands it to `adopt` — the drawer defers that
+ * arrives on the preview bus instead, and the builder hands it to `adopt` — the drawer defers that
  * preview to this page while it is mounted, so if this page did not show it nobody would. The agent's
  * previewRestDef of a held controller arrives on the render-result bus under an agent id
  * (AGENT_RENDER_ID_PREFIX), and its render is adopted the same way.

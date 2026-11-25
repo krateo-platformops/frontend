@@ -1,7 +1,7 @@
 /**
  * frontend#701: after an "Ask Agentiko →" click the rail could no longer be resized. The rail is
- * the clip for its own content while it animates open, and the composer takes focus as it opens.
- * A box with `overflow: hidden` is still a scroll container, so focusing the composer while the
+ * the clip for its own content while it animates open, and the chat composer takes focus as it opens.
+ * A box with `overflow: hidden` is still a scroll container, so focusing the chat composer while the
  * rail was a few pixels wide scrolled the rail sideways; once open, a header wider than the rail
  * (the minimum width while a turn streams) kept that offset. The drag handle at the rail's left
  * edge scrolled out with the content, and the rail showed its contents cut on the left and an

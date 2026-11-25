@@ -1,6 +1,6 @@
 /**
  * T9 (frontend#413) — the controller preview's pure half: the draft.json controller-render-draft reads,
- * the verdict on its answer, and the create forms the Rendered tab draws. The composer walk is in
+ * the verdict on its answer, and the create forms the Rendered tab draws. The builder walk is in
  * ControllerBuilder.test.tsx; these pin the edges it does not reach.
  */
 import { readFileSync } from 'node:fs'
