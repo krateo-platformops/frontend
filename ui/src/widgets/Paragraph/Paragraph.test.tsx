@@ -35,4 +35,21 @@ describe('Paragraph', () => {
     expect(container.querySelector(`.${styles.eyebrow}`)).toBeNull()
     expect(container.firstChild).toMatchSnapshot()
   })
+
+  // LINK-1 (UX audit, 2026-11-25): linkify linked bare domains, so file names, API groups and object
+  // paths opened unrelated outside sites. Only a URL written with its scheme is a link.
+  it('links a URL written with its scheme, and leaves names that only look like domains as text', () => {
+    const { container } = renderParagraph({
+      text: 'See scripts/gen_composition.py, the group acmefeedback.example.io, composition.krateo.io/Installer/krateo-system/installer and https://github.com/krateo-blueprints/charts.',
+    })
+
+    const links = [...container.querySelectorAll('a')].map((anchor) => anchor.getAttribute('href'))
+    expect(links).toEqual(['https://github.com/krateo-blueprints/charts'])
+    expect(container.textContent).toContain('gen_composition.py')
+  })
+
+  it('still links an e-mail address', () => {
+    const { container } = renderParagraph({ text: 'Write to platform@example.com.' })
+    expect(container.querySelector('a')?.getAttribute('href')).toBe('mailto:platform@example.com')
+  })
 })
