@@ -31,9 +31,10 @@ beforeAll(() => {
   })
 })
 
-function renderTimeline(widgetData: TimelineWidgetData) {
+function renderTimeline(widgetData: TimelineWidgetData, deniedRefIds?: string[]) {
   const { container } = render(
     <Timeline
+      deniedRefIds={deniedRefIds}
       resourcesRefs={{ items: [] }}
       uid='t'
       widget={{} as never}
@@ -75,5 +76,21 @@ describe('Timeline widget', () => {
   it('keeps the node text when its resourceRefId cannot be resolved', () => {
     const container = renderTimeline({ items: [{ content: 'Release notes', resourceRefId: 'missing-ref' }] })
     expect(container.querySelector('.ant-timeline-item')?.textContent).toContain('Release notes')
+  })
+
+  it('sets a title in the data face, so a column of timestamps reads as data', () => {
+    const container = renderTimeline({ items: [{ content: 'Ready', title: '14:02:11' }] })
+    const title = [...container.querySelectorAll('span')].find((el) => el.textContent === '14:02:11')
+    expect(title?.className).toMatch(/title/)
+  })
+
+  it('says in place that a dangling resourceRefId names nothing (X4)', () => {
+    const container = renderTimeline({ items: [{ content: 'Release notes', resourceRefId: 'missing-ref' }] })
+    expect(container.textContent).toContain('missing-ref')
+  })
+
+  it('renders a denied child as nothing, never as an error (X2)', () => {
+    const container = renderTimeline({ items: [{ content: 'Release notes', resourceRefId: 'secret' }] }, ['secret'])
+    expect(container.querySelector('.ant-timeline-item')?.textContent).toBe('Release notes')
   })
 })
