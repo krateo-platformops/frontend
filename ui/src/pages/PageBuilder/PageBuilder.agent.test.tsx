@@ -71,7 +71,7 @@ let seq = 0
 /**
  * Dispatched inside act: the handler sets state, and an unflushed refusal renders nothing.
  *
- * Returns what the composer ANSWERED. The dispatch is synchronous, so a handler that forgets to
+ * Returns what the builder ANSWERED. The dispatch is synchronous, so a handler that forgets to
  * answer returns null here — which is what every test in this file would have looked like before
  * the result channel existed, and is exactly the silence the agent used to read as success.
  */
@@ -448,12 +448,12 @@ describe('the agent binding data', () => {
 })
 
 /**
- * THE CHECK HAS TO FINISH INSIDE THE COMPOSER'S ANSWER BUDGET.
+ * THE CHECK HAS TO FINISH INSIDE THE BUILDER'S ANSWER BUDGET.
  *
- * `requestCompose` waits four seconds and then reports "no page composer is open to apply this".
+ * `requestCompose` waits four seconds and then reports "no portal builder is open to apply this".
  * The first version of this validation enumerated a whole widget category in two namespaces —
  * measured on a real cluster at 553 objects and ~7100ms — so it could never answer in time. Every
- * placement timed out, and the message blamed a composer that was open and working.
+ * placement timed out, and the message blamed a builder that was open and working.
  *
  * A targeted probe is 111ms when the widget exists and 58ms when it does not. These pin the SHAPE
  * that keeps it that way: one question per namespace, about one widget, never a listing.

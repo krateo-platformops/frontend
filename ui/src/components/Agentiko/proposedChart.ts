@@ -1,11 +1,11 @@
 /**
- * A chart tree Agentiko PROPOSES, taken in the way the composer holds one: the inline-args guard
+ * A chart tree Agentiko PROPOSES, taken in the way the builder holds one: the inline-args guard
  * and de-fencing (parseRawTemplates, which also regenerates the graph block), then every node's
  * gate regenerated from the descriptor (regenerateGates). One function for both places a proposed
  * tree enters — the preview that renders it and the record that holds it — so the bytes rendered
  * are the bytes held.
  *
- * WHY HERE, not in blueprintDraft: the gate kernel lives with the composer's other kernels, and
+ * WHY HERE, not in blueprintDraft: the gate kernel lives with the builder's other kernels, and
  * planPlace already imports blueprintDraft; calling it from there would close an import cycle.
  */
 import { builderOf } from '../../builders/builderRegistry'
@@ -24,7 +24,7 @@ export const parseProposedChart = (value: unknown): Record<string, string> | nul
 
 /**
  * The lints a Builder may name (`spec.lint`; pluginRegistry's check table lists the same names).
- * `chart-lint` is the composer's rules (lintBlueprintDraft); `gate-drift` is one problem per template
+ * `chart-lint` is the builder's rules (lintBlueprintDraft); `gate-drift` is one problem per template
  * whose gate has drifted from the descriptor (gateDrift). A drifted gate renders a different order
  * than the graph shows, so it refuses Preview and Publish like any other lint problem until the
  * gates are regenerated. `restdef-validate` is the controller's (lintControllerDraft): the OpenAPI

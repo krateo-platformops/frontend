@@ -20,23 +20,33 @@ export type SelectWidgetData = WidgetType['spec']['widgetData']
 const ALL_SCOPE = '*'
 
 type SelectOption = SelectWidgetData['options'][number]
+interface OptionGroup { label: string; options: SelectOption[]; title: string }
 
 const hasCount = (option: SelectOption): option is SelectOption & { count: number } => typeof option.count === 'number'
 
+/** A count and a hint are part of what a screen reader announces, not only drawn beside the label. */
+const spoken = (option: SelectOption): SelectOption => {
+  const beside = [option.hint, hasCount(option) ? String(option.count) : ''].filter(Boolean)
+  return beside.length ? { ...option, 'aria-label': [option.label ?? option.value, ...beside].join(', ') } as SelectOption : option
+}
+
 /**
- * The options as antd receives them. Without counts this is the CR's own array, untouched, so a
- * Select that sets none renders what it always did (Select.unchanged.test.tsx). With counts, each
- * counted option gains an `aria-label` of "label, count": rc-select copies an option's aria-*
- * attributes onto its `role=option` element, AFTER its own label-only name, so the count is part
- * of what a screen reader announces and not only something drawn beside the label.
+ * The options as antd receives them. Without counts, hints or groups this is the CR's own array, untouched, so a
+ * Select that sets none renders what it always did (Select.unchanged.test.tsx). A count or a hint becomes an
+ * `aria-label`: rc-select copies an option's aria-* attributes onto its `role=option` element, AFTER its own
+ * label-only name. They stay on the option: optionRender reads them back from `data`, and rc-select passes only
+ * aria-*, data-* and role attributes of an option to the DOM. Groups are antd's own (nested options).
  */
 const toAntdOptions = (options: SelectOption[] | undefined): SelectOption[] | undefined => {
-  if (!options?.some(hasCount)) { return options }
-  // `count` stays on the option: optionRender reads it back from `data`, and rc-select passes only
-  // aria-*, data-* and role attributes of an option to the DOM.
-  return options.map((option) => (hasCount(option)
-    ? { ...option, 'aria-label': `${option.label ?? option.value}, ${option.count}` }
-    : option))
+  if (!options?.some((option) => hasCount(option) || option.hint || option.group)) { return options }
+  const groups = [...new Set(options.map(({ group }) => group ?? ''))]
+  if (groups.length === 1 && groups[0] === '') { return options.map(spoken) }
+  const entries = groups.flatMap((group): (OptionGroup | SelectOption)[] => {
+    const members = options.filter((option) => (option.group ?? '') === group).map(spoken)
+    return group ? [{ label: group, options: members, title: group }] : members
+  })
+  // antd takes a group as an entry of the same list; its types infer the list's from optionRender's leaf.
+  return entries as SelectOption[]
 }
 
 /** A facet count beside its option's label (single mode and the Form control; the multi panel draws its own row). */
@@ -62,7 +72,7 @@ const renderCountedOption = (option: { data: SelectOption; label?: ReactNode; va
  *    → Clear / Apply → `?<queryParam>=` footer.
  */
 const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
-  const { allowClear, defaultValue, disabled, label, mode, name, options, panelFooter, placeholder, prefix, queryParam, required, size } = widgetData
+  const { allowClear, defaultValue, disabled, label, mode, name, options, panelFooter, placeholder, prefix, queryParam, required, size, summary } = widgetData
   const counted = options?.some(hasCount) ?? false
   const antdOptions = toAntdOptions(options)
   // Only a Select whose options carry counts gets an optionRender; the rest keep antd's own.
@@ -110,7 +120,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
     // the master row is lit and individual boxes reflect the STAGED (working) selection, applied to
     // the URL only on Apply. (Single mode keeps the scalar value, applied immediately.)
     const isAll = staged.length === 0
-    const allLabel = placeholder ?? 'All projects'
+    const allLabel = placeholder ?? 'All'
     const multiValue = isAll ? [ALL_SCOPE] : staged
     const value = isMulti ? multiValue : (raw || undefined)
     const commit = (selected: string[]) => {
@@ -208,7 +218,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
       (placeholder ?? '').length,
       0,
       // A count adds its digits and the gap before it (none without counts, so the width is unchanged).
-      ...(options ?? []).map((option) => String(option.label ?? option.value ?? '').length + (hasCount(option) ? String(option.count).length + 2 : 0)),
+      ...(options ?? []).map((option) => String(option.label ?? option.value ?? '').length + (hasCount(option) ? String(option.count).length + 2 : 0) + (option.hint ? option.hint.length + 2 : 0)),
     )
     const popupWidth = Math.min(460, Math.max(220, Math.ceil(longestLabelChars * 7.4) + 90))
 
@@ -216,7 +226,7 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
     // is suppressed by `.checkPopup`. `optionRender` reads the live `staged` for on/off.
     const renderCheckOption = (option: { data: SelectOption; label?: ReactNode; value?: number | string }) => {
       const checked = staged.includes(String(option.value))
-      const { count } = option.data
+      const { count, hint } = option.data
       return (
         <span className={styles.checkOption}>
           <span className={`${styles.checkBox} ${checked ? styles.checkBoxOn : ''}`}>{checked ? '✓' : ''}</span>
@@ -224,16 +234,16 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
               ReactNode, so it is only usable as a title attribute when it is actually a string —
               String()-ing a node yields "[object Object]", which is worse than no tooltip. */}
           <span className={styles.checkOptionLabel} title={typeof option.label === 'string' ? option.label : String(option.value)}>{option.label ?? String(option.value)}</span>
-          {typeof count === 'number' && <span className={styles.optionCount}>{count}</span>}
+          {(hint || typeof count === 'number') && <span className={styles.optionCount}>{hint}{typeof count === 'number' ? <span className={styles.hintCount}>{count}</span> : null}</span>}
         </span>
       )
     }
 
     // The master row's figure. With counts it is how many items "all" covers, their sum; without,
-    // the project switcher's own "N ns" (how many namespaces there are to pick from).
+    // how many values there are to pick from.
     const masterCount = counted
       ? (options ?? []).reduce((sum, option) => sum + (hasCount(option) ? option.count : 0), 0)
-      : `${optionValues.length} ns`
+      : optionValues.length
 
     // The footnote: the project switcher's own sentence unless the CR says otherwise, and none for
     // an empty string.
@@ -244,9 +254,11 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
     // Enter / Space work as for any button; their mousedown is prevented only so that a pointer
     // press keeps focus on the list rather than moving it into the panel.
     const keepListFocus = (event: { preventDefault: () => void }) => { event.preventDefault() }
+    // The closed control's one line: the picked value's own label, or how many.
+    const summaryText = (one: ReactNode, count: number): ReactNode => one ?? (summary ?? '').replaceAll('{count}', String(count))
     const renderPanel = (menu: ReactNode) => (
       <div>
-        <div className={styles.panelHead}>{label ?? placeholder ?? 'Projects'}</div>
+        <div className={styles.panelHead}>{label ?? placeholder ?? name}</div>
         <button
           className={`${styles.masterRow} ${isAll ? styles.masterOn : ''}`}
           onClick={() => setStaged([])}
@@ -287,13 +299,17 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
       <AntdSelect
         // The combobox's accessible name: the panel's own heading. The control shows only its value
         // ("All projects", or the picked projects): what is selected, not what the control selects.
-        aria-label={label ?? placeholder ?? 'Projects'}
-        className={isAll ? `${styles.checkSelect} ${styles.checkSelectAll}` : styles.checkSelect}
+        aria-label={label ?? placeholder ?? name}
+        className={isAll || summary ? `${styles.checkSelect} ${styles.checkSelectAll}` : styles.checkSelect}
         classNames={{ popup: { root: styles.checkPopup } }}
         disabled={disabled}
         key={uid}
-        maxTagCount='responsive'
-        maxTagPlaceholder={(omitted) => <span className={styles.pill}>+{omitted.length}</span>}
+        // With a `summary`, the picked values read as one line ("3 namespaces", or the one's label) and are
+        // changed in the panel; without, each is a removable tag.
+        maxTagCount={summary && !isAll ? 0 : 'responsive'}
+        maxTagPlaceholder={(omitted) => (summary && !isAll
+          ? summaryText(omitted.length === 1 ? omitted[0].label : undefined, omitted.length)
+          : <span className={styles.pill}>+{omitted.length}</span>)}
         mode={mode}
         // Stage-only: a toggle updates `staged`, it does NOT touch the URL. Apply commits.
         onChange={onStage}
@@ -322,9 +338,9 @@ const Select = ({ uid, widgetData }: WidgetProps<SelectWidgetData>) => {
         // 170px flex-basis that CAN shrink to 0 (the "All projects" value ellipsises) — matching the
         // search trigger's responsive behaviour so the whole left cluster yields together.
         style={{ flex: '0 1 170px', minWidth: 0 }}
-        tagRender={(props) => (props.value === ALL_SCOPE ? (
-          // The "all" value: plain text in the control, no pill and nothing to remove.
-          <span className={styles.allScope} title={allLabel}>{allLabel}</span>
+        tagRender={(props) => (props.value === ALL_SCOPE || summary ? (
+          // The "all" value, and a summary: plain text in the control, no pill and nothing to remove.
+          <span className={styles.allScope} title={props.value === ALL_SCOPE ? allLabel : undefined}>{props.value === ALL_SCOPE ? allLabel : props.label}</span>
         ) : (
           // C8 exception: not a control; it only stops the mousedown reaching the Select, which would open the dropdown.
           // eslint-disable-next-line jsx-a11y/no-static-element-interactions

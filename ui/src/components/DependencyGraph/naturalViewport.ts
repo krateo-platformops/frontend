@@ -3,7 +3,7 @@
  * must stay readable (the T3 type floor).
  *
  * WHY NOT `autoFit: 'view'`. FlowChart's fit scales the graph to FILL its box, with no zoom cap. In
- * the Blueprint Composer's fixed 360px pane that magnified a one-resource chart five times (a 780×360
+ * the Blueprint Builder's fixed 360px pane that magnified a one-resource chart five times (a 780×360
  * card, a 50px eyebrow) and shrank builder-publish's four columns to 83% — its 10px eyebrows and
  * class pills to 8.3px, under the floor. Cards designed at 156×72 were never drawn at 156×72.
  *

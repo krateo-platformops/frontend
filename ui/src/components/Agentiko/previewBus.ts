@@ -14,7 +14,7 @@ export const AGENTIKO_PREVIEW_EVENT = 'openAgentikoPreview'
 
 /**
  * The draft kind of a payload with no `builder`: every page payload predates the field, and the page
- * composer adopts exactly those (see `builder` below).
+ * page adopts exactly those (see `builder` below).
  */
 export const LEGACY_PAYLOAD_DRAFT_KIND: DraftKind = 'page'
 
@@ -31,11 +31,11 @@ export interface PreviewObjectEntry {
 export interface AgentikoPreviewPayload {
   /**
    * WHAT THIS PREVIEW IS. Absent means a PAGE draft — every page payload predates this field, and
-   * the page composer adopts exactly those. `blueprint` is a chart draft the provider HOLDS: a clean
+   * the portal builder adopts exactly those. `blueprint` is a chart draft the provider HOLDS: a clean
    * inline draft that rendered. `restdef` is a RestDefinition draft. `inspect` holds nothing — a
    * published chart's dry run, a draft that failed its lint or its render, a CRD description.
    *
-   * Two decisions hang on it. WHERE it shows: the page composer claims the preview surface while
+   * Two decisions hang on it. WHERE it shows: the portal builder claims the preview surface while
    * mounted and the drawer defers to it, so a chart or an inspection routed there was shown nowhere.
    * And WHETHER it is the held draft: its Files tab writes into the held draft by path, its lint is
    * the held draft's lint, and a discard closes it — none of which is true of a preview nothing
@@ -147,7 +147,7 @@ export const openAgentikoPreview = (payload: AgentikoPreviewPayload): void => {
  */
 export const draftKindOfPayload = (payload: Pick<AgentikoPreviewPayload, 'builder'>): DraftKind | null => {
   // The legacy kind is said ONLY by absence, as it always was: a payload that spells it out is not
-  // one any verb emits, and is held by no composer rather than adopted as that kind's draft.
+  // one any verb emits, and is held by no builder rather than adopted as that kind's draft.
   if ((payload.builder as string | undefined) === LEGACY_PAYLOAD_DRAFT_KIND) {
     return null
   }
@@ -159,7 +159,7 @@ export const draftKindOfPayload = (payload: Pick<AgentikoPreviewPayload, 'builde
 export const isHeldDraftPayload = (payload: Pick<AgentikoPreviewPayload, 'builder'>): boolean =>
   draftKindOfPayload(payload) !== null
 
-/** True for a payload the composer hosting the Builder named `builderName` owns — that Builder's held draft. */
+/** True for a payload the page hosting the Builder named `builderName` owns — that Builder's held draft. */
 export const isBuilderPayload = (payload: Pick<AgentikoPreviewPayload, 'builder'>, builderName: string): boolean => {
   const kind = draftKindOfPayload(payload)
   return kind !== null && kind === builderRegistry.get({ name: builderName })?.spec.draftKind

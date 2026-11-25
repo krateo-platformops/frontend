@@ -1,5 +1,5 @@
 /**
- * "Put it back" — the composer asking the provider to restore the previous draft.
+ * "Put it back" — the builder asking the provider to restore the previous draft.
  *
  * Same idiom as the add/edit/remove buses and for the same reason: the held draft lives in the
  * provider, the surfaces that author are pure and hold none of it. This one carries no payload at

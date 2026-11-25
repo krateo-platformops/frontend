@@ -25,7 +25,7 @@
  *   3. THERE WAS NO KEYBOARD PATH. Not one of 80 tab stops landed in the canvas. KeyboardSensor
  *      gives lift/move/drop on Space and the arrow keys, with announcements. The TREE's claim to be
  *      the keyboard route is now true as well: it restores focus after an edit and writes every
- *      outcome into the composer's live region, neither of which it did when the claim was written.
+ *      outcome into the builder's live region, neither of which it did when the claim was written.
  *   4. THE DRAG IMAGE WAS THE ELEMENT. The browser's default ghost is a translucent copy of the
  *      whole subtree, which covered the very drop targets it was being aimed at. `DragOverlay`
  *      renders a small chip instead.
@@ -328,7 +328,7 @@ export const CanvasPanel = ({ airborne = null, draggingId = null, files, onSelec
   draggingId?: string | null
   files: Record<string, string>
   onSelect?: (path: string | null) => void
-  /** The tree the gesture will be applied against — built once by the composer and shared, because
+  /** The tree the gesture will be applied against — built once by the builder and shared, because
    *  `legalTargets` compares nodes by REFERENCE and a second `buildObjectTree` would yield nodes
    *  that are equal but not identical. */
   roots?: readonly TreeNode[]

@@ -2,7 +2,7 @@
  * A PERSON resuming a stored draft — and the re-apply a resumed page asks for.
  *
  * WHY A BUS, AND NOT THE PAGE WRITING THE STORE. The held draft, the publish gate and the undo
- * history all live in the provider; the composers hold none of them and write only through buses
+ * history all live in the provider; the builders hold none of them and write only through buses
  * (Start is `onChartStart` / `onDraftStart`). A resume is a Start of a tree that already exists, so
  * it takes the same shape: the surface emits a request with a correlation id, the provider does the
  * work, and one result answers it.

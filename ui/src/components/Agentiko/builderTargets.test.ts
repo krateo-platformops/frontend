@@ -70,7 +70,7 @@ describe('resolveBuilderTargets — which config key feeds which target', () => 
   })
 
   it('the chart\'s blueprint default yields the OWNER — its repo segment is a placeholder nothing publishes to', () => {
-    // `krateo-blueprints/<chart>`: the owner is what the composer shows and the form prefills; the
+    // `krateo-blueprints/<chart>`: the owner is what the builder shows and the form prefills; the
     // repository is always the chart's own name. `<chart>` still has to PARSE, or the owner would be
     // lost with it — resolveBuilderTarget empties a slug with an empty segment.
     expect(resolveBuilderTargets({ AUTOPILOT_BLUEPRINT_BUILDER_REPO: 'krateo-blueprints/<chart>' }).blueprint.owner).toBe('krateo-blueprints')

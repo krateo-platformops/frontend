@@ -11,8 +11,8 @@ import styles from './ScreenHeader.module.css'
  *
  * What it does not have is the point (P27, P2):
  *   - no eyebrow or crumb slot. The shell renders the page's breadcrumb above every page; a second
- *     one in the header is how the composers came to show "Controller Builder / Compose" twice;
- *   - no alignment prop. The Page composer once put its actions under the description, on the left,
+ *     one in the header is how the builders came to show "Controller Builder / Compose" twice;
+ *   - no alignment prop. The Portal builder once put its actions under the description, on the left,
  *     with a stylesheet rule saying so on purpose, while the Controller Builder put the same buttons
  *     top-right. One component, one place for them.
  *

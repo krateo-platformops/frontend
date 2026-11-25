@@ -1,14 +1,14 @@
 /**
- * One route per Builder (T4, frontend#410): each Builder the registry loads is mounted by the composer
+ * One route per Builder (T4, frontend#410): each Builder the registry loads is mounted by the builder
  * host at its own `spec.route`. The Portal and Blueprint Builders' routes are the URLs their static
  * entries used to be (/portal-builder/compose, /blueprint-builder/compose); a Builder added as YAML
  * gets its route with no frontend change (ADR 0001, promotion step 1).
  *
  * WHICH BUILDERS GET NO ROUTE:
  *
- * - A COMPOSER NOT BUILT YET. A Builder whose palette, canvas and inspector are all PENDING plugins
+ * - A BUILDER NOT BUILT YET. A Builder whose palette, canvas and inspector are all PENDING plugins
  *   (pluginRegistry: named, their code due in a later release — none today) is
- *   loaded so the engine holds, saves and publishes its drafts, but has no composer to show. Its route
+ *   loaded so the engine holds, saves and publishes its drafts, but has no builder to show. Its route
  *   appears by itself once those plugins ship. A Builder naming an UNKNOWN plugin is still mounted, and
  *   the host says what is wrong with it — that one is a mistake to see.
  * - A BUILDER THE REGISTRY CANNOT TELL APART. Two Builders claiming one route, name or draft kind are a
@@ -33,7 +33,7 @@ import BuilderHost from './BuilderHost'
 /** The id prefix of a builder route — how the shell tells one from the portal's own. */
 export const BUILDER_ROUTE_ID = 'builder:'
 
-/** Every slot the composer draws names a plugin whose code is not shipped yet. */
+/** Every slot the builder draws names a plugin whose code is not shipped yet. */
 export const builderPending = (spec: BuilderSpec): boolean =>
   ([['palette', spec.palette.plugin], ['canvas', spec.canvas.plugin], ['inspector', spec.inspector.plugin]] as const)
     .every(([slot, name]) => {
@@ -53,9 +53,9 @@ const lastErrorOf = (): string | undefined => {
 }
 
 /**
- * A builder route's element: the composer for the Builder of that NAME, looked up live. The route is
+ * A builder route's element: the page for the Builder of that NAME, looked up live. The route is
  * mounted once per (name, route) and never rebuilt for a re-read (RoutesContext), so a re-read that
- * changes the Builder's spec reaches the composer here, as a prop, without replacing its route. It
+ * changes the Builder's spec reaches the page here, as a prop, without replacing its route. It
  * re-renders only when that Builder object or a re-read error changes — never on `loading`.
  */
 export const BuilderRouteHost = ({ name }: { name: string }) => {

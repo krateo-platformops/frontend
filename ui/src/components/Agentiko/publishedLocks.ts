@@ -4,10 +4,10 @@
  * A draft-kind plugin that has CEL-immutable fields (the controller's RestDefinitions: kind, group,
  * identifiers, configurationFields, status fields) takes a snapshot of them when a publish lands
  * (`DraftKindPlugin.lockedSnapshot`). The autosave keeps it on the draft record (`publish.locked`),
- * and restores it on Resume; this store is where the composer and the lint read it.
+ * and restores it on Resume; this store is where the builder and the lint read it.
  *
  * WHY MODULE STATE — the same reason as draftSaveStatus: the autosave lives in the provider, the
- * composer is a route outside its context, and the lint runs inside the provider's store listener.
+ * builder is a route outside its context, and the lint runs inside the provider's store listener.
  *
  * It names the draft it is about (kind and display name), so a lock never leaks onto another draft:
  * `lockedFor` answers only for the draft with that kind and name.

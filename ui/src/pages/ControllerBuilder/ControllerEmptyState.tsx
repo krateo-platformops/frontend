@@ -1,11 +1,11 @@
 /**
- * What the Controller Composer shows when there is no controller for it to edit (T8, frontend#412).
+ * What the Controller Builder shows when there is no controller for it to edit (T8, frontend#412).
  *
- * TWO CASES, as the Blueprint Composer's:
+ * TWO CASES, as the Blueprint Builder's:
  *   - Nothing is held: say so, and offer Start.
- *   - Another builder's draft is held. One store holds one draft, so this composer cannot start a
+ *   - Another builder's draft is held. One store holds one draft, so this builder cannot start a
  *     controller while it is there — and it never reads a chart or a page as a controller. The draft is
- *     PARKED: named by its kind, with the way to the composer that edits it, and a way to discard it.
+ *     PARKED: named by its kind, with the way to the builder that edits it, and a way to discard it.
  */
 import { Button, Popconfirm, Space } from 'antd'
 import { Link } from 'react-router'
@@ -18,7 +18,7 @@ import { WidgetEmpty } from '../../components/WidgetStates'
 export const CONTROLLER_EMPTY = 'No controller open. Start one here, or ask Agentiko to draft one — either way you review every file before anything is published.'
 
 export const ControllerEmptyState = ({ builder, held, onDiscard, onStart, parked }: {
-  /** This composer's Builder label. */
+  /** This page's Builder label. */
   builder: string
   /** The kind of the draft that is held, when one is. */
   held: string | null

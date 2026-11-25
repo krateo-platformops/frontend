@@ -9,7 +9,7 @@ import type { SlotPlugin } from './host/hostTypes'
 import { checkNames, pendingPluginNames, pluginNames, resolveCheck, resolvePlugin, type PluginSlot } from './pluginRegistry'
 
 describe('the plugin registry', () => {
-  it('registers today\'s composer pieces under their names', () => {
+  it('registers today\'s builder pieces under their names', () => {
     const expected: [PluginSlot, string, unknown][] = [
       ['palette', 'widgets', widgetsPalette],
       ['palette', 'kinds', kindsPalette],

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * THE CONTROLLER COMPOSER, HEADLESS (T8, frontend#412) — petstore authored in the UI, with no rail.
+ * THE CONTROLLER BUILDER, HEADLESS (T8, frontend#412) — petstore authored in the UI, with no rail.
  *
- * The composer is mounted as its route mounts it (the composer host, from the Controller Builder
+ * The page is mounted as its route mounts it (the builder host, from the Controller Builder
  * fixture), beside the provider's REAL draft hooks: the store, the gate, the file buses and the
  * start/render buses. Nothing is stubbed between a click and the held files. The walk is the
  * acceptance line: start (the modal, the petstore document pasted) → place pet and store (one by its
@@ -10,9 +10,9 @@
  * to the Configuration) → the chart tree, which T7's validator passes Kind by Kind.
  *
  * STRUCTURE SNAPSHOTS of the four states the mockup draws — empty, started, a Kind placed with its
- * conflict, auth — pin the DOM the way builderStructure.test.tsx pins the other two composers.
+ * conflict, auth — pin the DOM the way builderStructure.test.tsx pins the other two builders.
  * Ids are normalised (as there); a code block is collapsed to its line count, so a snapshot pins the
- * composer, not the 20 KB of petstore JSON the files pane highlights.
+ * builder, not the 20 KB of petstore JSON the files pane highlights.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -107,7 +107,7 @@ const page = (container: HTMLElement) => outline(container.firstElementChild as 
 
 const CONFIG = { config: { api: { AUTOPILOT_KOG_BUILDER_REPO: 'krateo-platformops/krateo-oas', AUTOPILOT_KOG_BUILDER_TEMPLATE: 'krateo-blueprints/builder-scaffold' } } }
 
-/** The composer beside the provider's real draft hooks; the store, once mounted. */
+/** The builder beside the provider's real draft hooks; the store, once mounted. */
 const mount = () => {
   const held: { store: BlueprintDraftStore | null } = { store: null }
   const Provider = () => {
@@ -186,7 +186,7 @@ describe('petstore, authored in the UI with no rail', () => {
     expect(publishButton().disabled).toBe(true)
     expect(page(container)).toMatchSnapshot('kind placed with conflict')
 
-    // Settled by a person's choice, never by the composer.
+    // Settled by a person's choice, never by the builder.
     pickInInspector('GET /pet/findByStatus'); pickInInspector('PUT /pet')
     expect(inspector().queryAllByRole('radiogroup', { name: /^Which operation is / })).toEqual([])
 

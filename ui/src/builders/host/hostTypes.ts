@@ -1,10 +1,10 @@
 /**
- * The composer host's contracts (T4, frontend#410): what the host hands a builder's workbench, what the
+ * The builder host's contracts (T4, frontend#410): what the host hands a builder's workbench, what the
  * workbench hands back, and the one props shape every palette, canvas and inspector plugin takes.
  *
  * THREE LAYERS, each owning what only it can know:
  *
- * - The HOST (BuilderHost.tsx) is the same for every Builder. It owns what both composers used to
+ * - The HOST (BuilderHost.tsx) is the same for every Builder. It owns what both builders used to
  *   wire by hand: whose draft is held (the draft broadcast and its replay), the preview-surface claim,
  *   the header — title, save indicator, pills, Preview · Undo · Publish · Close draft — the publish
  *   request and its answer, Resume, the file focus and edit verdicts of the PreviewContent tabs, and
@@ -33,7 +33,7 @@ export interface HostDraft {
   builder: Builder
   spec: BuilderSpec
   kind: DraftKind
-  /** The install config's api block, when a ConfigContext is mounted (the composers mount bare in tests). */
+  /** The install config's api block, when a ConfigContext is mounted (the builders mount bare in tests). */
   api: Config['api'] | undefined
   /** The last draft broadcast. */
   held: DraftChangedDetail
@@ -104,6 +104,6 @@ export interface WorkbenchPlugin {
   useWorkbench: (host: HostDraft) => Workbench
   /** `?adopt=` adopts a legacy draft of this kind (useDraftResume). */
   allowAdopt: boolean
-  /** The composer's subtitle: what a person authors here, in one sentence. */
+  /** The builder's subtitle: what a person authors here, in one sentence. */
   summary: string
 }

@@ -48,6 +48,14 @@ export interface Select {
          */
         disabled?: boolean
         /**
+         * the heading this option is listed under (antd OptGroup). Options of one group are drawn together, groups in the order they first appear; options without one have no heading. One select lists every group's options alike
+         */
+        group?: string
+        /**
+         * what the value is called elsewhere, drawn muted at the row's end and read with the label (a tenant's namespace: "acme", "tenant-acme")
+         */
+        hint?: string
+        /**
          * how many items carry this value (a facet count), shown beside the label and read as part of the option's accessible name ("Alert, 47"). When options carry counts, the multi-select panel's master row shows their sum instead of the number of options.
          */
         count?: number
@@ -80,6 +88,10 @@ export interface Select {
        * when set, the Select is STANDALONE and URL-query-bound (not a Form.Item control): its value reads from / writes to this URL search param (e.g. 'project'), flowing to server-side `extras` like RangePicker. Omit for the default Form control behavior.
        */
       queryParam?: string
+      /**
+       * how several picked values read in the closed control, with {count} replaced ("{count} namespaces"); one reads as its label (URL-bound `mode: multiple` only). Absent, each picked value is a removable tag
+       */
+      summary?: string
       /**
        * the footnote under the multi-select panel's Clear / Apply (URL-bound `mode: multiple` only). Absent, the panel keeps the project switcher's own footnote, "scope persists across pages via ?<queryParam>="; an empty string draws no footnote.
        */

@@ -1,5 +1,5 @@
 /**
- * The Controller Composer (T8, frontend#412) — the Controller Builder mounted by the composer host.
+ * The Controller Builder (T8, frontend#412), mounted by the builder host.
  * Its route is the Builder's (builders/host/builderRoutes.tsx); this component is the same host, named,
  * for whoever mounts the Controller Builder directly (its tests).
  *
@@ -10,7 +10,7 @@
 import { builderRegistry } from '../../builders/builderRegistry'
 import BuilderHost from '../../builders/host/BuilderHost'
 
-/** The Builder this composer hosts, by name. */
+/** The Builder this page hosts, by name. */
 const BUILDER = 'controller-builder'
 
 const ControllerBuilder = () => <BuilderHost builder={builderRegistry.get({ name: BUILDER })} name={BUILDER} />

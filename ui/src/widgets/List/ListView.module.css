@@ -439,12 +439,16 @@
    subgrid at every level down to the Statistic, whose box steps aside (display: contents) so its
    title and number are tracks of their own. A row's title track is as tall as its tallest title, so
    every number in the row starts level; when the strip reflows, each row of tiles sizes on its
-   own. `row-gap: 0` keeps the strip's 16px gap between rows of tiles, not inside a tile. */
+   own. `row-gap: 0` keeps the strip's 16px gap between rows of tiles, not inside a tile.
+   The one column is spelled out, full width: antd gives `.ant-list-item` `justify-content:
+   space-between`, which stops an implicit `auto` column from stretching, so each tile shrank to
+   its text and the tiles stood apart at uneven widths. */
 .statList .statItem,
 .statList .statCard,
 .statList .statCard > :global(.ant-card-body) {
   display: grid;
   grid-row: span 3;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: subgrid;
   row-gap: 0;
 }

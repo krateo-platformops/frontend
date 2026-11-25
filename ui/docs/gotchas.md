@@ -132,7 +132,7 @@ newer widget CR applied against an older frontend image throws `Unknown widget k
 
 Enabling dictation means setting `config.AUTOPILOT_VOICE_TRANSCRIBE_URL` to a
 `/chat/completions` endpoint on the agent gateway. **Its presence is the on/off switch**;
-empty (the default) and no microphone control renders at all, so the composer is unchanged.
+empty (the default) and no microphone control renders at all, so the chat composer is unchanged.
 
 Four things an operator must know before setting it:
 
@@ -140,7 +140,7 @@ Four things an operator must know before setting it:
   `AgentgatewayBackend` with `spec.ai.provider.vertexai` (`region: global` — no region
   guarantee), and that is true **even on installs that have moved the agent fleet to a
   local model**, because the route, not the `ModelConfig`, decides. The audio is used only
-  to produce text in the composer; nothing reaches an agent until the user presses Send.
+  to produce text in the chat composer; nothing reaches an agent until the user presses Send.
 - **HTTPS is required everywhere, not just on the portal.** Capture needs
   `window.isSecureContext`, so a plain-HTTP portal renders no control whatever this key
   says (one `console.info` on first rail open names the reason and the origin). And the
@@ -157,5 +157,5 @@ Four things an operator must know before setting it:
   `gemini-*` model on the Vertex backend does. An `input_audio` part is silently discarded
   by the gateway's Gemini translation, which is why the client never sends one — and why
   it verifies from `usage.prompt_tokens` that audio was actually billed before letting any
-  text reach the composer. With no audio the model does not error: it returns a fluent,
+  text reach the chat composer. With no audio the model does not error: it returns a fluent,
   confident, invented sentence.

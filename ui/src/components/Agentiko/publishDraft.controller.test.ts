@@ -48,7 +48,7 @@ const apply = (files: Record<string, string>, plan: ControllerPlan): Record<stri
   return { ...files, ...(plan.add ?? {}), ...(plan.edit ?? {}) }
 }
 
-/** Petstore as the composer leaves it: pet (findby chosen) and store placed. */
+/** Petstore as the builder leaves it: pet (findby chosen) and store placed. */
 const petstore = (settled = true): Record<string, string> => {
   const started = startController({ apiGroup: 'petstore.example.io', baseUrl: 'https://petstore3.swagger.io/api/v3', name: 'petstore', paths: null, spec: PETSTORE })
   if (!started.ok) { throw new Error(JSON.stringify(started.problems)) }

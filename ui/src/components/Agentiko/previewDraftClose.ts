@@ -1,7 +1,7 @@
 /**
  * "Discard this draft" — a surface asking the provider to drop the held draft for real.
  *
- * WHY THIS EXISTS. The composer's Close draft asked "Discard this draft? The sandbox and its
+ * WHY THIS EXISTS. The builder's Close draft asked "Discard this draft? The sandbox and its
  * unpublished files are deleted." and then cleared only its OWN view: the held draft lived on in the
  * provider's store. Two consequences, both silent. The files were not deleted — they were still
  * publishable. And every later "Start a page" was refused, because a draft start is refused while a
