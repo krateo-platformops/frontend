@@ -55,7 +55,7 @@ const Button = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: Widget
   const isIconOnly = Boolean(icon) && !label
   const computedAriaLabel = isIconOnly ? (ariaLabel ?? action?.id) : undefined
 
-  // C26: a dismiss button is amber and outlined whatever else the CR says — the role IS the look.
+  // C26: a dismiss button is the neutral default outline whatever else the CR says — never primary.
   // A4: an agent entry point ("Ask Agentiko →") is filled with the Agentiko gradient under a white
   // label and carries the Agentiko mark — the same object everywhere, so `type`, `color`,
   // `variant`, `danger`, `ghost` and `icon` are ignored. Unlicensed (licence.ts) it is outlined and
