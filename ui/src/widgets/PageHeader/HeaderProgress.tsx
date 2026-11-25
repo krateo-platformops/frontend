@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react'
 
+import TimeText from '../../components/TimeText'
+import { formatAge, toInstant } from '../../utils/dateFormat'
+
 import styles from './PageHeader.module.css'
 
 /**
- * PageHeader `progress`: "Re-analysis since 11:54 UTC · 12 min" (approved mockup, Diego's report that a
- * re-analysis showed "no sign of life"). The page itself updates live when the state changes; this
- * line keeps the WAIT visible in between. The minutes are computed in the browser, every 15 s, and
- * only while `live`: a server-side "12 min" would be cached with the page and stay "12 min". No ETA,
- * because the time an analysis takes is not knowable in advance (17 min there was rate limiting).
+ * PageHeader `progress`: "Re-analysis since 21 Nov, 12:54 · 12 minutes" (approved mockup, Diego's report
+ * that a re-analysis showed "no sign of life"; times as the approved "Dates and ages" design writes them:
+ * the start a moment in the viewer's zone, full date on hover, the wait an age). The page itself updates
+ * live when the state changes; this line keeps the WAIT visible in between. The age is computed in the
+ * browser, every 15 s, and only while `live`: a server-side "12 min" would be cached with the page and
+ * stay "12 min". No ETA, because the time an analysis takes is not knowable in advance (17 min there was
+ * rate limiting).
  */
 export interface HeaderProgressData {
   hint?: string
@@ -18,37 +23,6 @@ export interface HeaderProgressData {
 
 const TICK_MS = 15_000
 
-/** "11:54 UTC" for a time today (UTC), "2026-11-20 11:54 UTC" otherwise; '' when unparseable. */
-export const clockLabel = (since: string, now: number): string => {
-  const at = Date.parse(since)
-  if (Number.isNaN(at)) { return '' }
-  const iso = new Date(at).toISOString()
-  const sameDay = iso.slice(0, 10) === new Date(now).toISOString().slice(0, 10)
-  return `${sameDay ? '' : `${iso.slice(0, 10)} `}${iso.slice(11, 16)} UTC`
-}
-
-/** Whole minutes since `since`, never negative; null when unparseable. */
-export const elapsedMinutes = (since: string, now: number): number | null => {
-  const at = Date.parse(since)
-  return Number.isNaN(at) ? null : Math.max(0, Math.floor((now - at) / 60_000))
-}
-
-/**
- * Elapsed minutes in the two largest units that matter: "12 min", "3 h 12 min", "8 d 2 h" (a zero second
- * unit is dropped: "3 h", "8 d"). Minutes alone read "11501 min" on a 057 incident 8 days old.
- */
-export const elapsedLabel = (minutes: number): string => {
-  if (minutes < 60) { return `${minutes} min` }
-  if (minutes < 24 * 60) {
-    const hours = Math.floor(minutes / 60)
-    const rest = minutes % 60
-    return rest ? `${hours} h ${rest} min` : `${hours} h`
-  }
-  const days = Math.floor(minutes / (24 * 60))
-  const hours = Math.floor((minutes % (24 * 60)) / 60)
-  return hours ? `${days} d ${hours} h` : `${days} d`
-}
-
 const HeaderProgress = ({ progress }: { progress: HeaderProgressData }) => {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -58,15 +32,16 @@ const HeaderProgress = ({ progress }: { progress: HeaderProgressData }) => {
     return () => { clearInterval(timer) }
   }, [progress.live, progress.since])
 
-  const clock = clockLabel(progress.since, now)
-  if (!clock) { return null }
-  const minutes = progress.live ? elapsedMinutes(progress.since, now) : null
+  const since = toInstant(progress.since)
+  if (!since) { return null }
+  // A start a little ahead of this browser's clock is a wait that has just begun, never "in 1 minute".
+  const elapsed = progress.live ? formatAge(progress.since, { now: Math.max(now, since.getTime()) }) : null
 
   return (
     <div className={styles.progress} data-page-header='progress'>
       <span className={styles.progressLine}>
-        {progress.label} <span className={styles.progressValue}>{clock}</span>
-        {minutes !== null && <> · <span className={styles.progressValue}>{elapsedLabel(minutes)}</span></>}
+        {progress.label} <TimeText className={styles.progressValue} form='moment' value={progress.since} />
+        {elapsed !== null && <> · <span className={styles.progressValue}>{elapsed}</span></>}
         {progress.live && <span className={styles.progressLive}><span aria-hidden className={styles.progressDot} />live</span>}
       </span>
       {progress.live && progress.hint && <span className={styles.progressHint}>{progress.hint}</span>}

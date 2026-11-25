@@ -61,9 +61,9 @@ export interface Table {
          */
         color?: string
         /**
-         * optional display format for a string value — `relative` (e.g. "14d ago"), `date`, or `datetime`. The raw value stays in the data; only the rendering changes.
+         * optional time form for a string value that is an ISO (RFC3339) time, written in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old, for an age column ("7 weeks"); `ago` how long ago, in a sentence ("52 minutes ago"); `moment` a point in time ("4 Nov, 11:10", with the year when it is another year: "10 Sep 2025, 09:30"); `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came. The raw value stays in the data (and sorts as a date); only the rendering changes.
          */
-        format?: 'relative' | 'date' | 'datetime'
+        format?: 'age' | 'ago' | 'moment' | 'relative' | 'date' | 'datetime'
         /**
          * used if kind = widget
          */

@@ -18,6 +18,7 @@
  */
 import { builderOf } from '../../builders/builderRegistry'
 import { draftKindOf } from '../../builders/draftKinds'
+import { formatClock, formatDate } from '../../utils/dateFormat'
 import { getAccessToken } from '../../utils/getAccessToken'
 
 import type { DraftKind } from './blueprintDraftStore'
@@ -116,10 +117,9 @@ export const wrongBuilderMessage = (record: Pick<DraftRecordBody, 'kind' | 'name
   return `${record.name} is ${draftKindOf(record.kind).nouns.artifact} draft — resume it from the ${builder.label}, at ${builder.route}.`
 }
 
-const pad = (value: number): string => String(value).padStart(2, '0')
-
 /**
- * "today at 12:04" / "yesterday at 09:10" / "on 24/09/2026 at 17:30" — the banner's "last saved".
+ * "today at 12:04" / "yesterday at 09:10" / "on 24 Sep at 17:30" ("on 24 Sep 2025 at 17:30" in another year,
+ * utils/dateFormat; it was the browser locale's "24/09/2026" or "9/24/2026") — the banner's "last saved".
  * `now` is injectable so a test does not depend on the clock. An unreadable timestamp is said as
  * such, rather than as "Invalid Date".
  */
@@ -128,12 +128,12 @@ export const savedWhen = (iso: string, now: Date = new Date()): string => {
   if (Number.isNaN(saved.getTime())) {
     return 'at an unknown time'
   }
-  const at = `${pad(saved.getHours())}:${pad(saved.getMinutes())}`
+  const at = formatClock(saved)
   const day = (date: Date): number => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
   const days = Math.round((day(now) - day(saved)) / 86_400_000)
   if (days === 0) { return `today at ${at}` }
   if (days === 1) { return `yesterday at ${at}` }
-  return `on ${saved.toLocaleDateString()} at ${at}`
+  return `on ${formatDate(saved, { now: now.getTime() })} at ${at}`
 }
 
 /** What the restored banner says (screen 3), from what the provider answered. */

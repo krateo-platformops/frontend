@@ -10,19 +10,21 @@ describe('formatRelative', () => {
     expect(formatRelative(-1, NOW)).toBe('never')
   })
 
-  it('returns "just now" under 5 seconds', () => {
+  it('returns "just now" under a minute', () => {
     expect(formatRelative(NOW - 2_000, NOW)).toBe('just now')
+    expect(formatRelative(NOW - 30_000, NOW)).toBe('just now')
   })
 
-  it('formats seconds, minutes, hours and days', () => {
-    expect(formatRelative(NOW - 30_000, NOW)).toBe('30s ago')
-    expect(formatRelative(NOW - 2 * 60_000, NOW)).toBe('2m ago')
-    expect(formatRelative(NOW - 3 * 60 * 60_000, NOW)).toBe('3h ago')
-    expect(formatRelative(NOW - 4 * 24 * 60 * 60_000, NOW)).toBe('4d ago')
+  it('says minutes, hours and days in words, as every time-ago does ("Dates and ages")', () => {
+    expect(formatRelative(NOW - 60_000, NOW)).toBe('1 minute ago')
+    expect(formatRelative(NOW - 2 * 60_000, NOW)).toBe('2 minutes ago')
+    expect(formatRelative(NOW - 3 * 60 * 60_000, NOW)).toBe('3 hours ago')
+    expect(formatRelative(NOW - 4 * 24 * 60 * 60_000, NOW)).toBe('4 days ago')
   })
 
   it('never returns a negative delta (clock skew guard)', () => {
     expect(formatRelative(NOW + 10_000, NOW)).toBe('just now')
+    expect(formatRelative(NOW + 10 * 60_000, NOW)).toBe('just now')
   })
 })
 
@@ -49,19 +51,19 @@ describe('deriveFreshnessState — the four-state matrix', () => {
   it('STALE: stale, not fetching → muted with relative time', () => {
     const state = deriveFreshnessState({ dataUpdatedAt: NOW - 2 * 60_000, isFetching: false, isStale: true, liveArmed: false }, NOW)
     expect(state.tone).toBe('stale')
-    expect(state.label).toBe('Stale · 2m ago')
+    expect(state.label).toBe('Stale · 2 minutes ago')
     expect(state.showDot).toBe(false)
   })
 
   it('UPDATED (fallback): fresh but not live-armed → muted "Updated Nm ago"', () => {
     const state = deriveFreshnessState({ dataUpdatedAt: NOW - 5 * 60_000, isFetching: false, isStale: false, liveArmed: false }, NOW)
     expect(state.tone).toBe('stale')
-    expect(state.label).toBe('Updated 5m ago')
+    expect(state.label).toBe('Updated 5 minutes ago')
   })
 
   it('relative time advances with the clock without any refetch', () => {
     const props = { dataUpdatedAt: NOW, isFetching: false, isStale: true, liveArmed: false }
-    expect(deriveFreshnessState(props, NOW + 60_000).label).toBe('Stale · 1m ago')
-    expect(deriveFreshnessState(props, NOW + 120_000).label).toBe('Stale · 2m ago')
+    expect(deriveFreshnessState(props, NOW + 60_000).label).toBe('Stale · 1 minute ago')
+    expect(deriveFreshnessState(props, NOW + 120_000).label).toBe('Stale · 2 minutes ago')
   })
 })

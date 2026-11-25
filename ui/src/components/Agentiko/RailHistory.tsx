@@ -9,6 +9,8 @@
 
 import { useEffect, useState } from 'react'
 
+import { formatFull } from '../../utils/dateFormat'
+
 import styles from './AgentikoRail.module.css'
 import { EvidenceIcon } from './icons'
 import { relativeTime, type ThreadSummary } from './sessionHistoryStore'
@@ -74,7 +76,7 @@ export const HistoryColumn = ({ currentSessionId, onSwitch, open, sessions }: {
         type='button'
       >
         <span className={styles.apHistoryTitle}>{row.title}</span>
-        <span className={styles.apHistoryMeta}>{relativeTime(row.updatedAt)} · {row.messageCount} msg{row.messageCount === 1 ? '' : 's'}</span>
+        <span className={styles.apHistoryMeta} title={formatFull(row.updatedAt)}>{relativeTime(row.updatedAt)} · {row.messageCount} msg{row.messageCount === 1 ? '' : 's'}</span>
       </button>
     ))
   }
