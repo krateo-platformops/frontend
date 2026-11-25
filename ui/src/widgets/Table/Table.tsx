@@ -50,6 +50,34 @@ const cellIndent = (cell: TableCell | undefined): number => (typeof cell?.indent
 /** One indent level, px: the spacing scale's `md` step. */
 const INDENT_STEP = spacing.md
 
+/**
+ * A column's header. A ruler (`rulerStart`/`rulerEnd`): the scale of a waterfall column's bars, one label at each
+ * end of the bars' track, in the header's face but as written (not upper-cased: "5.81 s", not "5.81 S"); the
+ * title stays the column's name for assistive tech (and for resizing and export). Otherwise the title: in a
+ * truncating table it wraps onto two lines rather than ellipsize, so a title's unit ("CPU request (m)") is not
+ * the part that is cut (columnLayout sizes the columns for that), and past two lines it ellipsizes, full title on
+ * hover; in any other table it ellipsizes on one line.
+ */
+const columnHeader = ({ rulerEnd, rulerStart, title }: { rulerEnd?: string; rulerStart?: string; title: string }, truncating: boolean): ReactNode => {
+  if (rulerStart !== undefined || rulerEnd !== undefined) {
+    return (
+      <div className={styles.ruler}>
+        <span className={styles.srOnly}>{title}</span>
+        <span aria-hidden>{rulerStart}</span>
+        <span aria-hidden>{rulerEnd}</span>
+      </div>
+    )
+  }
+  if (truncating) { return <span className={styles.headerWrap} title={title}>{title}</span> }
+  return (
+    <div className={styles.headerEllipsis}>
+      <Typography.Text ellipsis={{ tooltip: true }}>
+        {title}
+      </Typography.Text>
+    </div>
+  )
+}
+
 /** --krateo-text-label-sm, px: the header's font size. */
 const HEADER_FONT_SIZE = 11
 
@@ -350,12 +378,15 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
   const table = (
     <AntdTable
       bordered={bordered}
-      columns={[...columns.map(({ color, minWidth, title, valueKey, width }, index) => ({
+      columns={[...columns.map(({ color, minWidth, rulerEnd, rulerStart, title, valueKey, width }, index) => ({
         // UX #13: inferred client-side sorting — an automatic `sorter` comparing
         // the RAW dataSource values (numeric / kubectl-age / ISO-date / string,
         // sniffed per column) + `align: 'right'` for numeric/age columns. No
         // default sortOrder: the server's jq order stays until a header click.
-        ...getColumnSortProps(dataTable, valueKey),
+        //
+        // A column with a ruler (`rulerStart`/`rulerEnd`, a waterfall) has no sorter: its rows are in the trace's
+        // own order, and the sorter's icon would sit at the ruler's end, off the end of the bars' track.
+        ...(rulerStart === undefined && rulerEnd === undefined ? getColumnSortProps(dataTable, valueKey) : {}),
         // Numbers right-align and text left-aligns, decided by the cells' kind (isNumericColumn), so
         // one placeholder cell cannot flip a column of numbers to the left.
         ...(layout.numeric[index] ? { align: 'right' as const } : {}),
@@ -404,7 +435,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
             return <span>{EMPTY_CELL}</span>
           }
 
-          const { arrayValue, booleanValue, color: cellColor, decimalValue, format, kind, numberValue, offsetPercent, resourceRefId, stringValue, type, widthPercent } = cell
+          const { arrayValue, booleanValue, color: cellColor, decimalValue, format, kind, numberValue, offsetPercent, resourceRefId, secondaryText, stringValue, type, widthPercent } = cell
 
           switch (kind) {
             case 'tag':
@@ -511,10 +542,27 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
                   // raw value stays in the data (and sorts as a date); only the rendering changes. A cell's
                   // explicit `tooltip` stays its only tooltip (withCellTooltip), so it gets the words alone.
                   const textStyle = { color: resolveTextColor(cellColor ?? color) }
-                  if (!stringValue) { return <span style={textStyle}>{EMPTY_CELL}</span> }
                   const timeForm = timeFormOf(format)
-                  if (timeForm && !explicitTooltip(cell)) { return <TimeText form={timeForm} style={textStyle} value={stringValue} /> }
-                  return <span style={textStyle}>{timeForm ? formatTime(stringValue, timeForm) : stringValue}</span>
+                  let main: ReactNode
+                  if (!stringValue) {
+                    main = <span style={textStyle}>{EMPTY_CELL}</span>
+                  } else if (timeForm && !explicitTooltip(cell)) {
+                    main = <TimeText form={timeForm} style={textStyle} value={stringValue} />
+                  } else {
+                    main = <span style={textStyle}>{timeForm ? formatTime(stringValue, timeForm) : stringValue}</span>
+                  }
+                  if (!secondaryText) { return main }
+                  // `secondaryText`: a second line, muted and small, under the value (the trace waterfall's
+                  // service under each span's name). Each line wraps or ellipsizes as the cell's text does; in a
+                  // truncating table rc-table cannot title two lines, so each carries its own full text on hover,
+                  // unless the cell has its own `tooltip`, which stays its only one.
+                  const titled = truncating && !explicitTooltip(cell)
+                  return (
+                    <div className={styles.twoLines}>
+                      <span className={styles.lineMain} title={titled && typeof stringValue === 'string' && !timeForm ? stringValue : undefined}>{main}</span>
+                      <span className={styles.lineSecondary} title={titled ? secondaryText : undefined}>{secondaryText}</span>
+                    </div>
+                  )
                 }
                 case 'number':
                 case 'integer':
@@ -537,18 +585,8 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
               return <span>{EMPTY_CELL}</span>
           }
         }),
-        // A truncating table's header wraps onto two lines rather than ellipsize, so a title's unit
-        // ("CPU request (m)") is not the part that is cut; columnLayout sizes the columns for that.
-        // Past two lines it ellipsizes, full title on hover.
-        title: truncating
-          ? <span className={styles.headerWrap} title={title}>{title}</span>
-          : (
-            <div className={styles.headerEllipsis}>
-              <Typography.Text ellipsis={{ tooltip: true }}>
-                {title}
-              </Typography.Text>
-            </div>
-          ),
+        // The ruler, or the title (columnHeader).
+        title: columnHeader({ rulerEnd, rulerStart, title }, truncating),
         width: resized ? resizedWidth(index) : widths[index] ?? width,
       })), ...actionsColumn]}
       components={TABLE_COMPONENTS}

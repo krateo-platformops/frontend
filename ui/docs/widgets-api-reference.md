@@ -1728,6 +1728,8 @@ Table displays structured data with customizable columns and pagination
 | columns[].valueKey | yes | key used to extract the value from row data | string |
 | columns[].width | no | antd Table column width — a pixel number, or any CSS length string. Mirrors antd ColumnType.width. Optional: omitted, antd sizes the column as it does today. | integer | string |
 | columns[].minWidth | no | antd Table column minWidth in px. Mirrors antd ColumnType.minWidth. Usually the better lever under fitContent: a fixed width re-creates the overflow it was meant to fix, while a floor keeps a column readable and lets the others flex. | integer |
+| columns[].rulerStart | no | optional, for a column of `span` cells (a waterfall): the label at the start of the bars' scale, e.g. "0". With `rulerEnd`, the header shows the two labels at the ends of the bars' track, as written (not upper-cased), instead of the title; the title stays the column's name for assistive tech. A column with a ruler has no sorter. | string |
+| columns[].rulerEnd | no | optional, for a column of `span` cells (a waterfall): the label at the end of the bars' scale, the length that 100% stands for, e.g. "5.81 s". See `rulerStart`. | string |
 | dataSource | no | antd Table dataSource — the table rows (renamed from `data`; `data` still accepted for back-compat) | array |
 | pagination | no | antd Table pagination config (subproperties mirror antd). | object |
 | pagination.pageSize | no | number of rows per page | integer |
