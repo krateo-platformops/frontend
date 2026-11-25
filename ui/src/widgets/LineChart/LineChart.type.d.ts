@@ -68,7 +68,7 @@ export interface LineChart {
        */
       point?: boolean
       /**
-       * G2 per-channel scale config (G2 `scale`), e.g. {"y":{"zero":true,"nice":true,"domainMin":0,"domainMax":3,"tickCount":4}}. domainMax is a floor — data larger than it still wins, so dense data is never clipped.
+       * G2 per-channel scale config (G2 `scale`), e.g. {"y":{"zero":true,"nice":true,"domainMin":0,"domainMax":3,"tickCount":4}}. domainMax is the top of the axis as written: a value above it is drawn past the top of the plot, so set it from the data (at or above the largest value), e.g. in the widgetDataTemplate.
        */
       scale?: {
         [k: string]: unknown

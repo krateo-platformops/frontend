@@ -9,7 +9,7 @@
  * Used for AUTO-assigned chart series (no operator colour). Operator-specified colours still go
  * through getColorCode(name) — intentional control, not overridden.
  */
-import { activeThemeMode } from './palette'
+import { activeThemeMode, getColorCode } from './palette'
 
 const CHART_CAT_DARK = [
   '#11B2E2', '#FFAA00', '#00D690', '#9350DB', '#F84C4C',
@@ -38,4 +38,28 @@ export const getChartCatPalette = (): string[] => {
 export const getChartCatColor = (index: number): string => {
   const palette = getChartCatPalette()
   return palette[((index % palette.length) + palette.length) % palette.length]
+}
+
+/**
+ * A chart's G2 `scale` from its CR (LineChart and BarChart, one mapping for both). SERIES colours: each
+ * `colorMap` category maps to a Krateo palette colour (read for the active mode), merged into the CR's own
+ * `scale`, as PieChart's colorMap does. Without a colorMap, auto-assigned series take the v2 categorical
+ * chart palette instead of G2's default palette, and a CR-supplied `scale.color` still wins.
+ */
+export const chartScale = (colorMap: Record<string, string> | undefined, scale: Record<string, unknown> | undefined): Record<string, unknown> => (colorMap
+  ? { ...scale, color: { domain: Object.keys(colorMap), range: Object.keys(colorMap).map((key) => getColorCode(colorMap[key])) } }
+  : { color: { range: getChartCatPalette() }, ...scale })
+
+type ChartAxis = Record<string, unknown> & { x: Record<string, unknown>; y: Record<string, unknown> }
+
+/**
+ * Default axis tick/title fill = theme ink (G2's near-black default is invisible on the Petrol void). Merged
+ * UNDER the CR's own `axis.x`/`axis.y`, so any explicit per-axis config still wins; preserves any other axis
+ * keys the CR set. LineChart and BarChart, one mapping for both.
+ */
+export const axisWithInk = (axis: Record<string, unknown> | undefined): ChartAxis => {
+  const ink = getColorCode('gray')
+  const axisObj = axis ?? {}
+  const merge = (key: 'x' | 'y') => ({ labelFill: ink, titleFill: ink, ...((axisObj[key] as Record<string, unknown> | undefined) ?? {}) })
+  return { ...axisObj, x: merge('x'), y: merge('y') }
 }

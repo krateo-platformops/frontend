@@ -25,3 +25,44 @@ spec:
     xField: namespace
     yField: count
     colorField: namespace
+---
+# `colorMap`, `scale` and `axis`, as LineChart has them: series colours by palette name, whole-number ticks
+# (domainMax 4, tickCount 5: 0, 1, 2, 3, 4) and a unit on the y axis.
+kind: BarChart
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-barchart-scale-axis
+  namespace: krateo-system
+spec:
+  widgetData:
+    data:
+      - { day: 1795046400, series: Opened, count: 1 }
+      - { day: 1795046400, series: Resolved, count: 0 }
+      - { day: 1795132800, series: Opened, count: 1 }
+      - { day: 1795132800, series: Resolved, count: 0 }
+      - { day: 1795219200, series: Opened, count: 0 }
+      - { day: 1795219200, series: Resolved, count: 2 }
+      - { day: 1795305600, series: Opened, count: 3 }
+      - { day: 1795305600, series: Resolved, count: 0 }
+      - { day: 1795392000, series: Opened, count: 0 }
+      - { day: 1795392000, series: Resolved, count: 1 }
+      - { day: 1795478400, series: Opened, count: 2 }
+      - { day: 1795478400, series: Resolved, count: 0 }
+      - { day: 1795564800, series: Opened, count: 2 }
+      - { day: 1795564800, series: Resolved, count: 0 }
+    xField: day
+    yField: count
+    colorField: series
+    group: true
+    xTimeUnit: day
+    colorMap:
+      Opened: red
+      Resolved: gray
+    scale:
+      y:
+        domainMax: 4
+        tickCount: 5
+    axis:
+      y:
+        title: incidents
+    height: 240
