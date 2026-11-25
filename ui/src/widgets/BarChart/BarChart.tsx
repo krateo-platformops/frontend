@@ -3,7 +3,7 @@ import { Column } from '@ant-design/plots'
 import ChartSlotLegend from '../../components/ChartSlotLegend'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useAutoFitChart } from '../../hooks/useAutoFitChart'
-import { getChartCatPalette } from '../../theme/chart-utils'
+import { axisWithInk, chartScale } from '../../theme/chart-utils'
 import { getColorCode } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
 import { hasTooltipValue } from '../../utils/chartSlots'
@@ -15,14 +15,10 @@ import { barSlotLayers } from './barSlots'
 
 export type BarChartWidgetData = WidgetType['spec']['widgetData']
 
-// G2 axis ticks/titles and legend text default to near-black — invisible on the dark Petrol
-// void. Force theme ink so labels are legible in BOTH themes; getColorCode reads data-theme,
-// so the colour follows the light/dark toggle (mirrors LineChart/PieChart). Functions, not
-// constants, so they re-evaluate per render after a theme switch.
-const axisInk = () => {
-  const ink = getColorCode('gray')
-  return { x: { labelFill: ink, titleFill: ink }, y: { labelFill: ink, titleFill: ink } }
-}
+// G2 legend text defaults to near-black — invisible on the dark Petrol void. Force theme ink so it
+// is legible in BOTH themes; getColorCode reads data-theme, so the colour follows the light/dark
+// toggle (mirrors LineChart/PieChart). A function, not a constant, so it re-evaluates per render
+// after a theme switch. The axes get the same ink from axisWithInk, shared with LineChart.
 const inkLegend = () => ({ color: { itemLabelFill: getColorCode('text') } })
 
 type TimeUnit = NonNullable<BarChartWidgetData['xTimeUnit']>
@@ -86,9 +82,13 @@ const BarChart = ({ uid, widgetData }: WidgetProps<BarChartWidgetData>) => {
   // by value, so a Date per row would split one bucket's stacked series into bars of their own); only the
   // labels and the tooltip read them as times. Without it, everything passes through as before.
   const { xField, xTimeUnit } = widgetData
-  const ink = axisInk()
+  // `colorMap`, `scale` and `axis` as LineChart has them, through the same mapping (chartScale, axisWithInk):
+  // series colours from the palette names, the CR's own scale and axis config winning over the defaults.
+  const scale = chartScale(widgetData.colorMap, widgetData.scale)
+  const inkAxis = axisWithInk(widgetData.axis)
   const labels = xTimeUnit ? barTimeLabels(widgetData.data.map((row) => (row as Record<string, unknown>)[xField]), xTimeUnit) : undefined
-  const axis = labels ? { ...ink, x: { ...ink.x, labelFormatter: (value: unknown) => labels.get(Number(value)) ?? value } } : ink
+  // A CR's own axis.x.labelFormatter still wins over the time labels, as on LineChart.
+  const axis = labels ? { ...inkAxis, x: { labelFormatter: (value: unknown) => labels.get(Number(value)) ?? value, ...inkAxis.x } } : inkAxis
   const timeTooltip = xTimeUnit ? { title: (row: Record<string, unknown>) => barTimeTitle(row[xField], xTimeUnit) } : undefined
   // A measured 0 is a grey hairline, and with `slotField` the bar still filling and the slots with no data are
   // drawn as such (barSlots).
@@ -118,7 +118,7 @@ const BarChart = ({ uid, widgetData }: WidgetProps<BarChartWidgetData>) => {
         key={uid}
         legend={widgetData.legend === false ? false : inkLegend()}
         onReady={onReady}
-        scale={{ color: { range: getChartCatPalette() } }}
+        scale={scale}
         stack={widgetData.stack}
         style={slots.style}
         title={widgetData.title}

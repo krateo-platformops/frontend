@@ -119,3 +119,44 @@ describe('BarChart slotField', () => {
     expect(styleOf(drawn, DAYS[4])).toEqual({})
   })
 })
+
+describe('BarChart slotField with colorMap, scale and axis', () => {
+  const DATA = [
+    { s: 'Opened', x: at(23), y: 3 }, { s: 'Resolved', x: at(23), y: 0 },
+    { s: 'Opened', slot: 'partial', x: at(24), y: 2 }, { s: 'Resolved', slot: 'partial', x: at(24), y: 0 },
+    { s: 'Opened', slot: 'missing', x: at(25), y: null }, { s: 'Resolved', slot: 'missing', x: at(25), y: null },
+  ]
+  const fields = {
+    axis: { y: { title: 'incidents' } },
+    colorField: 's',
+    colorMap: { Opened: 'red', Resolved: 'gray' },
+    data: DATA,
+    group: true,
+    scale: { y: { domainMax: 4, tickCount: 5 } },
+    slotField: 'slot',
+    xTimeUnit: 'day' as const,
+  }
+
+  it('a partial bar keeps its mapped series colour (faint, dashed: the colour comes from the scale, not the style)', () => {
+    const drawn = draw(fields)
+    const props = columnProps.at(-1) as unknown as { scale: { color: { domain: string[]; range: string[] } } }
+    expect(props.scale.color).toEqual({ domain: ['Opened', 'Resolved'], range: [getColorCode('red'), getColorCode('gray')] })
+    expect(styleOf(drawn, DATA[2])).toEqual({ fillOpacity: 0.18, lineDash: [3, 2], lineWidth: 1.3 })
+  })
+
+  it('a measured zero stays the neutral hairline whatever the colorMap says, a partial one with a grey outline', () => {
+    const drawn = draw(fields)
+    expect(styleOf(drawn, DATA[1])).toEqual({ fill: getColorCode('faint'), minHeight: 2 })
+    expect(styleOf(drawn, DATA[3])).toMatchObject({ fill: getColorCode('faint'), minHeight: 2, stroke: getColorCode('faint') })
+  })
+
+  it('a missing slot is still a hatched band with no bar, and the CR’s axis and scale reach G2 beside the slot marks', () => {
+    const drawn = draw(fields)
+    const props = columnProps.at(-1) as unknown as { axis: { x: Record<string, unknown>; y: Record<string, unknown> }; scale: { y: unknown } }
+    expect(styleOf(drawn, DATA[4]).fillOpacity).toBe(0)
+    expect(drawn.annotations?.map((mark) => mark.type)).toEqual(['rangeX', 'text'])
+    expect(props.scale.y).toEqual({ domainMax: 4, tickCount: 5 })
+    expect(props.axis.y).toMatchObject({ title: 'incidents' })
+    expect(typeof props.axis.x.labelFormatter).toBe('function')
+  })
+})

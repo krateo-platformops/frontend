@@ -4,7 +4,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import ChartSlotLegend from '../../components/ChartSlotLegend'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useAutoFitChart } from '../../hooks/useAutoFitChart'
-import { getChartCatPalette } from '../../theme/chart-utils'
+import { axisWithInk, chartScale, getChartCatPalette } from '../../theme/chart-utils'
 import { getColorCode } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
 import { hasTooltipValue } from '../../utils/chartSlots'
@@ -53,18 +53,6 @@ const brandAreaFill = (): { style: { fill: string } } => {
  * render/mode toggle.
  */
 const centeredLegend = () => ({ color: { itemLabelFill: getColorCode('text'), layout: { justifyContent: 'center' }, position: 'bottom' } })
-
-/**
- * Default axis tick/title fill = theme ink (G2's near-black default is invisible on the
- * Petrol void). Merged UNDER the CR's own `axis.x`/`axis.y`, so any explicit per-axis
- * config still wins; preserves any other axis keys the CR set.
- */
-const axisWithInk = (axis: LineChartWidgetData['axis']) => {
-  const ink = getColorCode('gray')
-  const axisObj = (axis ?? {}) as Record<string, unknown>
-  const merge = (key: 'x' | 'y') => ({ labelFill: ink, titleFill: ink, ...((axisObj[key] as Record<string, unknown> | undefined) ?? {}) })
-  return { ...axisObj, x: merge('x'), y: merge('y') }
-}
 
 type TimeUnit = NonNullable<LineChartWidgetData['xTimeUnit']>
 
@@ -155,14 +143,9 @@ const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
     ? placeInTime(widgetData.data, widgetData.annotations, xField)
     : { timedAnnotations: widgetData.annotations, timedData: widgetData.data }
 
-  // SERIES colours: map each colorField category → a palette hex (mirrors PieChart.colorMap),
-  // merged into the CR's scale. Without an operator colorMap, auto-assigned series (and a single
-  // line) take the v2 categorical chart palette — cat-01 is brand blue, matching the area fill —
-  // instead of G2's default palette. A CR-supplied scale.color still wins.
-  const { colorMap } = widgetData
-  const scale = colorMap
-    ? { ...widgetData.scale, color: { domain: Object.keys(colorMap), range: Object.keys(colorMap).map((key) => getColorCode(colorMap[key])) } }
-    : { color: { range: getChartCatPalette() }, ...widgetData.scale }
+  // SERIES colours from `colorMap`, else the v2 categorical chart palette, merged into the CR's scale
+  // (chartScale, shared with BarChart).
+  const scale = chartScale(widgetData.colorMap, widgetData.scale)
   // A CR's own scale.x or axis.x still wins, as everywhere in this widget.
   const timeScale = xTimeUnit ? { ...scale, x: { type: 'time', ...(scale as { x?: object }).x } } : scale
   const axis = axisWithInk(widgetData.axis)
