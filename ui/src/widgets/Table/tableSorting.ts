@@ -97,7 +97,7 @@ const conditionTypesLabel = (stringValue?: string): string | undefined => {
 /**
  * The RAW comparable value of a cell — always the dataSource value, never the
  * rendered node. A `tag` sorts by its label text (same sniffing as any other
- * value); `bar` by its percent; `conditions` by its condition types; a nested
+ * value); `bar` by its percent; `span` by its offset; `conditions` by its condition types; a nested
  * `widget` cell has no comparable value.
  */
 export const getCellSortValue = (cell: TableCell | undefined): boolean | number | string | undefined => {
@@ -114,6 +114,9 @@ export const getCellSortValue = (cell: TableCell | undefined): boolean | number 
     }
     case 'conditions':
       return conditionTypesLabel(stringValue)
+    case 'span':
+      // A waterfall bar sorts by where it starts: a trace's spans in the order they began.
+      return typeof cell.offsetPercent === 'number' && Number.isFinite(cell.offsetPercent) ? cell.offsetPercent : undefined
     case 'widget':
       return undefined
     case 'jsonSchemaType':

@@ -41,7 +41,7 @@ const CASES: Record<string, number[]> = {
   Statistic: [0],
   Steps: [0, 1],
   Switch: [0],
-  Table: [3],
+  Table: [3, 15],
   Tag: [0, 1],
   YamlViewer: [3],
 }
