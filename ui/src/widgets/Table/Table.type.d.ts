@@ -53,9 +53,9 @@ export interface Table {
          */
         valueKey: string
         /**
-         * type of cell value. `tag` renders the stringValue as a colored antd Tag (use the cell `color`). `bar` renders a reconciliation-rail Progress gauge (stringValue = percent 0-100, `color` = bar/state color, amber target-tick at 100%). `conditions` renders `stringValue` (a JSON array of {type,status,color}) as small pills, one per entry: `type` is the text, `color` is painted as sent (gray when absent) and `status` is never mapped to a colour. Send green (health), red (failure), orange (transitional) or gray (unknown); cyan is for brand and interaction, never a status.
+         * type of cell value. `tag` renders the stringValue as a colored antd Tag (use the cell `color`). `bar` renders a reconciliation-rail Progress gauge (stringValue = percent 0-100, `color` = bar/state color, amber target-tick at 100%). `conditions` renders `stringValue` (a JSON array of {type,status,color}) as small pills, one per entry: `type` is the text, `color` is painted as sent (gray when absent) and `status` is never mapped to a colour. Send green (health), red (failure), orange (transitional) or gray (unknown); cyan is for brand and interaction, never a status. `span` renders a waterfall bar, as the trace page draws a trace's spans: it starts `offsetPercent` of the way along the cell and is `widthPercent` long (both 0-100, of the column's whole scale; never thinner than 2px), in the cell `color` (else the column's, else the neutral gray), with `stringValue` (e.g. the duration, "2.10 s") written after it and `tooltip` on hover. It sorts by `offsetPercent`. Put the scale in the column title ("0 … 5.81 s"). Not `bar`, which is a progress gauge from 0 with a target mark at 100%.
          */
-        kind: 'jsonSchemaType' | 'icon' | 'widget' | 'tag' | 'bar' | 'conditions'
+        kind: 'jsonSchemaType' | 'icon' | 'widget' | 'tag' | 'bar' | 'conditions' | 'span'
         /**
          * per-cell color — a KRATEO PALETTE name (gray, red, orange, green, blue, primary…), resolved for the light or dark mode; never a hex, which is one value in both modes. On a jsonSchemaType cell it overrides the column color, and a value that is not a palette name is applied as CSS as written. Lets each row carry its own color (e.g. status).
          */
@@ -93,9 +93,21 @@ export interface Table {
          */
         arrayValue?: string[]
         /**
+         * used if kind = span: where the bar starts, as a percentage (0-100) of the cell's width, e.g. (span start - trace start) / trace length * 100. A value outside 0-100 is clamped.
+         */
+        offsetPercent?: number
+        /**
+         * used if kind = span: how long the bar is, as a percentage (0-100) of the cell's width, e.g. span duration / trace length * 100; cut at the cell's end, and never drawn thinner than 2px.
+         */
+        widthPercent?: number
+        /**
          * optional antd Tooltip text for this cell, shown on hover and on keyboard focus, for every cell kind (e.g. a span's OTel StatusMessage on its error tag). When set, it replaces the cell's own full-text-on-hover title, so a cell never shows two tooltips. Omitted or empty, the cell renders exactly as without it.
          */
         tooltip?: string
+        /**
+         * optional, any cell kind: the cell's content starts this many levels in (16px each), e.g. a span's depth under the span that called it in a trace waterfall. Omitted or 0, the cell is laid out exactly as without it.
+         */
+        indent?: number
       }[][]
       /**
        * antd Table pagination config (subproperties mirror antd).

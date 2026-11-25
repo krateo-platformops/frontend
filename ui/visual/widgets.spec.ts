@@ -43,7 +43,7 @@ const CASES: Record<string, number[]> = {
   Statistic: [0],
   Steps: [0, 1],
   Switch: [0],
-  Table: [3],
+  Table: [3, 15],
   Tag: [0, 1],
   // Docs 0 and 1: the plain vertical rail, then colours + icons + a `loading` node. The loading
   // node is safe to pin because the config screenshots with `animations: 'disabled'`, so the
