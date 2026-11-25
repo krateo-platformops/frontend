@@ -43,7 +43,7 @@
               "type": "string"
             },
             "markdown": {
-              "description": "markdown string to be displayed, GitHub-flavoured (pipe tables, strikethrough, task lists, bare URLs as links). Raw HTML is shown as text, except an `<a href=\"…\">…</a>` anchor whose href is a quoted absolute http, https or mailto URL: it renders as a link, like `[text](url)`, and its other attributes are dropped",
+              "description": "markdown string to be displayed, GitHub-flavoured (pipe tables, strikethrough, task lists, bare URLs as links). Raw HTML is shown as text, except an `<a href=\"…\">…</a>` anchor whose href is a quoted absolute http, https or mailto URL: it renders as a link, like `[text](url)`, and its other attributes are dropped A time in the text is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:2026-11-04T10:10:27Z}` (\"3 weeks ago\"), `{age:…}`, `{moment:…}` (\"4 Nov, 11:10\") or `{date:…}`; inside `code` it is shown as written; a copy or download of the whole text carries every token as its words, code included. Never a time formatted in jq: it is in UTC, and an age is frozen in snowplow's cache.",
               "type": "string"
             },
             "tone": {
