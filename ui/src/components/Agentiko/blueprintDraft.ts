@@ -545,7 +545,21 @@ const lintDescriptor = (files: Record<string, string>): string[] => {
  * each caller say what it is linting.
  */
 /** A container `image:` left empty — the placeholder a placed workload starts with (templateGen). */
-const EMPTY_IMAGE = /^\s*(?:-\s+)?image:\s*(?:""|'')?\s*(?:#.*)?$/
+const EMPTY_IMAGE = /^(\s*(?:-\s+)?)image:\s*(""|'')?\s*(?:#.*)?$/
+
+/**
+ * Whether a bare `image:` holds a value on the lines below it. YAML lets a key's value start on the next
+ * line: a block mapping or sequence indented further (a CRD's object `image`, a Pod image volume's
+ * `reference:`), or a sequence at the key's own column. A template action there (`{{ toYaml … }}`)
+ * may write one; that is not "empty" either, only unknown. The file is a Go template, so it is read
+ * line by line, not parsed.
+ */
+const valueBelow = (lines: string[], idx: number, keyColumn: number): boolean => {
+  const next = lines.slice(idx + 1).find((line) => line.trim() !== '' && !line.trim().startsWith('#'))
+  if (next === undefined) { return false }
+  const column = next.length - next.trimStart().length
+  return next.trimStart().startsWith('{{') || column > keyColumn || (column === keyColumn && next.trimStart().startsWith('- '))
+}
 
 /**
  * Every template line whose container image is still EMPTY. Placing a native workload writes
@@ -559,9 +573,14 @@ const lintEmptyImages = (files: Record<string, string>): string[] =>
   Object.keys(files)
     .filter((path) => path.startsWith('templates/') && /\.ya?ml$/.test(path))
     .sort()
-    .flatMap((path) => files[path].split('\n').flatMap((line, idx) => (EMPTY_IMAGE.test(line)
-      ? [`${path}:${idx + 1}: a container image is empty — set one (or a value such as {{ .Values.image }}) before previewing; the apiserver refuses a workload without it, and a gated one is not rendered by Preview to show you.`]
-      : [])))
+    .flatMap((path) => files[path].split('\n').flatMap((line, idx, lines) => {
+      const match = EMPTY_IMAGE.exec(line)
+      // Quoted empty is empty; a bare `image:` is empty only when no value starts below it.
+      const empty = match !== null && (match[2] !== undefined || !valueBelow(lines, idx, match[1].length))
+      return empty
+        ? [`${path}:${idx + 1}: a container image is empty — set one (or a value such as {{ .Values.image }}) before previewing; the apiserver refuses a workload without it, and a gated one is not rendered by Preview to show you.`]
+        : []
+    }))
 
 export const lintBlueprintDraft = (rawTemplates: Record<string, string>, kind: DraftKind): string[] => {
   const bytes = rawTemplatesByteSize(rawTemplates)
