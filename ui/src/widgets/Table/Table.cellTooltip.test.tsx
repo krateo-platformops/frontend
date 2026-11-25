@@ -140,7 +140,7 @@ describe('Table — a cell with `tooltip`', () => {
     ['icon', { kind: 'icon', stringValue: 'fa-circle-xmark' }, undefined],
     ['bar', { kind: 'bar', stringValue: '40' }, undefined],
     ['conditions', { kind: 'conditions', stringValue: JSON.stringify([{ color: 'red', status: 'False', type: 'Ready' }]) }, 'Ready'],
-    ['widget (no ref)', { kind: 'widget' }, '-'],
+    ['widget (no ref)', { kind: 'widget' }, '—'],
   ] as const)('wraps a %s cell, focusable and named', async (_kind, cell, text) => {
     renderTable(spansTable({ ...cell, tooltip: STATUS_MESSAGE }))
     const cellNode = document.querySelectorAll('tbody tr.ant-table-row td')[2] as HTMLElement

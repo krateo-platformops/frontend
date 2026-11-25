@@ -1365,6 +1365,39 @@ Theme applies tenant brand overrides app-wide (Brand v2, issue #49 §7). It rend
 
 ---
 
+### Timeline
+
+Timeline displays a vertical (or horizontal) sequence of events in chronological order
+
+#### Props
+
+| Property | Required | Description | Type |
+|----------|----------|-------------|------|
+| allowedResources | no | the resource plurals this container may hold as children. Typed loosely on purpose — the per-widget enums drifted and enforced nothing; containment is checked by the chart lint (design rule X5) against the real widget registry. | array |
+| items | yes | the timeline nodes, in display order (antd Timeline `items`) | array |
+| items[].title | no | the label on the opposite side of the rail, e.g. a timestamp (antd item `title`, formerly `label`) | string |
+| items[].content | no | the body of the node, e.g. the event reason and message (antd item `content`, formerly `children`) | string |
+| items[].color | no | the dot color: an antd preset (`blue`, `red`, `green`, `gray`) or any CSS color | string |
+| items[].icon | no | a font awesome icon name rendered instead of the dot (eg: `fa-check`) (antd item `icon`, formerly `dot`) | string |
+| items[].placement | no | which side of the rail the content sits on when `mode` is `alternate` (antd item `placement`, formerly `position`) | `start` \| `end` |
+| items[].loading | no | render this node as in-progress (a spinning dot). Replaces antd's deprecated `pending` prop | boolean |
+| items[].resourceRefId | no | optional id of a widget to render inline below this node's content (e.g. a button opening the event's object) | string |
+| mode | no | where the content sits relative to the rail (antd Timeline `mode`) | `start` \| `end` \| `alternate` |
+| orientation | no | the layout orientation of the timeline (antd Timeline `orientation`) | `vertical` \| `horizontal` |
+| reverse | no | render the items in reverse order | boolean |
+| titleSpan | no | how much of the row the `title` column takes: a 24-grid span (eg: `6`) or a CSS length (eg: `120px`) (antd Timeline `titleSpan`) | integer \| string |
+| variant | no | the dot style (antd Timeline `variant`) | `outlined` \| `filled` |
+| watch | no | live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget. | array |
+| watch[].apiVersion | yes | group/version, e.g. composition.krateo.io/v1alpha1 | string |
+| watch[].kind | yes | e.g. DemoClaim | string |
+| watch[].namespace | no | scope to a namespace; omit to match any | string |
+| watch[].name | no | a specific object; omit to match any object of this kind ("GVR-level") | string |
+
+
+[Examples](../src/examples/widgets/Timeline/Timeline.example.yaml)
+
+---
+
 ### Upload
 
 Upload lets the user select files and uploads them to a resolved backend endpoint (resourceRefId) with the current bearer token

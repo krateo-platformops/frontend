@@ -1,0 +1,27 @@
+/* Timeline: antd's rail; its rhythm and rail colour are theme tokens (tokens.ts `Timeline`). */
+
+/* An item's title is usually a timestamp or a version: data, so the data face, muted, as the agent's
+   run timeline sets its clock (RunTimeline.module.css `.stepTime`). Tabular figures keep a column of
+   times aligned. */
+.title {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A child widget sits inside an item's content, which antd aligns toward the rail — so on the
+   start side of an `alternate` (or `end`) timeline it inherits `text-align: end`, and a nested
+   Markdown or Paragraph renders right-aligned. The child lays itself out from a neutral start. */
+.child {
+  margin-top: var(--spacing-xs);
+  text-align: start;
+}
+
+/* Long event messages (a reconcile error with a resource path) wrap instead of pushing the content
+   column past a narrow box. */
+.timeline :global(.ant-timeline-item-content) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
