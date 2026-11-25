@@ -3,6 +3,7 @@
 import { generate } from '@ant-design/colors'
 import { theme as antdAlgorithms, type ThemeConfig } from 'antd'
 
+import { tintOf } from './contrast'
 import { sidebarNav } from './sidebarNav'
 
 /**
@@ -645,6 +646,16 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
  */
 const textTokens = (palette: Record<keyof typeof color, string>) => ({ colorTextBase: palette.text, colorTextDescription: palette.gray, colorTextSecondary: palette.gray, colorTextPlaceholder: palette.faint, colorTextQuaternary: palette.faint, colorTextTertiary: palette.faint })
 
+/**
+ * The light theme's info and warning SURFACES (an Alert's fill and frame). antd derives them from the
+ * seed, and both light seeds are dark text-grade inks (`info` the slate #5F7285, `warning` the AA text
+ * amber #8A5C00): the fills came out a muddy grey rgb(185 192 196) and an olive #C9C6B5, heavier than
+ * the content, while an error banner derives a clean pale red (UX audit ALRT-1). Info is the pale tint
+ * of its own slate with a darker frame of the same hue; warning is the warning token's own subtle fill
+ * and border. The dark theme derives well and is left to antd. Pinned in alertSurfaces.test.ts.
+ */
+const lightStatusSurfaces = { colorInfoBg: tintOf(color.info, 0.1, color.panelbg), colorInfoBorder: tintOf(color.info, 0.35, color.panelbg), colorWarningBg: KRATEO_SEMANTIC_LIGHT['color-status-warning-subtle'], colorWarningBorder: KRATEO_SEMANTIC_LIGHT['color-status-warning-border'] }
+
 /** Light antd theme (brand v2 blue). compactAlgorithm = the instrument-density pass. */
 export const lightTheme: ThemeConfig = {
   algorithm: [antdAlgorithms.defaultAlgorithm, antdAlgorithms.compactAlgorithm],
@@ -668,6 +679,7 @@ export const lightTheme: ThemeConfig = {
     colorSuccess: color.success,
     ...textTokens(color),
     colorWarning: color.warning,
+    ...lightStatusSurfaces,
     colorWhite: color.light,
     controlHeight: 32,
     fontFamily: typography.family,
