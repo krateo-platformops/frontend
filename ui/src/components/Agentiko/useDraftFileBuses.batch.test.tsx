@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The provider's answer to a files batch — one composer gesture, several files.
+ * The provider's answer to a files batch — one builder gesture, several files.
  *
  * What these pin:
  *   - an accepted batch is ONE step of Undo, however many files it wrote;

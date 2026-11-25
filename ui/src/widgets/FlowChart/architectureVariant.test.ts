@@ -73,7 +73,7 @@ describe('the card', () => {
     for (const state of ['done', 'waiting', 'withheld', 'unreadable', 'unavailable', 'unknown']) {
       expect(architectureState(state)).toBe(state)
     }
-    // `orthogonal` is the composer's word for a lifecycle shim; the RESTAction drops shims, and a
+    // `orthogonal` is the builder's word for a lifecycle shim; the RESTAction drops shims, and a
     // state from a newer RESTAction must not be drawn as though it were finished.
     expect(architectureState('orthogonal')).toBe('unknown')
     expect(architectureState(undefined)).toBe('unknown')

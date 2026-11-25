@@ -2,7 +2,7 @@
    240 wide and at least 84 tall, ARCHITECTURE_NODE_SIZE (pinned to it by architectureFit.test.ts).
    Taller where the name needs more lines: the name is shown in full, and FlowChart reserves the
    tallest card's height for every card, handing it to each as its `height`.
-   240, not 220: at the 12px floor a forEach kind and the exception chip share the eyebrow in full. The same tokens as the Blueprint Composer's
+   240, not 220: at the 12px floor a forEach kind and the exception chip share the eyebrow in full. The same tokens as the Blueprint Builder's
    node card (ArchitectureCanvas.module.css), so the author's graph and the live one read alike.
 
    G6 renders the card in its own React root, outside the page's DOM subtree, so no rule here may
@@ -96,7 +96,7 @@
 
 /* Not rendered yet: a later state brings it. A see-through dashed outline, its text in `faint`.
 
-   FADED BY COLOUR, NOT OPACITY. The composer's card fades withheld content with `opacity`; here the
+   FADED BY COLOUR, NOT OPACITY. The builder's card fades withheld content with `opacity`; here the
    detail line is live status (what the node waits for), and `opacity: 0.6` put the gray kind and
    detail lines at 2.6–2.7:1 in light mode and 3.2–3.3:1 in dark, under AA's 4.5:1. `faint` is the
    palette's receding grey, pinned at 4.5:1 or better on every surface in both modes (T7), so the

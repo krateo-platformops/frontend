@@ -1,5 +1,5 @@
 /**
- * The machine the Conditions strip selects (screens 8b/8c), for the composer: the conditions the
+ * The machine the Conditions strip selects (screens 8b/8c), for the builder: the conditions the
  * descriptor declares, their switch positions (values.yaml's until a person switches one), and the
  * variant view the stepper and the state panel read. The canvas keeps the FULL view for its layout —
  * a switch never re-lays the graph — and draws the variant's missing nodes as `absent`.

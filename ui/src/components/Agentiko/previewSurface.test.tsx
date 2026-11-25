@@ -197,14 +197,14 @@ describe('AgentikoPreviewDrawer — which previews a mounted page builder takes'
     expect(view.queryByText('Page preview — x')).toBeNull()
 
     // The regression this pins: a chart proposed while /portal-builder/compose was open went to the
-    // composer, which parks charts — so it was shown nowhere.
+    // builder, which parks charts — so it was shown nowhere.
     act(() => { openAgentikoPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
     await waitFor(() => expect(view.getByText('Blueprint preview — nginx-demo')).toBeTruthy())
     release()
   })
 
   it('a BLUEPRINT builder takes only charts — a page preview still opens the drawer', async () => {
-    // A kind-blind claim made a mounted blueprint composer swallow every page preview (it cannot show
+    // A kind-blind claim made a mounted blueprint builder swallow every page preview (it cannot show
     // one), and let its own chart previews open the drawer over it.
     const release = claimPreviewSurface('blueprint')
     const view = render(<AgentikoPreviewDrawer />)
@@ -217,7 +217,7 @@ describe('AgentikoPreviewDrawer — which previews a mounted page builder takes'
 
   it('a claim made while it is OPEN on the held draft closes it — only for that kind', async () => {
     // Deferring the NEXT preview was half of it: a drawer already open on the held chart stayed
-    // open over the composer, and its one-shot Files tab wrote stale bytes over the composer's edits.
+    // open over the builder, and its one-shot Files tab wrote stale bytes over the builder's edits.
     const view = render(<AgentikoPreviewDrawer />)
     act(() => { openAgentikoPreview({ builder: 'blueprint', summary: ['nginx-demo'], title: 'Blueprint preview — nginx-demo' }) })
     await waitFor(() => expect(view.getByText('Blueprint preview — nginx-demo')).toBeTruthy())
@@ -233,7 +233,7 @@ describe('AgentikoPreviewDrawer — which previews a mounted page builder takes'
   it('HANDS a live page render to the claiming builder — its sandbox teardown is not fired', async () => {
     // The drawer's close of a live page preview DELETEs the sandbox draft CRs. Firing it on a claim
     // meant opening the Portal Builder tore down the render the person was looking at, while the
-    // composer (which adopts only NEW previews) had none to show. The composer registers its preview
+    // builder (which adopts only NEW previews) had none to show. The builder registers its preview
     // listener in an effect AFTER the claim's, as this does.
     const onClose = vi.fn()
     const payload = { onClose, summary: ['flex.page-x'], title: 'Page preview — x' }

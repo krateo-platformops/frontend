@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * WCAG 4.1.3 — status messages. The composer performed every structural edit in silence.
+ * WCAG 4.1.3 — status messages. The builder performed every structural edit in silence.
  *
  * A drag has its own feedback: the canvas redraws and you watch it. The TREE is the route for
  * anyone not using a pointer, and pressing "Move card-b up" produced no message, no focus change

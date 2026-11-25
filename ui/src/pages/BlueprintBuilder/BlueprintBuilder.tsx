@@ -1,7 +1,7 @@
 /**
- * Blueprint Composer — the Blueprint Builder's authoring surface: its Builder
+ * The Blueprint Builder's authoring surface: its Builder
  * CR (read from the cluster; authored as builders/fixtures/blueprint-builder.builder.yaml), mounted
- * by the composer host.
+ * by the builder host.
  *
  * WHAT IT IS NOW (T4, frontend#410). The page, its header and its files pane are BuilderHost's; the
  * chart editor is the blueprint workbench (useBlueprintWorkbench) drawn by the `kinds` palette, the
@@ -18,7 +18,7 @@ import BuilderHost from '../../builders/host/BuilderHost'
 
 export { CHART_CHANGED, GATE_CAPTION } from './useBlueprintWorkbench'
 
-/** The Builder this composer hosts, by name. */
+/** The Builder this page hosts, by name. */
 const BUILDER = 'blueprint-builder'
 
 const BlueprintBuilder = () => <BuilderHost builder={builderRegistry.get({ name: BUILDER })} name={BUILDER} />

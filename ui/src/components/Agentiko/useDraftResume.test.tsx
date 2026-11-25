@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The composer's side of Resume (screens 3 and 4). The provider is played here on its bus. What
+ * The builder's side of Resume (screens 3 and 4). The provider is played here on its bus. What
  * these pin:
  *   - a failed read is a sentence where the draft would have been, and nothing is asked of the
  *     provider;

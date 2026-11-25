@@ -1,4 +1,4 @@
-/* The autosave status beside the composer title: data about the draft, so mono (the header pills'
+/* The autosave status beside the builder title: data about the draft, so mono (the header pills'
    face), 12px, and coloured only by what it says — success when stored, error when not. */
 .indicator {
   align-items: center;

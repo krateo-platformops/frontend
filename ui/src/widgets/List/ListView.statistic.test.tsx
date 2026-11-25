@@ -8,6 +8,8 @@
  * applied only when `itemTemplate.color` RESOLVES, never as the `gray` fallback the other variants
  * draw.
  */
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { faCheck, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { App } from 'antd'
 import type * as ReactRouter from 'react-router'
@@ -40,6 +42,8 @@ import type { ItemTemplate } from './itemTemplate'
 import { ListView } from './ListView'
 import styles from './ListView.module.css'
 
+library.add(faCheck, faXmark)
+
 const strip = [
   { caption: 'from 9 alerts', label: 'Open incidents', tone: 'bad', value: 47 },
   { caption: 'oldest 3 days', label: 'Opened in the last 7 days', value: 12 },
@@ -64,6 +68,30 @@ const renderStrip = (itemTemplate: ItemTemplate = template, items: unknown[] = s
 
 const tile = (title: string) => screen.getByText(title).closest('.ant-card') as HTMLElement
 const value = (title: string) => tile(title).querySelector<HTMLElement>('.ant-statistic-content')!
+
+describe('Listy rowVariant: statistic, with an icon and no frames', () => {
+  afterEach(() => { cleanup() })
+  const states = [{ icon: 'fa-check', label: 'OK', tone: 'bad', value: 92 }, { icon: 'fa-xmark', label: 'Critical', value: 0 }]
+  const withIcon: ItemTemplate = { color: { map: { bad: 'red' }, value: '{tone}' }, icon: '{icon}', primaryText: '{label}', rowVariant: 'statistic', secondaryText: '{value}' }
+
+  it('the icon stands by the title, hidden from a reader, in the tile’s colour when it has one', () => {
+    renderStrip(withIcon, states)
+    const icons = [...document.querySelectorAll('.ant-statistic-title svg')] as SVGElement[]
+    expect(icons.map((icon) => icon.getAttribute('aria-hidden'))).toEqual(['true', 'true'])
+    expect(icons[0].style.color).not.toBe('')
+    expect(icons[1].style.color).toBe('')
+    expect(screen.getByText('OK').textContent).toBe('OK')
+  })
+
+  it('borderless draws no frame and no tinted edge; outlined, the default, is as before', () => {
+    renderStrip({ ...withIcon, tileVariant: 'borderless' }, states)
+    expect(document.querySelectorAll('.ant-card-borderless, .ant-card:not(.ant-card-bordered)').length).toBeGreaterThan(0)
+    expect(tile('OK').style.borderColor).toBe('')
+    cleanup()
+    renderStrip(withIcon, states)
+    expect(tile('OK').style.borderColor).not.toBe('')
+  })
+})
 
 describe('Listy rowVariant: statistic', () => {
   afterEach(() => {

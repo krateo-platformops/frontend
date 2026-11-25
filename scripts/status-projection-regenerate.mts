@@ -1,7 +1,7 @@
 /**
  * RE-EMIT A PUBLISHED BLUEPRINT'S STATUS FILTER, WITHOUT RE-PUBLISHING IT (#483).
  *
- * The composer emits a `<chart>-status` RESTAction that inlines the generator's jq, and applies it
+ * The builder emits a `<chart>-status` RESTAction that inlines the generator's jq, and applies it
  * as a standalone CR — no Helm release, no ownerReferences. Nothing upgrades it. Fixing the
  * generator fixes blueprints published from that moment on; everything already published keeps the
  * filter it was born with. `status-projection-drift.mts` says WHICH ones. This one repairs them.
@@ -112,7 +112,7 @@ export const main = (argv: string[] = process.argv, effects: Effects = {}): numb
   // Identified by what it IS, not by its name — the generator stamps every copy with this.
   const copies = list.items.filter((ra) => ra.metadata?.annotations?.[GENERATED_FROM] === 'templates/architecture.yaml')
   if (!copies.length) {
-    console.log(`no composer-emitted status projections in ${ns} — nothing to regenerate`)
+    console.log(`no builder-emitted status projections in ${ns} — nothing to regenerate`)
     return 0
   }
 

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 /**
- * The Blueprint Composer's LIFECYCLE: mounting bare, owning the claim, parking a page, starting a
+ * The Blueprint Builder's LIFECYCLE: mounting bare, owning the claim, parking a page, starting a
  * chart. The canvas and the machine are BlueprintBuilder.canvas.test.tsx; preview and publish are
  * BlueprintBuilder.preview.test.tsx.
  *
- * The acceptance criteria are the approved mockup screens — 2 (Start) and 3 (the empty composer) —
+ * The acceptance criteria are the approved mockup screens — 2 (Start) and 3 (the empty builder) —
  * held to what S3b builds: the copy the person reads, the derivations shown as they type, and the
  * provider's answers routed to where they can be acted on.
  */
@@ -61,7 +61,7 @@ describe('BlueprintBuilder — mounted bare, like the Page Builder', () => {
     expect(previewSurfaceClaimed('blueprint')).toBe(false)
     const view = mount()
     expect(previewSurfaceClaimed('blueprint')).toBe(true)
-    // A page preview must still reach the drawer (or the Page Composer): this page cannot show one.
+    // A page preview must still reach the drawer (or the Portal Builder): this page cannot show one.
     expect(previewSurfaceClaimed('page')).toBe(false)
     view.unmount()
     expect(previewSurfaceClaimed('blueprint')).toBe(false)
@@ -104,7 +104,7 @@ describe('BlueprintBuilder — a held PAGE draft is parked, never read as a char
 
   it('draws nothing from the page set: no header name, no file count, no canvas, no Chart files', () => {
     // A page set carries Chart.yaml and values.schema.json under a chart's own names; read as a
-    // chart, it would draw a composer for "portal-pages" that publishes a page as a blueprint.
+    // chart, it would draw a builder for "portal-pages" that publishes a page as a blueprint.
     mount()
     act(() => emitDraftChanged({ files: pageSet, kind: 'page' }))
     expect(screen.queryByText('portal-pages')).toBeNull()

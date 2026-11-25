@@ -81,6 +81,8 @@ export interface ItemTemplate {
    * - `dot`: small solid status dot with a soft halo, no glyph (event/status feeds).
    */
   iconVariant?: 'avatar' | 'tile' | 'dot'
+  /** statistic rowVariant: the tile's antd Card `variant` (default outlined). */
+  tileVariant?: 'outlined' | 'borderless'
   color?: ColorSpec
   /** Per-slot value formatting; `datetime` → absolute date+time, `relative` → "3h ago". */
   formats?: Partial<Record<RowSlot, 'text' | 'datetime' | 'relative'>>

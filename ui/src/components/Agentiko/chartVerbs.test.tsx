@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * S5: the agent edits a chart already open in the composer — one file, or one edge — through the
+ * S5: the agent edits a chart already open in the builder — one file, or one edge — through the
  * same batch bus and edge kernel a person's edits take. Every accepted write disarms publish; every
  * refusal is the chip's text, with the reason a person would get.
  */

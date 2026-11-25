@@ -627,6 +627,12 @@ spec:
                         subSecondaryText:
                           description: '{dot.path} to the line beneath the secondary text.'
                           type: string
+                        tileVariant:
+                          description: 'statistic rowVariant: the tile''s antd Card `variant`. outlined (default) frames each tile; borderless draws none, for a strip that already sits in a Card'
+                          enum:
+                            - outlined
+                            - borderless
+                          type: string
                       type: object
                     loading:
                       description: antd List loading

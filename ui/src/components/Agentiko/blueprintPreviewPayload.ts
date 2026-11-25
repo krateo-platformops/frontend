@@ -1,11 +1,11 @@
 /**
  * The preview payload for a blueprint — ONE builder for both callers: the agent's previewBlueprint
- * verb and the person's Preview in the Blueprint Composer. Two copies of "what a chart preview shows"
- * is how a drawer and a composer come to disagree about the same draft.
+ * verb and the person's Preview in the Blueprint Builder. Two copies of "what a chart preview shows"
+ * is how a drawer and a builder come to disagree about the same draft.
  *
  * `held` is decided by the CALLER, because only the caller knows it: the verb holds an inline draft
  * only when it rendered (a published chart's dry run, or a draft that failed to render, is looked at,
- * not held), while the composer previews the draft the provider already holds.
+ * not held), while the builder previews the draft the provider already holds.
  */
 import { standInSummary } from '../../pages/BlueprintBuilder/previewStubs'
 
@@ -23,7 +23,7 @@ export interface BlueprintPreviewInput {
   held: boolean
   /** The chart tree, when the preview is of an inline draft. Absent for a published chart's dry run. */
   rawTemplates?: Record<string, string>
-  /** The render, when there is one. Absent: the Source tab has nothing yet (the composer before Preview). */
+  /** The render, when there is one. Absent: the Source tab has nothing yet (the builder before Preview). */
   rendered?: HelmRenderResult
   caption?: string
 }

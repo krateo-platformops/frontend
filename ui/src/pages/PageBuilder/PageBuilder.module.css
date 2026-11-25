@@ -1,11 +1,11 @@
-/* Page Composer — the authoring surface as a page rather than a drawer.
+/* Portal Builder — the authoring surface as a page rather than a drawer.
    Spacing follows the design-system tokens; no raw px, per design/lint/lint-css-tokens.py. */
 
 /*
  * A CONTAINER, and the height the columns measure against.
  *
  * `container-type: inline-size` rather than a media query for the same reason `.build` wraps rather
- * than breaking: the composer's width is set by the Agentiko rail, not by the viewport, so a
+ * than breaking: the builder's width is set by the Agentiko rail, not by the viewport, so a
  * viewport breakpoint would lay the page out for space it does not have. It also keeps T6 honest —
  * the lint stops a sixth `@media` width appearing, and this adds none.
  */
@@ -13,7 +13,7 @@
   /* border-box or the 16px of padding is ADDED to the 100% and the page overflows by exactly that,
      which reads as a stray 32px scrollbar rather than as a box-model mistake. */
   box-sizing: border-box;
-  container-name: composer;
+  container-name: builder;
   container-type: inline-size;
   display: flex;
   flex-direction: column;
@@ -292,7 +292,7 @@
  * the columns actually ask for (200 + 420 + 300 bases, two 16px gaps, 16px of page padding either
  * side) rather than a round number chosen to look like a breakpoint.
  */
-@container composer (min-width: 1000px) {
+@container builder (min-width: 1000px) {
   .build {
     align-items: stretch;
     flex-wrap: nowrap;

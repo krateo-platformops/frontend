@@ -104,7 +104,7 @@ describe('the defaults themselves (D1, D8)', () => {
   })
 
   it('gives the blueprint builder an OWNER, and a repo segment that names no repository', () => {
-    // Empty, it left the composer's "Registered as" row blank and every publish asking for an org.
+    // Empty, it left the builder's "Registered as" row blank and every publish asking for an org.
     // The repo segment is a fallback nothing publishes to — the chart's own name is always the
     // repository — so it must not be a name GitHub would accept: the publish CREATES a missing repo.
     const target = resolveBuilderTarget(deployed('AUTOPILOT_BLUEPRINT_BUILDER_REPO') as string)

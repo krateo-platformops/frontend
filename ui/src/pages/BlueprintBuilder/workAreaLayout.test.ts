@@ -11,10 +11,10 @@ import { describe, expect, it } from 'vitest'
 
 const css = readFileSync(join(__dirname, 'BlueprintBuilder.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 
-/** Every `@container blueprint-composer (min-width: Npx) { … }` block, by N. */
+/** Every `@container blueprint-builder (min-width: Npx) { … }` block, by N. */
 const containerBlocks = (): Map<number, string> => {
   const blocks = new Map<number, string>()
-  for (const match of css.matchAll(/@container blueprint-composer \(min-width: (\d+)px\)\s*\{/g)) {
+  for (const match of css.matchAll(/@container blueprint-builder \(min-width: (\d+)px\)\s*\{/g)) {
     let depth = 1
     let at = (match.index ?? 0) + match[0].length
     const start = at

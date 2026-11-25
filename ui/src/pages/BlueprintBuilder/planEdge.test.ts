@@ -1,6 +1,6 @@
 /**
  * planEdge — one legality check, whoever asks, and every accepted edge is the descriptor AND the gate
- * in one plan. Each chart here is the screen-6 chart the composer itself builds (__fixtures__/s4b).
+ * in one plan. Each chart here is the screen-6 chart the builder itself builds (__fixtures__/s4b).
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

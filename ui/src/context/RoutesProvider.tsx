@@ -79,9 +79,9 @@ const defaultRoutes: RouteObject[] = [
       { element: <Profile />, path: '/profile' },
       // The builders' authoring surfaces are inserted HERE once the Builder CRs are read from the
       // cluster (builders/clusterBuilders.ts → the RoutesProvider effect below): one route per
-      // Builder, at its `spec.route`, each the composer host (builders/host/builderRoutes.tsx) —
+      // Builder, at its `spec.route`, each the builder host (builders/host/builderRoutes.tsx) —
       // /portal-builder/compose, /blueprint-builder/compose, /controller-builder/compose. Shell
-      // children like /profile rather than CR-driven widget pages: a composer is React (drag and drop,
+      // children like /profile rather than CR-driven widget pages: a builder is React (drag and drop,
       // a live graph, a multi-file draft with undo), and what IS configuration about it is its Builder
       // CR, not widgetData. Until the read answers, the `*` fallthrough shows a loading state rather
       // than a 404 (WidgetPage); if it fails, the sentence saying why. A Builder never takes a path
@@ -111,7 +111,7 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // The Builders arrive after sign-in, from the cluster. Subscribed to the REGISTRY OBJECT, which
   // changes only when the Builders do — never on a `loading` status. And the routes are replaced only
   // when the set of (id, path) they mount changes: a replaced route is a new route object, which
-  // remounts the composer it serves. A re-read with the same Builders reaches each composer through
+  // remounts the page it serves. A re-read with the same Builders reaches each page through
   // BuilderRouteHost instead.
   const registry = useSyncExternalStore(subscribeBuilders, currentBuilderRegistry)
   const mountedSignature = useRef('')

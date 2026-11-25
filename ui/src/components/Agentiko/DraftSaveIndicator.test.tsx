@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The composer header's autosave status. Pinned: exactly three things are ever said — Saving…,
+ * The builder header's autosave status. Pinned: exactly three things are ever said — Saving…,
  * Saved · HH:MM (with the check), Not saved — <reason> — and nothing before the first save, with no
  * sandbox, or about a draft of the other kind. And the Close-draft confirm may promise the draft is
  * kept only when a record is being kept.

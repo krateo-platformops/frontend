@@ -8,7 +8,7 @@
  * provider inherits the safety for free.
  */
 
-/** Why Agentiko cannot be used right now (licensed, but not reachable): the header toggle's tooltip AND the rail's composer
+/** Why Agentiko cannot be used right now (licensed, but not reachable): the header toggle's tooltip AND the chat composer
  *  notice. One sentence, two consumers — two copies of user-facing text drift. */
 export const AGENTIKO_UNAVAILABLE = 'Agentiko is unavailable — the agent is not reachable, or not permitted for your user'
 

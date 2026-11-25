@@ -2,7 +2,7 @@
  * The dependency graph's geometry and colours — design rule C19, defined ONCE (C24).
  *
  * WHY A MODULE OF ITS OWN. These settings lived inline in `widgets/FlowChart/FlowChart.tsx`, which
- * was the only graph. The Blueprint Composer draws a second one (a chart's resources and their
+ * was the only graph. The Blueprint Builder draws a second one (a chart's resources and their
  * `dependsOn` edges), and C24 forbids a copy that agrees today and drifts tomorrow. Everything a
  * graph needs that is NOT about its node card lives here: the edge shape, the layered layout, the
  * ports, the viewport, per-edge `minlen`, and the token colours. The card and its box size stay
@@ -271,7 +271,7 @@ export const graphEdgeOptions = <E >(
  * designed at a pixel size, which `view` magnifies or shrinks past the type floor.
  *
  * `natural` also means NO WHEEL ZOOM and NO GLIDE. zoom-canvas takes the page's scroll gesture:
- * over the Blueprint Composer's pane, one ordinary scroll toward Chart files shrank the 156×72 cards
+ * over the Blueprint Builder's pane, one ordinary scroll toward Chart files shrank the 156×72 cards
  * to a smudge (up to ×0.5 per event) and did not scroll the page, and nothing on the page brings
  * zoom 1 back. And G6 ends every re-render with its autoFit, animated by default — an edit that kept
  * the node set slid an overflowing graph to centre, cutting off the first column, before

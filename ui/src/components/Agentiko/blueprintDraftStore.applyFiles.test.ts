@@ -1,7 +1,7 @@
 /**
  * applyFiles — several files as ONE change, or none.
  *
- * The composer's gestures are multi-file (a placed node is its template AND the rewritten
+ * The builder's gestures are multi-file (a placed node is its template AND the rewritten
  * descriptor), and a half-applied one is a draft nobody drew. So every refusal is checked before
  * anything is written and leaves the held tree byte for byte as it was, the cap is measured once
  * over the result, and an accepted change announces exactly once.

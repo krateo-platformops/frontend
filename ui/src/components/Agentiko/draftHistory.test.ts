@@ -3,7 +3,7 @@
  * UNDO, and the two ways a history like this goes wrong.
  *
  * It exists because Remove is now genuinely destructive — it deletes the file rather than orphaning
- * it — and the composer had no undo of any kind. A confirmed irreversible operation is better than
+ * it — and the builder had no undo of any kind. A confirmed irreversible operation is better than
  * an unannounced one; it is not as good as a reversible one.
  */
 import { afterEach, describe, expect, it } from 'vitest'

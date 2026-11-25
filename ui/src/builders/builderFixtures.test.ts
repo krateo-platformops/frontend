@@ -1,11 +1,11 @@
 /**
- * The three Builder CRs describe what the composers do TODAY — the controller's since its composer
+ * The three Builder CRs describe what the builders do TODAY — the controller's since its page
  * shipped (T8, frontend#412).
  *
  * The engine reads these Builders from the cluster (clusterBuilders.ts); the portal chart ships them,
  * copied byte-identical from the fixtures here. This file keeps them true: each must parse, validate
  * against the CRD the chart ships, name only plugins, checks and verbs this frontend has, and agree
- * with the constants the composers still hardcode. A change to either side then fails here instead of
+ * with the constants the builders still hardcode. A change to either side then fails here instead of
  * in the engine — and a change to a fixture's bytes fails the pin below until the portal copy moves.
  */
 import { createHash } from 'node:crypto'
@@ -35,10 +35,10 @@ const CRD_PATH = join(ROOT, 'helm', 'frontend-crds', 'templates', 'builders', 'B
 const FIXTURES = ['portal-builder', 'blueprint-builder', 'controller-builder']
 
 /**
- * Builders whose composer is not built yet: they name plugins this build lists as PENDING (a "not
+ * Builders whose page is not built yet: they name plugins this build lists as PENDING (a "not
  * shipped yet" refusal) and have no route in the shell. None since T8 shipped the Controller Builder's.
  */
-const COMPOSER_PENDING = new Set<string>([])
+const BUILDER_PENDING = new Set<string>([])
 
 type Schema = Record<string, unknown>
 
@@ -102,7 +102,7 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
 
   it('names only plugins and checks this frontend ships (or, for a builder not built yet, lists as pending)', () => {
     const { spec } = parsed(name)
-    if (!COMPOSER_PENDING.has(name)) {
+    if (!BUILDER_PENDING.has(name)) {
       expect(builderRefusals(spec)).toEqual([])
       return
     }
@@ -140,8 +140,8 @@ describe.each(FIXTURES)('the %s Builder', (name) => {
     const shell = readFileSync(join(__dirname, '..', 'context', 'RoutesProvider.tsx'), 'utf8')
     expect(shell).toContain('builderRoutes(STATIC_PATHS)')
     expect(shell).toContain('replaceBuilderRoutes(children, fresh)')
-    // A Builder in COMPOSER_PENDING has no route until its plugins ship.
-    expect(builderRoutes().map((route) => route.path).includes(parsed(name).spec.route)).toBe(!COMPOSER_PENDING.has(name))
+    // A Builder in BUILDER_PENDING has no route until its plugins ship.
+    expect(builderRoutes().map((route) => route.path).includes(parsed(name).spec.route)).toBe(!BUILDER_PENDING.has(name))
   })
 })
 
@@ -185,9 +185,9 @@ describe('what each fixture says about its own builder', () => {
  * Changing a fixture means changing its pin AND copying the new bytes into the portal chart.
  */
 const PORTAL_CHART_SHA256: Record<string, string> = {
-  'blueprint-builder.builder.yaml': '650e4e2b65d5648e4ccb580410cbb57c5755f67c7b1c7cfb1b0fc7a51229681a',
-  'controller-builder.builder.yaml': '907b05a61a97548d05b73e035e8b9bd3bb42d57dd99bf64e1d27888c40c28e12',
-  'portal-builder.builder.yaml': '1904d21a2760a4beda8ad2675962c2546b9eaa203a34c7b9cf2e28bd2269b6e3',
+  'blueprint-builder.builder.yaml': '224948052ddaa854d8b870181837179f0a24a705ec386957e3ac168df6c8bbd2',
+  'controller-builder.builder.yaml': 'bf407c54b30a87997bfb75ef8e71f002e4cd3165e8d0654ed53853fff118e4f5',
+  'portal-builder.builder.yaml': '1a00f25521c7cf282751ab80f583a88dda608f8da8223d4faf0518f59050986e',
 }
 
 const isTestOnly = (path: string): boolean =>

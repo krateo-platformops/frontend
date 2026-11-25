@@ -42,7 +42,7 @@
  *
  * AND THE STEP THAT REASONING MISSED. It is right that a widened declaration should not be honoured
  * silently — and it did not notice that `placeChild` had already widened this one. A container
- * created empty is annotated by the composer, its first child makes the list non-empty, and this
+ * created empty is annotated by the builder, its first child makes the list non-empty, and this
  * function then read that list back as intent. So the first drop into any fresh container narrowed
  * it to that kind forever, with no message and no visible refusal; the "declaration" being kept
  * meaningful had no author. The provenance check in `canAccept` is what separates a list somebody
@@ -82,10 +82,10 @@ export const canAccept = (node: TreeNode, childPlural: string): boolean => {
   // `placeChild` appends each child's plural, because the CRD requires the container to list it or
   // the child does not render. So a list being non-empty says nothing about intent on its own: the
   // first drop into a fresh container left exactly the list this function then honoured, and the
-  // container silently stopped accepting anything else. The declaration was the composer's own
+  // container silently stopped accepting anything else. The declaration was the builder's own
   // side effect, read back as if an author had made it.
   //
-  // A container the composer created is annotated at creation, and its list is a description of
+  // A container the builder created is annotated at creation, and its list is a description of
   // what it holds. Anything else — hand-written, chart-supplied, agent-proposed, or a file a person
   // has edited — is a declaration and is honoured exactly as before.
   if (node.allowedDerived) {

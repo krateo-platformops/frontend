@@ -277,7 +277,7 @@ describe('previewPage v2 — the happy path (apply → live drawer → teardown 
 })
 
 /**
- * THE "NOT FOUND" FLASH, from the Portal Builder recordings. Each drop or bind in the composer
+ * THE "NOT FOUND" FLASH, from the Portal Builder recordings. Each drop or bind in the builder
  * re-applies the whole page, and the apply used to DELETE every name before POSTing it again. The
  * Rendered tab, mounted on the same root and refetched by the sweep's own write, showed "Not found"
  * cards for seconds — for the PageHeader too, which no edit had touched.

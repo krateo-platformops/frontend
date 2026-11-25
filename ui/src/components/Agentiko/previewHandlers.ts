@@ -159,7 +159,7 @@ export const previewPageSpec: VerbSpec = {
 
 /**
  * previewRestDef — with a CONTROLLER DRAFT HELD (frontend#429), the Controller Builder's Preview of it,
- * exactly as the composer's button runs it (previewHeldController: lint, then controller-render-draft
+ * exactly as the builder's button runs it (previewHeldController: lint, then controller-render-draft
  * over /call as the person; only a clean render arms publishRestDef). Any RestDefinition the proposal
  * carries is ignored then: the held draft is what publishes, so it is what is previewed.
  *

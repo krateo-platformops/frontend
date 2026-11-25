@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Shared scaffolding for the Blueprint Composer suites — the mirror of the Page Composer's
+ * Shared scaffolding for the Blueprint Builder suites — the mirror of the Portal Builder's
  * builderTestHarness, and bare in the same sense: NO AgentikoProvider. The provider's part is
  * played here on the buses it would answer on (the draft broadcast, the render result, the publish
  * result), which is exactly the seam the page is written against.
