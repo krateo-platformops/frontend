@@ -1,7 +1,7 @@
 /**
- * The agent asking the composer to restructure the held draft.
+ * The agent asking the builder to restructure the held draft.
  *
- * WHY A BUS AND NOT A DIRECT CALL. The action bridge knows the proposal; only the composer knows
+ * WHY A BUS AND NOT A DIRECT CALL. The action bridge knows the proposal; only the builder knows
  * the draft. Handing the bridge the files would give two owners to one mutable thing, which is the
  * shape that produced the stale-payload bug the draft buses already exist to prevent. This mirrors
  * `previewFileEdit` exactly: a window CustomEvent, no React, no module state.
@@ -17,15 +17,15 @@
  * the preview gate still arms per identity, and the change request is still raised by a human.
  *
  * AND IT ANSWERS. This was fire-and-forget: the bridge emitted a request and returned
- * "Added a Card inside page-x" without ever learning whether the composer accepted it. Observed on
+ * "Added a Card inside page-x" without ever learning whether the builder accepted it. Observed on
  * krateo-057 — the rail reported that exact success, READ-ONLY and with no error, while the canvas
- * had no card and the composer had raised no alert. The agent could not tell, the chip could not
+ * had no card and the builder had raised no alert. The agent could not tell, the chip could not
  * tell, and neither could the person reading it.
  *
  * The refusal was not missing, it was DISCARDED: `planAdd`/`planMove` already compute a precise
  * reason ("a Row may not hold a Card", "\"x\" is not in this draft") and it died at this boundary.
  *
- * So a request now carries an `id` and the composer answers on a result channel — the same shape
+ * So a request now carries an `id` and the builder answers on a result channel — the same shape
  * `previewPublishRequest` has used all along, for the same reason. Two consequences, in order of
  * importance: the chip stops asserting an outcome it does not know, and the agent gets an
  * environment signal it can act on. The second is the precondition for any self-correction at all;
@@ -42,7 +42,7 @@ export const AGENTIKO_COMPOSE_REQUEST_EVENT = 'agentikoComposeRequest'
 export const AGENTIKO_COMPOSE_RESULT_EVENT = 'agentikoComposeResult'
 
 /** Correlates a request with its answer. The caller generates it and ignores answers that are not
- *  its own — a second composer surface (or a stale listener) must never resolve someone else's. */
+ *  its own — a second builder surface (or a stale listener) must never resolve someone else's. */
 export interface ComposeResult {
   id: string
   /** True when the draft actually changed. */
@@ -234,11 +234,11 @@ export const clearComposeRefusals = (): void => {
 }
 
 /**
- * Ask the composer to restructure, and WAIT for its answer.
+ * Ask the builder to restructure, and WAIT for its answer.
  *
- * Bounded: with no composer mounted nothing ever answers, and an action that hangs forever is worse
+ * Bounded: with no builder mounted nothing ever answers, and an action that hangs forever is worse
  * than one that reports honestly that it could not be delivered. The timeout is the "no surface"
- * case, not a slow one — the composer answers synchronously within its own handler.
+ * case, not a slow one — the builder answers synchronously within its own handler.
  */
 export const requestCompose = (
   request: ComposeOp,
@@ -255,7 +255,7 @@ export const requestCompose = (
     resolve(timedOut)
   }, timeoutMs)
   sub.stop = onComposeResult((result) => {
-    // Not our answer: another composer, or a reply to a request that has already timed out.
+    // Not our answer: another builder, or a reply to a request that has already timed out.
     if (result.id !== id) {
       return
     }

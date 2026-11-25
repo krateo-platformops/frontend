@@ -4,7 +4,7 @@
  * BuilderHost to mount. The host owns the page, its header and the files pane; this owns the controller.
  *
  * WHAT A CONTROLLER IS HERE. A chart (controllerChart.ts): the OpenAPI document in a ConfigMap, and one
- * RestDefinition per Kind. Everything the composer shows is READ from those files on every broadcast
+ * RestDefinition per Kind. Everything the builder shows is READ from those files on every broadcast
  * — the palette from the document, the canvas and the inspector from the RestDefinitions — so a hand
  * edit in Chart files, an Undo, or a resumed draft is drawn exactly as held. Nothing is kept here that
  * the files do not say, except which Kind is selected and why the last gesture did not land.

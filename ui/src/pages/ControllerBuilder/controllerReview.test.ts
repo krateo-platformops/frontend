@@ -1,6 +1,6 @@
 /**
  * Review of #428 — the guards that are not the kernel's: reading a spec from a URL (item 5), and what a
- * publish LOCKS reaching the composer through the draft record (item 6).
+ * publish LOCKS reaching the builder through the draft record (item 6).
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

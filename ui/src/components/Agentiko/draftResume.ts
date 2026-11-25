@@ -1,17 +1,17 @@
 /**
- * RESUME — a draft record, read back into the composer it came from. Pure, but for one fetch.
+ * RESUME — a draft record, read back into the builder it came from. Pure, but for one fetch.
  *
  * WHY. A draft record (draftRecord.ts) holds the whole held tree in the preview sandbox, so a tab
  * that died lost nothing. That is only half a promise until the tree can come BACK: "Your drafts"
- * links each record to its composer as `?resume=<record name>`, and this module is what the
- * composer does with that name — validate it, read the record as the person, and say in a sentence
+ * links each record to its builder as `?resume=<record name>`, and this module is what the
+ * builder does with that name — validate it, read the record as the person, and say in a sentence
  * why when it cannot. Loading it into the held-draft store is the provider's (useDraftResumeBus);
  * the page asks, on a bus, exactly as Start does.
  *
  * It replaces `resumePreviewDraft.ts`, which reopened only the RENDER of a page's sandbox CRs — no
  * files, no held draft, so nothing to edit and nothing to publish — and which nothing ever called.
  *
- * THE READ GOES THROUGH snowplow `/call`, UNDER THE CALLER'S OWN CREDENTIAL (the composer rule):
+ * THE READ GOES THROUGH snowplow `/call`, UNDER THE CALLER'S OWN CREDENTIAL (the builder rule):
  * never a service identity, so a record this person may not read is a 403 they are told about, not
  * a draft they are handed. A null from `readDraftRecord`, a 403 and a 404 are all content — a
  * sentence where the draft would have been — never a crash.
@@ -105,10 +105,10 @@ export const readDraftRecordByName = async (
 }
 
 /**
- * Where a record of this kind is resumed. A record opened in another composer is not loaded there —
- * a page tree in the Blueprint Composer is parked, not drawn — so it says where to go: the label and
+ * Where a record of this kind is resumed. A record opened in another builder is not loaded there —
+ * a page tree in the Blueprint Builder is parked, not drawn — so it says where to go: the label and
  * the ROUTE of the Builder that declares the record's draft kind, and the artifact its plugin names.
- * Every Builder this frontend loads has a composer at its route now — the Controller Builder's since
+ * Every Builder this frontend loads has a page at its route now — the Controller Builder's since
  * T8 (frontend#412) — so the route is somewhere to go, not a promise.
  */
 export const wrongBuilderMessage = (record: Pick<DraftRecordBody, 'kind' | 'name'>): string => {

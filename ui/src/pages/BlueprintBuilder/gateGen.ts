@@ -107,7 +107,7 @@ export const unmanagedLookups = (template: string): number[] => {
 }
 
 /**
- * Every hand-written lookup in a chart's templates, one sentence each — what the composer's Source tab
+ * Every hand-written lookup in a chart's templates, one sentence each — what the builder's Source tab
  * lists as unmanaged gates (the descriptor's own file aside).
  */
 export const unmanagedGateNotes = (files: Readonly<Record<string, string>>): string[] => Object.keys(files).sort()

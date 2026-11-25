@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Shared scaffolding for the composer suites.
+ * Shared scaffolding for the builder suites.
  *
  * Extracted when PageBuilder.test.tsx crossed its 500-line cap. Split along a real seam rather
  * than by size — the DRAFT LIFECYCLE (open, start, publish, own, close) in one file, the TREE and
@@ -50,7 +50,7 @@ export const installAntdShims = () => {
  * absence is what these tests assert.
  */
 /**
- * INSIDE antd's `<App>`, because the composer reads `App.useApp()`.
+ * INSIDE antd's `<App>`, because the builder reads `App.useApp()`.
  *
  * `ObjectTreePanel` takes its `message` from that context (ObjectTreePanel.tsx:156), and outside an
  * `<App>` provider antd hands back an empty default whose `.warning` is undefined. So every refusal
@@ -75,7 +75,7 @@ export const mount = () => render(inApp(<ThemeModeProvider><PageBuilder /></Them
  */
 export const mountWithConfig = (snowplow = 'http://snowplow.test', sandbox = 'krateo-preview') => render(
   inApp(
-    // PREVIEW_SANDBOX_NAMESPACE is part of the config a real composer runs with: a draft's objects
+    // PREVIEW_SANDBOX_NAMESPACE is part of the config a real builder runs with: a draft's objects
     // are applied there, so anything that reasons about where a widget LIVES needs it to be set.
     <ConfigContext.Provider
       value={{ config: { api: { PREVIEW_SANDBOX_NAMESPACE: sandbox, SNOWPLOW_API_BASE_URL: snowplow } } } as never}

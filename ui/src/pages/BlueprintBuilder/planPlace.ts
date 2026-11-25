@@ -1,7 +1,7 @@
 /**
  * Placing a node, and ranging one — the kernels behind the palette and the inspector's "One per
  * item of". Pure: each takes the held files and answers with the batch that makes the change, or
- * the sentence that says why it will not. Nothing here writes; the composer emits the plan on the
+ * the sentence that says why it will not. Nothing here writes; the builder emits the plan on the
  * batch bus, and the provider writes all of it or none (previewFilesBatch).
  *
  * A PLACEMENT IS A NODE AND A FILE, at once — the descriptor entry and `templates/<id>.yaml` — and

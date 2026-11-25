@@ -22,7 +22,7 @@ import { ARCHITECTURE_API_VERSION, deriveStates, type ChartArchitecture } from '
 import { toArchitectureGraph } from './architectureGraph'
 import { extractArchitecture } from './gateExtract'
 
-/** The composer's compact card (mockup screens 05/08). Any equal size shows the same columns. */
+/** The builder's compact card (mockup screens 05/08). Any equal size shows the same columns. */
 const NODE_SIZE: [number, number] = [156, 72]
 
 /** Run the layout G6 would run and return each node's column (0 = leftmost). */

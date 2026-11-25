@@ -1,6 +1,6 @@
 /**
  * A left-to-right graph of things and what they depend on (top to bottom, by `direction`) — the
- * presentational half of `FlowChart`, extracted so a second surface (the Blueprint Composer's
+ * presentational half of `FlowChart`, extracted so a second surface (the Blueprint Builder's
  * architecture canvas) draws with the SAME machinery rather than a copy of it (C24). The geometry
  * and colours are in `graphConfig.ts`.
  *

@@ -1,6 +1,6 @@
 /**
  * One builder for "what a chart preview shows", for both callers — the agent's previewBlueprint verb
- * and the person's Preview in the composer. Two copies is how a drawer and a composer come to
+ * and the person's Preview in the builder. Two copies is how a drawer and a builder come to
  * disagree about the same draft.
  */
 import { describe, expect, it } from 'vitest'

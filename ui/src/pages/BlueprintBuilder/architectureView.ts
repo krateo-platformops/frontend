@@ -1,10 +1,10 @@
 /**
- * What the composer's canvas can say about the held chart's architecture file. Pure.
+ * What the builder's canvas can say about the held chart's architecture file. Pure.
  *
  * FIVE ANSWERS, EACH ITS OWN DESIGNED STATE — because the file is authored by hand, by an agent,
  * or not at all, and the canvas must never be the thing that crashes on it:
  *
- *   absent      there is no templates/architecture.yaml. Charts written before the composer, and
+ *   absent      there is no templates/architecture.yaml. Charts written before the builder, and
  *               charts an agent wrote without one, are like this. Everything else still works.
  *   unreadable  the file exists but carries no `data.architecture` block — someone rewrote the
  *               ConfigMap template, so there is no descriptor to read out of it.

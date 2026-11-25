@@ -1,7 +1,7 @@
 /**
- * The workbenches the composer host mounts, by a Builder's `spec.draftKind` (T4, frontend#410) — see
+ * The workbenches the builder host mounts, by a Builder's `spec.draftKind` (T4, frontend#410) — see
  * hostTypes.ts for what a workbench is. Deny by default, like pluginRegistry: only an own key
- * resolves, and a draft kind with none is a sentence, never a blank composer.
+ * resolves, and a draft kind with none is a sentence, never a blank builder.
  */
 import type { DraftKind } from '../../components/Agentiko/blueprintDraftStore'
 import { useBlueprintWorkbench } from '../../pages/BlueprintBuilder/useBlueprintWorkbench'

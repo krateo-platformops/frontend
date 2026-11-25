@@ -57,7 +57,7 @@ describe('RoutesContext — the builder routes follow the cluster read', () => {
     expect(shellPaths()).toEqual(['/profile', '*'])
     act(() => { installBuilders(fixtureBuilders()) })
     expect(shellPaths()).toEqual(['/profile', ...BUILDER_PATHS, '*'])
-    // The router is rebuilt, so the path the person is already on now resolves to its composer.
+    // The router is rebuilt, so the path the person is already on now resolves to its builder.
   })
 
   it('a failed read mounts no builder route — the catch-all then says why (WidgetPage)', () => {
@@ -97,7 +97,7 @@ describe('RoutesContext — a re-read with the same Builders never replaces the 
     const { routes } = context!
     act(() => { markBuildersLoading() })
     act(() => { installBuilders(fixtureBuilders()) })
-    // A new table re-matches the shell's children, and a replaced route object remounts the composer it serves.
+    // A new table re-matches the shell's children, and a replaced route object remounts the builder it serves.
     expect(context!.routes).toBe(routes)
   })
 

@@ -132,7 +132,7 @@ describe('setForEach', () => {
     const notAPath = { ok: false, reason: 'One per item of takes a bare path (.Values.files) or a named helper (builder-publish.files).' }
     expect(setForEach(files, 'localresource', '{{ .Values.files }}')).toEqual(notAPath)
     // A path is a .Values path: the descriptor's parser takes no other, and `.files` would leave an
-    // architecture file the composer could not read back. A dashed key would not parse as `$.Values.a-b`.
+    // architecture file the builder could not read back. A dashed key would not parse as `$.Values.a-b`.
     expect(setForEach(files, 'localresource', '.files')).toEqual(notAPath)
     expect(setForEach(files, 'localresource', '.Values.my-files')).toEqual(notAPath)
     expect(setForEach(files, 'nowhere', '.Values.files')).toEqual({ ok: false, reason: '"nowhere" is not a resource of this chart.' })

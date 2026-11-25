@@ -61,7 +61,7 @@ export interface ControllerDraftJson {
   oas: Record<string, string>
 }
 
-/** A render as the composer keeps it: the CRDs (the objects), and what the render said about them. */
+/** A render as the builder keeps it: the CRDs (the objects), and what the render said about them. */
 export interface ControllerRender {
   /** Every generated CRD — the Kinds first, then their Configurations; `yaml` is the CRD as JSON. */
   objects: PreviewObjectEntry[]
@@ -166,7 +166,7 @@ const asYaml = (text: string): string => {
   }
 }
 
-/** controller-render-draft's answer (its `.status`), as the render the composer keeps. */
+/** controller-render-draft's answer (its `.status`), as the render the builder keeps. */
 export const readControllerRender = (status: Record<string, unknown> | null): ControllerRender => {
   const objects = (Array.isArray(status?.objects) ? status.objects : []).flatMap((raw): PreviewObjectEntry[] => {
     const entry = asRecord(raw)

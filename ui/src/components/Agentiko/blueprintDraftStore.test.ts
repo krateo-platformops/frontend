@@ -218,7 +218,7 @@ describe('addFile — the builder creating a file the draft does not hold', () =
 
 describe('createBlueprintDraftStore — the change broadcast', () => {
   /**
-   * A surface that EDITS the draft lives outside the provider's React tree (the page composer is a
+   * A surface that EDITS the draft lives outside the provider's React tree (the portal builder is a
    * route), so it cannot hold the store. It re-reads from this notification instead — and the bug
    * that made it necessary was a tree computing every structural edit against the bytes it was
    * first handed, silently reverting each previous edit.

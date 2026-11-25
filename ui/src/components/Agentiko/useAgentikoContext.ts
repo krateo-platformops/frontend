@@ -517,7 +517,7 @@ export const buildContextDelta = (
   // When we DO collapse, still restate the current pageStatus in the note (it is unchanged here, but
   // the model should keep seeing it).
   //  - Never collapse when the HELD DRAFT's shape changed. A compose turn does not move the route
-  //    and does not necessarily change the on-screen widget set — the composer's live render is
+  //    and does not necessarily change the on-screen widget set — the builder's live render is
   //    one endpoint whether the page holds three widgets or thirty — so a draft the agent had just
   //    restructured would be described to it exactly once, and every following turn would reason
   //    about the containment it had before its own edit. The fingerprint is names/kinds/nesting

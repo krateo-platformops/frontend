@@ -150,7 +150,7 @@ const RestDefEditSection = ({
  * The held-bytes guarantee holds: the edit is a human action on the held file, never a model round-trip.
  */
 /**
- * Lines of a file to light, with the sentence that says why — the composer's generated gate
+ * Lines of a file to light, with the sentence that says why — the builder's generated gate
  * (gateGen's `gateLineRanges`), 1-based and inclusive.
  */
 export interface FileHighlight {
@@ -194,7 +194,7 @@ const FileEditBlock = ({
 }) => {
   // The CURRENT held content (seeded from the payload; replaced by each accepted edit).
   const [current, setCurrent] = useState(content)
-  // …and by the HELD bytes when they change under it. A composer passes its live files, so an Undo,
+  // …and by the HELD bytes when they change under it. A builder passes its live files, so an Undo,
   // an agent's write or a start over the same path arrives here as a new `content` — and the block
   // kept showing the bytes it was first mounted with, because the key is the path and the path had
   // not changed. Adjusted during render (React's derived-state pattern), so no frame shows the old
@@ -324,7 +324,7 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
    * OVERRIDES the payload's own caption, for a surface that is not the drawer.
    *
    * `LIVE_PREVIEW_CAPTION` is written for the drawer and says so — "Closing this drawer removes
-   * them". The composer embeds this same component INLINE, in the lower half of its split, where
+   * them". The builder embeds this same component INLINE, in the lower half of its split, where
    * there is no drawer to close and the equivalent control is "Close draft". So the drawer's
    * sentence was being shown to a reader who could not act on it, describing a thing that was not
    * on their screen.
@@ -334,14 +334,14 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
   caption?: string
   editVerdicts: RestDefVerdicts | null
   /**
-   * The draft file to reveal in the Files tab — the composer's tree selection.
+   * The draft file to reveal in the Files tab — the builder's tree selection.
    *
    * A HELD KEY (`statistic.stat-ready.yaml`), matched as a SUFFIX of each file's displayed path.
    * The two vocabularies differ — a page's files are shown at their routed repo destination while
    * the draft holds them under bare tokens — and a suffix match is the one comparison that works
    * for both without this component having to know which kind of draft it is showing.
    *
-   * Without it the two halves of the composer are unrelated views: a tree that says what is in the
+   * Without it the two halves of the builder are unrelated views: a tree that says what is in the
    * draft, beside a list that will not show you the one you just clicked. Optional — the drawer
    * has no tree, and passes nothing.
    */
@@ -350,22 +350,22 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
    * A new value is a new REQUEST to reveal `focusPath`, even the same path again. The reveal is keyed
    * on the path, and asking for the file you asked for last — the Template link after switching to
    * Source, the node clicked a second time — changed nothing React could see, so nothing happened.
-   * A surface that re-reveals on request bumps this with each one; the drawer and the page composer
+   * A surface that re-reveals on request bumps this with each one; the drawer and the portal builder
    * pass nothing and keep reveal-on-change.
    */
   focusNonce?: number
   /**
    * The surface shows the held draft's lint problems itself, above this component — so this one
-   * does not repeat them. The Blueprint Composer puts them under its header, beside the Publish
+   * does not repeat them. The Blueprint Builder puts them under its header, beside the Publish
    * they disable; a second copy below the canvas would say the same thing twice. Absent (the
-   * drawer, the page composer): shown here, as before.
+   * drawer, the portal builder): shown here, as before.
    */
   hideDraftProblems?: boolean
   /**
    * THE DRAFT AS IT IS NOW, when the surface showing it has one.
    *
    * `payload` is built ONCE, by the verb that proposed the draft, and nothing re-emits it — which
-   * this file's callers already knew: the composer's canvas and tree were moved onto a separate
+   * this file's callers already knew: the builder's canvas and tree were moved onto a separate
    * live `files` state for exactly that reason. The Files tab was not moved with them, so it went
    * on rendering the bytes as they were when the draft was first previewed. Three views of one
    * draft, and the one LABELLED Files — presented as the write set the blast-radius confirm will
@@ -379,14 +379,14 @@ export const PreviewContent = ({ caption, editVerdicts, focusNonce, focusPath, h
    */
   liveFiles?: Record<string, string>
   /**
-   * Lines of one file to light in Files, with a caption — the Blueprint Composer's generated gate,
+   * Lines of one file to light in Files, with a caption — the Blueprint Builder's generated gate,
    * right after an edge wrote it. Absent everywhere else.
    */
   highlight?: FileHighlight | null
   onVerdicts: (verdicts: RestDefVerdicts) => void
   payload: AgentikoPreviewPayload
   /**
-   * Notes the surface adds to the Source tab — the Blueprint Composer's unmanaged gates. Said only when
+   * Notes the surface adds to the Source tab — the Blueprint Builder's unmanaged gates. Said only when
    * there are any (exception-only), and never instead of the render's own verdicts.
    */
   sourceNotes?: string[]
@@ -662,10 +662,10 @@ export const AgentikoPreviewDrawer = () => {
 
   useEffect(() => {
     const handleOpen = (event: CustomEvent<AgentikoPreviewPayload>) => {
-      // Defer to a mounted composer OF THIS KIND: it is already showing this draft and owns its
+      // Defer to a mounted builder OF THIS KIND: it is already showing this draft and owns its
       // close, and opening over it would put two surfaces on one draft — for a page, two live
-      // sandbox renders, where closing THIS one tears down the CRs the composer still renders.
-      // Only the claimed kind: a composer can show nothing else, so deferring any other preview to
+      // sandbox renders, where closing THIS one tears down the CRs the builder still renders.
+      // Only the claimed kind: a builder can show nothing else, so deferring any other preview to
       // it would show that preview NOWHERE. A deferred draft replaces the held one, so a held draft
       // this drawer is showing is superseded and dropped.
       if (previewSurfaceClaimed(draftKindOfPayload(event.detail))) {
@@ -681,18 +681,18 @@ export const AgentikoPreviewDrawer = () => {
     return () => window.removeEventListener(AGENTIKO_PREVIEW_EVENT, handleOpen as EventListener)
   }, [dropHeld])
 
-  // A draft discarded elsewhere — the composer's Discard — takes its preview with it.
+  // A draft discarded elsewhere — the builder's Discard — takes its preview with it.
   useEffect(() => onDraftClose(dropHeld), [dropHeld])
 
-  // A composer of the held draft's kind mounted while this was open on it: the draft has one
-  // surface, and it is the composer now (see claimPreviewSurface). Anything else shown here — an
+  // A builder of the held draft's kind mounted while this was open on it: the draft has one
+  // surface, and it is the builder now (see claimPreviewSurface). Anything else shown here — an
   // inspection, the other kind — stays.
   //
   // HANDED OVER, NOT DROPPED. Dropping fired the payload's close, and for a live page render that
   // close is the sandbox teardown: opening the Portal Builder deleted the draft CRs the person was
-  // looking at, and the composer — which adopts only NEW previews — fell back to a render-less held
-  // view. So the drawer shuts WITHOUT the close and re-announces the payload for the composer to
-  // adopt, render and close together. A microtask, because the claim is made in the composer's
+  // looking at, and the builder — which adopts only NEW previews — fell back to a render-less held
+  // view. So the drawer shuts WITHOUT the close and re-announces the payload for the builder to
+  // adopt, render and close together. A microtask, because the claim is made in the builder's
   // first mount effect and its preview listener is registered by a later one; React runs a commit's
   // effects in one pass, so by then it is listening. The re-announce comes back here too, is
   // deferred to the claim, and finds nothing held to drop. If nothing adopts it, nothing leaks: a
