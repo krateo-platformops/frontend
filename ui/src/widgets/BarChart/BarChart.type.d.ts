@@ -34,6 +34,10 @@ export interface BarChart {
        */
       xTimeUnit?: 'hour' | 'day'
       /**
+       * The row field that says a slot is not a whole measurement: `partial` for the slot still filling (the one that holds now), `missing` for a slot where nothing was recorded (send its value as null, never 0). Any other value, or none, is a whole slot. A bar still filling is drawn as a faint fill inside a dashed outline in its series colour, and its hover value ends 'so far'; a slot with no data draws no bar but a hatched band labelled 'No data', whose hover reads 'No data · 25 Nov, 09:00 to 10:00'. A legend entry 'so far' or 'no data' is added under the chart only when such a slot is drawn. A band is drawn only where every series of the slot has no data. Independently of this field, a measured 0 (in a slot that is not missing) is a 2px hairline on the baseline in the neutral grey, so a zero reads as measured and is never painted in a series colour.
+       */
+      slotField?: string
+      /**
        * field mapped to color / series (G2 `colorField`)
        */
       colorField?: string

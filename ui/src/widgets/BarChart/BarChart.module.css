@@ -40,3 +40,9 @@
     }
   }
 }
+
+/* A chart with slot marks ("so far", "no data") and their legend under it. */
+.withSlotLegend {
+  flex: 1 1 auto;
+  width: 100%;
+}

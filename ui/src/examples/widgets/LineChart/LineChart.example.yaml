@@ -30,3 +30,46 @@ spec:
     colorField: metric
     shapeField: smooth
     legend: true
+---
+# Time slots (`slotField`): the row field `slot` marks a slot with no data (`missing`, its value null) and the
+# slot still filling (`partial`, the one that holds now). The line breaks over a hatched "No data" band, and ends
+# with a dashed segment and a hollow point, "so far"; the legend names both. Times are epoch seconds (`xTimeUnit`).
+kind: LineChart
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-linechart-slots
+  namespace: krateo-system
+spec:
+  widgetData:
+    data:
+      - { t: 1795586400, reconciles: 910 }
+      - { t: 1795588200, reconciles: 955 }
+      - { t: 1795590000, reconciles: 949 }
+      - { t: 1795591800, reconciles: 896 }
+      - { t: 1795593600, reconciles: 927 }
+      - { t: 1795595400, reconciles: 957 }
+      - { t: 1795597200, reconciles: 940 }
+      - { t: 1795599000, reconciles: 960 }
+      - { t: 1795600800, reconciles: 954 }
+      - { t: 1795602600, reconciles: null, slot: missing }
+      - { t: 1795604400, reconciles: null, slot: missing }
+      - { t: 1795606200, reconciles: null, slot: missing }
+      - { t: 1795608000, reconciles: 1046 }
+      - { t: 1795609800, reconciles: 888 }
+      - { t: 1795611600, reconciles: 957 }
+      - { t: 1795613400, reconciles: 881 }
+      - { t: 1795615200, reconciles: 940 }
+      - { t: 1795617000, reconciles: 913 }
+      - { t: 1795618800, reconciles: 950 }
+      - { t: 1795620600, reconciles: 909 }
+      - { t: 1795622400, reconciles: 904 }
+      - { t: 1795624200, reconciles: 940 }
+      - { t: 1795626000, reconciles: 949 }
+      - { t: 1795627800, reconciles: 950 }
+      - { t: 1795629600, reconciles: 212, slot: partial }
+    xField: t
+    yField: reconciles
+    xTimeUnit: hour
+    slotField: slot
+    legend: false
+    height: 220
