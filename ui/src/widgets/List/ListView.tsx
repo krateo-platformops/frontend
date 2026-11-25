@@ -14,6 +14,7 @@ import { WidgetEmpty } from '../../components/WidgetStates'
 import { getColorCode, inkOnFill } from '../../theme/palette'
 import type { ResourcesRefs, Widget, WidgetActions } from '../../types/Widget'
 import { navigateOrExternal } from '../../utils/navigation'
+import { pagerRange } from '../../utils/pagerRange'
 
 /**
  * The full interactive contract for a row that navigates somewhere — or nothing at all when it
@@ -262,9 +263,10 @@ export const ListView = ({
       itemLayout={itemLayout}
       loading={loading}
       // hideOnSinglePage: when a facet/search filter shrinks the result under one page, a lone
-      // "1" pager is pure noise — chrome is exception-only. undefined keeps the antd default
-      // (no pagination), so existing lists are untouched.
-      pagination={pagination ? { hideOnSinglePage: true, pageSize: pagination.pageSize, position: pagination.position } : undefined}
+      // "1" pager is pure noise — chrome is exception-only. showTotal: the pager says how much there
+      // is, "1–8 of 79" (PAG-1). undefined keeps the antd default (no pagination), so existing lists
+      // are untouched.
+      pagination={pagination ? { hideOnSinglePage: true, pageSize: pagination.pageSize, position: pagination.position, showTotal: pagerRange } : undefined}
       renderItem={(item, index) => {
         const child = renderChild?.(item, index)
         if (child) {

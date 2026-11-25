@@ -1,6 +1,7 @@
 import type { TablePaginationConfig } from 'antd'
 
 import type { ServerPagination } from '../../types/Widget'
+import { pagerRange } from '../../utils/pagerRange'
 
 /**
  * Height (px) of the Table's scroll viewport when virtualized. antd's `virtual`
@@ -52,6 +53,7 @@ export const usesServerPagination = (
  *      refetching (setPage), never by growing the DOM; `total` (from the template)
  *      gives the right page count.
  *   2. else the CR's own `pagination` config (author-controlled), or `false`.
+ * Either pager shows the range and total ("1–15 of 94") and hides on a single page.
  *
  * (Note: a virtual Table renders its whole window in one scroll pane, so it does
  * not need — and should not get — a client-side pager that would re-slice the
@@ -68,12 +70,16 @@ export const computeTablePagination = (args: {
   if (usesServerPagination(crPagination, serverPagination)) {
     return {
       current: crPagination?.current ?? serverPagination!.page,
+      hideOnSinglePage: true,
       onChange: (page: number) => { serverPagination!.setPage(page) },
       pageSize: serverPagination!.pageSize,
       showSizeChanger: false,
+      showTotal: pagerRange,
       total: crPagination?.total ?? rowCount,
     }
   }
 
-  return crPagination ?? false
+  // Every pager says "1–15 of 94" and is hidden when everything fits on one page (PAG-1). The CR's
+  // own settings come last, so an author who sets `hideOnSinglePage: false` keeps a lone pager.
+  return crPagination ? { hideOnSinglePage: true, showTotal: pagerRange, ...crPagination } : false
 }
