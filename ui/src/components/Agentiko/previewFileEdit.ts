@@ -34,7 +34,7 @@ export interface FileEditDetail {
    * WHICH KIND of draft the edited preview showed. A page set holds Chart.yaml, values.yaml and
    * values.schema.json under the same names a chart does, so a path alone cannot tell the provider
    * that an edit made in a chart's preview is about to land in a held PAGE. With this it can refuse.
-   * Optional so an emitter that predates it keeps working; the drawer and the composer both send it.
+   * Optional so an emitter that predates it keeps working; the drawer and the builder both send it.
    */
   kind?: DraftKind
   /**

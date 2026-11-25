@@ -14,12 +14,12 @@
  *   templates/restdefinition-<kind>.yaml ×N  one ogen.krateo.io/v1alpha1 RestDefinition per Kind
  *   compositiondefinition.yaml               written at PUBLISH (it names the destination owner)
  *
- * NOTHING ABOUT THE COMPOSER LIVES OUTSIDE THOSE FILES. What a Kind is — its verbs, identifiers,
+ * NOTHING ABOUT THE BUILDER LIVES OUTSIDE THOSE FILES. What a Kind is — its verbs, identifiers,
  * status fields, configuration fields — is its RestDefinition. The two facts a RestDefinition cannot
  * say ride on it as annotations: which resource group of the document it was placed from (so a verb
  * conflict the inference found is recomputed on every read, and a resumed draft shows the same
  * conflict it was saved with), and which verbs the person chose to leave out (so an omitted findby
- * is not mistaken for an unresolved one). A draft record therefore restores the composer exactly.
+ * is not mistaken for an unresolved one). A draft record therefore restores the builder exactly.
  *
  * NEVER RESOLVED BEHIND THE PERSON'S BACK. A verb two operations both look like is left OUT of the
  * RestDefinition and named as a conflict; only a person's choice (or omission) puts it in or settles

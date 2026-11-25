@@ -52,7 +52,7 @@ const rowNavProps = (to: string | undefined, go: (path: string) => void) => {
   }
 }
 
-import { resolveAccent, resolveRow, type ItemTemplate } from './itemTemplate'
+import { resolveAccent, resolveHighlight, resolveRow, type ItemTemplate } from './itemTemplate'
 import styles from './ListView.module.css'
 
 interface ListViewProps {
@@ -345,9 +345,9 @@ export const ListView = ({
         // Stats-strip tile: an antd Card holding an antd Statistic (title = primaryText, value =
         // secondaryText) and a secondary caption (subPrimaryText). The strip is ONE widget fed by
         // one dataSource, so a page's numbers are one /call and one cache cell, not four CRs per
-        // card. COLOUR IS EXCEPTION-ONLY: the value and the frame are tinted only when the
-        // template's `color` resolves (the RESTAction's template sets it when a bad count is > 0),
-        // and a healthy tile is the neutral ink. The caption carries the meaning too, so colour is
+        // card. COLOUR IS EXCEPTION-ONLY: the value is tinted only when the template's `color`
+        // resolves and the frame only when its `highlight` does. Both are the RESTAction's to say:
+        // the tile never reads its value, and a healthy tile is the neutral ink. The caption carries the meaning too, so colour is
         // never the only signal (WCAG 1.4.1).
         if (itemTemplate.rowVariant === 'statistic') {
           const accent = resolveAccent(itemTemplate.color, item)
@@ -361,6 +361,12 @@ export const ListView = ({
           } else if (accentCode) {
             valueStyle = { color: accentCode }
           }
+          // The icon is the title's, in the tile's own colour: decoration beside a word that says the same.
+          const title = row.icon
+            ? <span className={styles.statTitle}><FontAwesomeIcon aria-hidden icon={row.icon as IconProp} style={accentCode ? { color: accentCode } : undefined} />{row.primaryText}</span>
+            : row.primaryText
+          const borderless = itemTemplate.tileVariant === 'borderless'
+          const framed = !borderless && resolveHighlight(itemTemplate, item)
           return (
             <AntdList.Item className={styles.statItem} key={`${rowKey}-${index}`}>
               <Card
@@ -368,9 +374,10 @@ export const ListView = ({
                 hoverable={Boolean(row.navigateTo)}
                 {...rowNavProps(row.navigateTo, (path) => navigateOrExternal(navigate, path))}
                 size='small'
-                style={accentCode ? { borderColor: `color-mix(in srgb, ${accentCode} 45%, var(--border-color))` } : undefined}
+                style={framed ? { borderColor: `color-mix(in srgb, ${accentCode ?? 'var(--text-color)'} 45%, var(--border-color))` } : undefined}
+                {...(borderless ? { variant: 'borderless' as const } : {})}
               >
-                <Statistic styles={{ content: valueStyle }} title={row.primaryText} value={missing ? '—' : row.secondaryText} />
+                <Statistic styles={{ content: valueStyle }} title={title} value={missing ? '—' : row.secondaryText} />
                 {row.subPrimaryText && <Typography.Text className={styles.statCaption} type='secondary'>{row.subPrimaryText}</Typography.Text>}
               </Card>
             </AntdList.Item>

@@ -113,7 +113,7 @@
   border-color: var(--border-color, rgb(230 237 243 / 10%)) !important;
 }
 
-/* A generated block lit in Files (the Blueprint Composer's krateo:gate), and the sentence that says
+/* A generated block lit in Files (the Blueprint Builder's krateo:gate), and the sentence that says
    whose it is. A tint and a rule in the primary hue — a selection, not a status. */
 .gateLine {
   background: var(--krateo-color-background-selected);

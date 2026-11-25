@@ -1,7 +1,7 @@
 /**
  * WHICH PUBLISHED BLUEPRINTS ARE RUNNING A STALE COPY OF THE GENERATOR'S JQ? (#483)
  *
- * The composer emits a `<chart>-status` RESTAction whose `spec.filter` embeds S11_TOP_FILTER
+ * The builder emits a `<chart>-status` RESTAction whose `spec.filter` embeds S11_TOP_FILTER
  * VERBATIM, and applies it as a standalone CR — no Helm release, no ownerReferences. Nothing
  * upgrades it. Fixing the generator fixes blueprints published from that moment on; every blueprint
  * already published keeps running the filter it was born with, for as long as it exists.
@@ -55,7 +55,7 @@ const main = (): number => {
   // would both miss renamed charts and catch unrelated RESTActions that happen to end that way.
   const copies = list.items.filter((ra) => ra.metadata.annotations?.['krateo.io/generated-from'] === 'templates/architecture.yaml')
   if (!copies.length) {
-    console.log(`no composer-emitted status projections in ${ns} — nothing to check`)
+    console.log(`no builder-emitted status projections in ${ns} — nothing to check`)
     return 0
   }
 
@@ -76,7 +76,7 @@ const main = (): number => {
     console.log(`\nSTALE: ${stale.join(', ')}`)
     console.log('These run a filter their generator has since fixed. No chart upgrade reaches them —')
     console.log('they are standalone CRs with no Helm release and no ownerReferences. Re-publishing the')
-    console.log('blueprint through a composer running the current generator re-emits the filter.')
+    console.log('blueprint through a builder running the current generator re-emits the filter.')
     console.log('See krateo-platformops/frontend#483.')
   }
   return stale.length ? 1 : 0

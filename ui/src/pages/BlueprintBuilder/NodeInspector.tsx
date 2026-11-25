@@ -66,7 +66,7 @@ const readiness = (node: ResourceNode): { label: string; note?: string; kstatus?
   return { label: 'Ready when', note }
 }
 
-/** What the node's editing asks of the composer — each answers null when written, else why not. */
+/** What the node's editing asks of the builder — each answers null when written, else why not. */
 export interface NodeEditing {
   /** Where an edge out of this node may go, and why not elsewhere. */
   targets: { legal: string[]; refused: Record<string, string> }

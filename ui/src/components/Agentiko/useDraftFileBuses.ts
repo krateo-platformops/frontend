@@ -1,7 +1,7 @@
 /**
  * The provider's held-draft write paths, in one place.
  *
- * A surface that authors — the preview drawer's Files tab, the page composer's tree — holds neither
+ * A surface that authors — the preview drawer's Files tab, the portal builder's tree — holds neither
  * the draft nor the publish gate. Both live here, in the provider. So each surface emits on a
  * window CustomEvent and this hook is the single subscriber that turns those into store writes.
  *
@@ -131,7 +131,7 @@ export const useDraftFileBuses = (
   /**
    * Delete whatever live preview is applied in the sandbox — the host's teardown session, taken
    * unconditionally. A discard's, and only a discard's: the surfaces' own closes are epoch-guarded
-   * and reach only the render THEY adopted, which a composer that mounted late never had.
+   * and reach only the render THEY adopted, which a builder that mounted late never had.
    */
   discardLive?: () => Promise<unknown>,
 ): void => {
@@ -225,7 +225,7 @@ export const useDraftFileBuses = (
         }
         if (!job) {
           // A PAGE draft only: a chart's templates are not widget CRs, and re-applying one "as a
-          // page" produced a preview that the drawer deferred to the composer as if it were one.
+          // page" produced a preview that the drawer deferred to the builder as if it were one.
           const held = storeRef.current.get()
           const widgets = held?.kind === 'page' ? pageDraftWidgets(held.files) : []
           job = widgets.length && held ? { title: pageDisplayName(held.files), widgets } : undefined
@@ -267,7 +267,7 @@ export const useDraftFileBuses = (
       } while (pending.current || discardQueued.current)
     } catch {
       // Belt and braces: a failed apply is caught per pass above. What must NOT happen here is an
-      // unhandled rejection taking the composer down with it.
+      // unhandled rejection taking the builder down with it.
     } finally {
       // The lint reads these as a possible interleaving. They cannot interleave: this ref IS the
       // mutex, JS runs one task at a time, and the only writer is this function — which is exactly
@@ -292,7 +292,7 @@ export const useDraftFileBuses = (
     }, REAPPLY_DEBOUNCE_MS)
   }, [runApply])
 
-  // Cancel in flight on unmount: a timer that fires after the composer is gone would apply a draft
+  // Cancel in flight on unmount: a timer that fires after the builder is gone would apply a draft
   // nobody is looking at, into a sandbox the close path may already have torn down.
   useEffect(() => () => {
     if (replayTimer.current) {
@@ -305,7 +305,7 @@ export const useDraftFileBuses = (
    * edit to values.schema.json that introduces a populated object default (core-provider#46) has no
    * verdict anywhere, so the gate re-armed and the chart was publishable, and it wedges its
    * CompositionDefinition at Ready=False on registration. Reachable today through the drawer's
-   * Files tab, before any blueprint composer exists.
+   * Files tab, before any blueprint builder exists.
    *
    * So every draft is linted on every write — a page too: it publishes as a page-set chart, with a
    * Chart.yaml and a values.schema.json a hand edit can break exactly as it can a blueprint's.
@@ -372,7 +372,7 @@ export const useDraftFileBuses = (
     respond(result.content === undefined || result.content === content ? { ok: true } : { content: result.content, ok: true })
   }), [rearm, scheduleReapply, store])
 
-  // BATCH: one composer gesture that is several files — a placed node is its template AND the
+  // BATCH: one builder gesture that is several files — a placed node is its template AND the
   // rewritten descriptor. The store plans the whole change before it writes any of it, so either
   // every file lands or none does; and it is ONE step of Undo, one re-arm, one answer. The same
   // two refusals as a single edit come first — the other kind's draft, and a plan made from bytes
@@ -400,7 +400,7 @@ export const useDraftFileBuses = (
     respond({ ok: true, paths: [...Object.keys(add ?? {}), ...Object.keys(edit ?? {}), ...(remove ?? [])] })
   }), [rearm, scheduleReapply, store])
 
-  // ADD: a file the composer just authored — a layout container, a new widget.
+  // ADD: a file the builder just authored — a layout container, a new widget.
   useEffect(() => onFileAdd(({ content, path }) => {
     const before = store.get()
     if (store.addFile(path, content).ok) {

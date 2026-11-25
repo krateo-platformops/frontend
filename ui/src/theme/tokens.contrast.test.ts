@@ -300,7 +300,7 @@ describe('Status and de-emphasised icons — WCAG non-text contrast ≥ 3:1', ()
  *
  * A preset Tag (`<Tag color='blue'>`) paints antd's `<color>7` on `<color>1`. Under the dark
  * algorithm those come from the seed, and antd's stock `geekblue` seed gave #5273E0 on #131629:
- * 4.16:1, below AA for the 12px tags the composer uses ("Publishes to", "data", "1 data"). The dark
+ * 4.16:1, below AA for the 12px tags the builder uses ("Publishes to", "data", "1 data"). The dark
  * theme now seeds the blue ramps from colorDark; the light theme keeps antd's stock ramps untouched.
  */
 describe('Preset blue Tags — WCAG AA ink on fill', () => {

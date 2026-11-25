@@ -300,7 +300,7 @@ export const pageDraftFiles = (widgets: readonly unknown[]): Record<string, stri
  * The INVERSE of pageDraftFiles: the held tree back to the widget CRs it was built from.
  *
  * WHY THIS HAS TO EXIST. `pageDraftFiles` is where a set of CRs becomes a chart, and until now that
- * was a one-way door: the composer's canvas reads the held YAML, but the only consumer that needed
+ * was a one-way door: the builder's canvas reads the held YAML, but the only consumer that needed
  * OBJECTS — the preview apply — was handed them by whoever started the draft and never asked again.
  * So the sandbox was seeded once and then drifted from the draft with every edit, which is exactly
  * as wrong as it sounds: a Row dragged onto the canvas was in the tree, in the files and in the

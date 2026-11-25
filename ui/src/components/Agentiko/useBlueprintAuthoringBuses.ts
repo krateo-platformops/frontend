@@ -18,7 +18,7 @@
  *   - A render ARMS only on success, and only if the draft is still the one it rendered — an edit that
  *     lands while the request is on the wire makes the result stale, and nothing is armed.
  *   - Every outcome is answered, by id, on the render-result bus; nothing opens the drawer. The
- *     surface that asked shows the result itself — a drawer opening over the composer is the failure
+ *     surface that asked shows the result itself — a drawer opening over the builder is the failure
  *     the kind-aware preview claim exists to prevent.
  */
 import { useCallback, useEffect } from 'react'

@@ -8,6 +8,8 @@
  * applied only when `itemTemplate.color` RESOLVES, never as the `gray` fallback the other variants
  * draw.
  */
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { faCheck, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { App } from 'antd'
 import type * as ReactRouter from 'react-router'
@@ -40,6 +42,8 @@ import type { ItemTemplate } from './itemTemplate'
 import { ListView } from './ListView'
 import styles from './ListView.module.css'
 
+library.add(faCheck, faXmark)
+
 const strip = [
   { caption: 'from 9 alerts', label: 'Open incidents', tone: 'bad', value: 47 },
   { caption: 'oldest 3 days', label: 'Opened in the last 7 days', value: 12 },
@@ -64,6 +68,30 @@ const renderStrip = (itemTemplate: ItemTemplate = template, items: unknown[] = s
 
 const tile = (title: string) => screen.getByText(title).closest('.ant-card') as HTMLElement
 const value = (title: string) => tile(title).querySelector<HTMLElement>('.ant-statistic-content')!
+
+describe('Listy rowVariant: statistic, with an icon and no frames', () => {
+  afterEach(() => { cleanup() })
+  const states = [{ icon: 'fa-check', label: 'OK', tone: 'bad', value: 92 }, { icon: 'fa-xmark', label: 'Critical', value: 0 }]
+  const withIcon: ItemTemplate = { color: { map: { bad: 'red' }, value: '{tone}' }, icon: '{icon}', primaryText: '{label}', rowVariant: 'statistic', secondaryText: '{value}' }
+
+  it('the icon stands by the title, hidden from a reader, in the tile’s colour when it has one', () => {
+    renderStrip(withIcon, states)
+    const icons = [...document.querySelectorAll('.ant-statistic-title svg')] as SVGElement[]
+    expect(icons.map((icon) => icon.getAttribute('aria-hidden'))).toEqual(['true', 'true'])
+    expect(icons[0].style.color).not.toBe('')
+    expect(icons[1].style.color).toBe('')
+    expect(screen.getByText('OK').textContent).toBe('OK')
+  })
+
+  it('borderless draws no frame and no tinted edge; outlined, the default, is as before', () => {
+    renderStrip({ ...withIcon, tileVariant: 'borderless' }, states)
+    expect(document.querySelectorAll('.ant-card-borderless, .ant-card:not(.ant-card-bordered)').length).toBeGreaterThan(0)
+    expect(tile('OK').style.borderColor).toBe('')
+    cleanup()
+    renderStrip(withIcon, states)
+    expect(tile('OK').style.borderColor).not.toBe('')
+  })
+})
 
 describe('Listy rowVariant: statistic', () => {
   afterEach(() => {
@@ -90,6 +118,40 @@ describe('Listy rowVariant: statistic', () => {
     const probe = document.createElement('span')
     probe.style.color = getColorCode('red')
     expect(value('Open incidents').style.color).toBe(probe.style.color)
+  })
+
+  // `highlight` is the RESTAction's verdict. The tile must not work one out from its number or colour.
+  describe('highlight', () => {
+    const marked = [
+      { color: 'red', label: 'Coloured, not highlighted', mark: false, value: '7' },
+      { color: 'red', label: 'Highlighted zero', mark: true, value: '0' },
+      { color: '', label: 'Highlighted, no colour', mark: true, value: '3' },
+      { color: 'red', label: 'Not said', value: '9' },
+    ]
+    const byData: ItemTemplate = { color: { value: '{color}' }, highlight: '{mark}', primaryText: '{label}', rowVariant: 'statistic', secondaryText: '{value}' }
+    const border = (label: string) => tile(label).style.borderColor
+
+    it('draws the border exactly where it is true, whatever the value and the colour', () => {
+      renderStrip(byData, marked)
+      expect(marked.map(({ label }) => border(label) !== '')).toEqual([false, true, true, false])
+      expect(value('Coloured, not highlighted').style.color).not.toBe('')
+    })
+
+    it('in the tile\'s colour, or the text colour when it has none', () => {
+      renderStrip(byData, marked)
+      expect(border('Highlighted zero')).toContain(getColorCode('red'))
+      expect(border('Highlighted, no colour')).toContain('var(--text-color)')
+    })
+
+    it('a borderless tile has none', () => {
+      renderStrip({ ...byData, tileVariant: 'borderless' }, marked)
+      expect(marked.map(({ label }) => border(label))).toEqual(['', '', '', ''])
+    })
+
+    it('absent from the template: the border follows the colour, as before', () => {
+      renderStrip({ ...byData, highlight: undefined }, marked)
+      expect(marked.map(({ label }) => border(label) !== '')).toEqual([true, true, false, true])
+    })
   })
 
   it('no `color` at all: every tile neutral (not the gray fallback)', () => {

@@ -13,7 +13,7 @@
  * bus: an add carries bytes and a remove carries none, the provider answers them with different
  * store calls, and a discriminator would put a branch in one handler whose arms share nothing.
  *
- * DELETION IS UNRECOVERABLE HERE — there is no undo anywhere in the composer. The surface confirms
+ * DELETION IS UNRECOVERABLE HERE — there is no undo anywhere in the builder. The surface confirms
  * before emitting; this bus does not, because a bus that asked would be a bus that could not be
  * used by anything else.
  *
@@ -22,7 +22,7 @@
 
 export const AGENTIKO_PREVIEW_FILE_REMOVE_EVENT = 'agentikoPreviewFileRemoved'
 
-/** A file the composer no longer wants held. Addressed by the key the draft holds it under. */
+/** A file the builder no longer wants held. Addressed by the key the draft holds it under. */
 export interface FileRemoveDetail {
   path: string
 }

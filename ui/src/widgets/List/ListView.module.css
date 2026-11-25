@@ -421,6 +421,12 @@
   width: 100%;
 }
 
+.statTitle {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--spacing-xs);
+}
+
 .statCaption {
   display: block;
   font-size: var(--krateo-text-caption);

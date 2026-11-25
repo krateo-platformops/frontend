@@ -10,7 +10,7 @@
  * Asks for a replay on mount, so a surface opened AFTER the draft went dirty still says why.
  *
  * `problems`, when given, is shown INSTEAD of subscribing. A surface that already listens to the
- * broadcast (the Blueprint Composer) passes the list it holds: an alert that mounts because that
+ * broadcast (the Blueprint Builder) passes the list it holds: an alert that mounts because that
  * very broadcast arrived has missed it, and would otherwise say nothing until a replay came back.
  */
 import { Alert } from 'antd'

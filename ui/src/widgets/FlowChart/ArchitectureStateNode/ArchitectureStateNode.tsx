@@ -1,11 +1,11 @@
 /**
  * One node of FlowChart's `architecture` variant: a resource the chart declares, in the state the
- * composition is in. Three lines, as on the composer's card (ArchitectureNodeCard): what it is (the
+ * composition is in. Three lines, as on the builder's card (ArchitectureNodeCard): what it is (the
  * kind, ×N for a forEach), what it is called (the resolved name, or the first … last of a range),
  * and the detail the RESTAction wrote (the readiness field and its value, a count, what it waits for,
  * or why it cannot be read).
  *
- * NOT A BUTTON. The composer's card selects a node for its inspector; this one has nothing to do
+ * NOT A BUTTON. The builder's card selects a node for its inspector; this one has nothing to do
  * when clicked, so it is a labelled group and nothing about it looks pressable (P12).
  *
  * BUT IT TAKES FOCUS (tabIndex 0), because the graph is drawn at true size and a chart of four

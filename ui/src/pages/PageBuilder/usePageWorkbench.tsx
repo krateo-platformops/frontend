@@ -105,7 +105,7 @@ const nameOfDrag = (payload: unknown): string => {
  * WHAT A KEYBOARD DRAG SAYS. Every string here replaces one that read an internal id aloud.
  *
  * `onDragEnd` deliberately does not claim the move succeeded: the KERNEL decides, and it may refuse
- * for a reason this callback cannot see. The composer's own live region announces the outcome a
+ * for a reason this callback cannot see. The builder's own live region announces the outcome a
  * moment later, so saying "moved" here would be the drag asserting something the draft may not
  * have done — the same defect the compose chip had.
  */
@@ -125,7 +125,7 @@ const dragAnnouncements = {
 }
 
 /**
- * What a structural edit did — the composer's answer to whoever asked.
+ * What a structural edit did — the builder's answer to whoever asked.
  *
  * The kernel already decides and already says why when it refuses; this is only what carries that
  * decision back out. A drag ignores it (the canvas re-renders and the person sees the result); an
@@ -163,7 +163,7 @@ export const usePageWorkbench = (host: HostDraft) => {
   // The payload as ADOPTED, not as rendered — see the discard listener.
   const adopted = useRef<AgentikoPreviewPayload | null>(null)
   // Why a move can be refused, shown where the other outcomes are shown. Not antd `message`: the
-  // composer already reports through Alerts, and a toast that vanishes is the wrong surface for
+  // builder already reports through Alerts, and a toast that vanishes is the wrong surface for
   // "this drop was rejected and here is why".
   const [moveError, setMoveError] = useState<string | null>(null)
 
@@ -357,7 +357,7 @@ export const usePageWorkbench = (host: HostDraft) => {
     // not awaiting here — and the emitter keeps its synchronous contract.
     void (async () => {
     // EVERY PATH ANSWERS. The handler used to `return` on each refusal, setting a local Alert and
-    // telling the asker nothing — so the agent's chip reported a success the composer had never
+    // telling the asker nothing — so the agent's chip reported a success the builder had never
     // performed. `reply` is the single exit, so a path that forgets to answer cannot compile away
     // quietly: the asker either hears the outcome or hears the timeout, never silence.
       const reply = (outcome: Outcome): void => {
@@ -510,9 +510,9 @@ export const usePageWorkbench = (host: HostDraft) => {
        * ASKED ABOUT ONE WIDGET, NOT ABOUT ALL OF THEM.
        *
        * This check first enumerated the category in both namespaces. On a real cluster that is 553
-       * objects and ~7100ms, and `requestCompose` gives the composer 4000ms — so it could never
-       * answer in time, and every placement timed out reporting "no page composer is open to apply
-       * this" on a page whose composer was open. One GET about one name is 111ms, or 58ms when it
+       * objects and ~7100ms, and `requestCompose` gives the builder 4000ms — so it could never
+       * answer in time, and every placement timed out reporting "no portal builder is open to apply
+       * this" on a page whose builder was open. One GET about one name is 111ms, or 58ms when it
        * is absent, and a status code says WHICH: 404 is absence, 403 is permission.
        *
        * WHERE IT LOOKS IS THE OTHER HALF, and getting it wrong was worse than the latency.
@@ -642,7 +642,7 @@ export const usePageWorkbench = (host: HostDraft) => {
     files: { caption: payload?.caption ? LIVE_PREVIEW_CAPTION_INLINE : undefined },
     kind,
     // Why a move can be refused, shown where the other outcomes are shown. Not antd `message`: the
-    // composer already reports through Alerts, and a toast that vanishes is the wrong surface for
+    // builder already reports through Alerts, and a toast that vanishes is the wrong surface for
     // "this drop was rejected and here is why".
     notices: moveError
       ? (

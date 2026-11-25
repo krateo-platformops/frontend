@@ -220,7 +220,7 @@ describe('SchemaFields — Advanced/required partition (FRM1)', () => {
  * REPEATABLE ROWS — an array of declared objects, and a map with a typed value.
  *
  * Both used to fall through to the JSON textarea, which in a form reads as an empty box with no
- * hint of the fields inside: a Table's `columns` in the composer's create form, a list of objects
+ * hint of the fields inside: a Table's `columns` in the builder's create form, a list of objects
  * in any blueprint form. The item schema is right there, so each item is a row of its own fields.
  */
 describe('SchemaFields — rows for lists of objects and typed maps', () => {

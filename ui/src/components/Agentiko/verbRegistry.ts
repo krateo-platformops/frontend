@@ -18,7 +18,7 @@
  *
  * DRAFT VERBS (frontend#429) are the third class, in their own table (DRAFT_VERB_REGISTRY): a verb
  * that edits the HELD draft in the browser — the bytes a person is composing — through the same
- * kernels and the same files-batch bus the composer's own gestures use. It never reaches the
+ * kernels and the same files-batch bus the builder's own gestures use. It never reaches the
  * apiserver, a repository or a publish: the person still previews and publishes. Deny-by-default
  * holds here too — a verb is a draft verb only when it is registered in that table with
  * `sideEffect:'draft'`, and the Builder of the held draft must also allow it (`verbs.allowed`),
@@ -185,7 +185,7 @@ export const registerReadOnlyVerb = (spec: VerbSpec): void => {
 }
 
 /**
- * The DRAFT verb registry (frontend#429): verbs that edit the held draft through the composer's own
+ * The DRAFT verb registry (frontend#429): verbs that edit the held draft through the builder's own
  * kernels and buses. Deny-by-default, like the read table: only a `draft` entry registered here runs
  * through it — an absent verb, or an entry declaring any other side effect, is refused at the bridge.
  */

@@ -424,7 +424,7 @@ const ObjectList = ({ fieldKey, group, isRequired, listPath, name, node }: {
     <AntdForm.List
       name={name}
       // A required list keeps the rule the JSON editor had: something must be in it. A
-      // form that submits without validating (the composer's create form) is unaffected.
+      // form that submits without validating (the builder's create form) is unaffected.
       rules={[
         ...(isRequired
           ? [{ validator: (_rule: unknown, rows: unknown) => ((Array.isArray(rows) && rows.length) || (group && !hasValue(form.getFieldValue(group))) ? Promise.resolve() : Promise.reject(new Error(`${label} is required`))) }]

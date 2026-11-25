@@ -2,7 +2,7 @@
 /**
  * A CHIP IS NOT A CHANNEL TO THE AGENT.
  *
- * Layers 2 and 3 made the composer answer, and made the answer name the containers that would have
+ * Layers 2 and 3 made the builder answer, and made the answer name the containers that would have
  * worked. Both reach the PERSON. Neither reached the model: a turn transmits `{context, contextId,
  * sessionId, text}` and nothing else, and `message.actions` — where every chip lives — never leaves
  * the browser. So the model saw its own directive, then a fresh user message, with no sign anything
@@ -33,7 +33,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-/** A composer that answers every request the same way. */
+/** A builder that answers every request the same way. */
 const composerThat = (answer: (id: string) => Parameters<typeof emitComposeResult>[0]) =>
   onComposeRequest((request) => { emitComposeResult(answer(request.id)) })
 
@@ -102,7 +102,7 @@ describe('a refusal is held for the next turn', () => {
 
   it('keeps only the most recent few, so a loop cannot fill the envelope with its history', async () => {
     const stop = refusing('no')
-    // Sequential in effect either way — the composer answers inside its own handler, so each of
+    // Sequential in effect either way — the builder answers inside its own handler, so each of
     // these settles before the next is dispatched.
     await Promise.all(['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(
       (name) => requestCompose({ name, op: 'addExisting', resource: 'cards', target: 'page-x' }),

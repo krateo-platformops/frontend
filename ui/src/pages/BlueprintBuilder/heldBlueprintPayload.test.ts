@@ -1,5 +1,5 @@
 /**
- * What the composer puts under its canvas — the held chart and its last render — and how it words
+ * What the builder puts under its canvas — the held chart and its last render — and how it words
  * a Preview's answer. Pure.
  */
 import { describe, expect, it } from 'vitest'

@@ -1,10 +1,10 @@
 /**
- * The agent's verbs for a chart that is ALREADY OPEN in the Blueprint Composer (S5): chartPut and
+ * The agent's verbs for a chart that is ALREADY OPEN in the Blueprint Builder (S5): chartPut and
  * chartDelete (a whole file) and chartLink (one dependency edge).
  *
  * WHY VERBS AND NOT A NEW previewBlueprint. previewBlueprint REPLACES the held tree, so to change one
  * template the agent had to hand back all of them — and anything the person had changed in the
- * composer since was silently overwritten by the agent's older copy. These verbs change one thing,
+ * builder since was silently overwritten by the agent's older copy. These verbs change one thing,
  * against the bytes held NOW.
  *
  * THE SAME PATHS A PERSON'S EDITS TAKE. Every write goes through the provider's atomic batch bus
@@ -14,7 +14,7 @@
  * legality kernel and gate generator a drawn edge goes through — so the agent cannot declare an edge
  * a person could not draw, and gets the same refusal, with the same reason.
  *
- * GATES FOLLOW THE DESCRIPTOR. The agent writes templates WITHOUT gates (the composer owns them) and
+ * GATES FOLLOW THE DESCRIPTOR. The agent writes templates WITHOUT gates (the builder owns them) and
  * may declare an edge by rewriting the descriptor, so chartPut regenerates every node's gate over the
  * tree it would leave — exactly what a proposed whole tree gets on ingest (parseProposedChart) — and
  * writes all of it in the one guarded batch. A put can never strip a declared edge's gate, and a
@@ -98,7 +98,7 @@ interface HeldChart {
   kind: DraftKind
 }
 
-/** A chart-relative path spelled the way the composer keys a tree, or why not. */
+/** A chart-relative path spelled the way the builder keys a tree, or why not. */
 const pathProblem = (path: unknown): string | null => {
   if (typeof path !== 'string' || !path.trim()) { return 'a path is required' }
   if (path.startsWith('/') || path.split('/').some((segment) => segment === '' || segment === '.' || segment === '..')) {

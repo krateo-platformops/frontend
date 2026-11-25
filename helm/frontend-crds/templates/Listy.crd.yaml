@@ -541,6 +541,9 @@ spec:
                         health:
                           description: 'tree rowVariant only: {dot.path} template to the child''s health as the page header''s worst-child pill counts it: ready | pending | unknown | notSynced | notReady, or excluded (not judged at all, e.g. a managed Secret the chart deliberately does not read). A row that resolves to one of these is counted as exactly that; any other value, or no health, falls back to the row''s raw conditions, then its colour'
                           type: string
+                        highlight:
+                          description: 'statistic rowVariant: {dot.path} to a boolean the RESTAction computes. true draws the tile''s border in its `color` (in the text colour when it has none), anything else leaves the neutral border. The tile never reads its own value to decide. Absent: the border follows `color`. A borderless tile has no border to highlight'
+                          type: string
                         icon:
                           description: '{dot.path} to an icon name, or a literal name, shown at the row leading edge.'
                           type: string
@@ -626,6 +629,12 @@ spec:
                           type: boolean
                         subSecondaryText:
                           description: '{dot.path} to the line beneath the secondary text.'
+                          type: string
+                        tileVariant:
+                          description: 'statistic rowVariant: the tile''s antd Card `variant`. outlined (default) frames each tile; borderless draws none, for a strip that already sits in a Card'
+                          enum:
+                            - outlined
+                            - borderless
                           type: string
                       type: object
                     loading:

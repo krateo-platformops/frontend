@@ -180,6 +180,18 @@
                   ],
                   "description": "leading-indicator style: avatar (solid disc + glyph, default), tile (soft-tint rounded square + glyph), dot (small status dot + halo)"
                 },
+                "tileVariant": {
+                  "type": "string",
+                  "enum": [
+                    "outlined",
+                    "borderless"
+                  ],
+                  "description": "statistic rowVariant: the tile's antd Card `variant`. outlined (default) frames each tile; borderless draws none, for a strip that already sits in a Card"
+                },
+                "highlight": {
+                  "type": "string",
+                  "description": "statistic rowVariant: {dot.path} to a boolean the RESTAction computes. true draws the tile's border in its `color` (in the text colour when it has none), anything else leaves the neutral border. The tile never reads its own value to decide. Absent: the border follows `color`. A borderless tile has no border to highlight"
+                },
                 "rowVariant": {
                   "type": "string",
                   "enum": [
