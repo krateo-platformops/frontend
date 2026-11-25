@@ -27,7 +27,7 @@ import TableExportControl from './TableExportControl'
 import { computeTablePagination, shouldVirtualize, VIRTUAL_SCROLL_Y } from './tablePagination'
 import TableResizableHeaderCell, { type ColumnResize } from './TableResizableHeaderCell'
 import { tableRowValues } from './tableRowValues'
-import { getColumnSortProps } from './tableSorting'
+import { EMPTY_CELL, getColumnSortProps } from './tableSorting'
 
 export type TableWidgetData = WidgetType['spec']['widgetData']
 type TableRow = NonNullable<TableWidgetData['dataSource']>[number]
@@ -379,7 +379,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
 
           if (!cell) {
             console.error('Table rendering error: cell is undefined')
-            return <span>-</span>
+            return <span>{EMPTY_CELL}</span>
           }
 
           const { arrayValue, booleanValue, color: cellColor, decimalValue, format, kind, numberValue, resourceRefId, stringValue, type } = cell
@@ -393,7 +393,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
               // `.tagCell` + `title` are the backstop for a label the column floor still under-measures:
               // the tag ellipsizes with its full text on hover, as an antd ellipsis cell does, instead
               // of being cut mid-word. An explicit `tooltip` replaces that title (withCellTooltip).
-              return <Tag className={styles.tagCell} style={getTagStyle(cellColor ?? color)} title={explicitTooltip(cell) ? undefined : stringValue}>{stringValue ?? '-'}</Tag>
+              return <Tag className={styles.tagCell} style={getTagStyle(cellColor ?? color)} title={explicitTooltip(cell) ? undefined : stringValue}>{stringValue ?? EMPTY_CELL}</Tag>
 
             case 'bar': {
               // Reconciliation-rail gauge cell (desired-vs-actual): cyan CONVERGED fill to
@@ -422,7 +422,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
               } catch {
                 conds = []
               }
-              if (!Array.isArray(conds) || !conds.length) { return <span>-</span> }
+              if (!Array.isArray(conds) || !conds.length) { return <span>{EMPTY_CELL}</span> }
               return (
                 <div className={styles.conditions}>
                   {conds.map((cond) => <Tag key={cond.type} style={getTagStyle(cond.color ?? 'gray')}>{cond.type}</Tag>)}
@@ -433,16 +433,16 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
             case 'icon':
               if (stringValue) { return <FontAwesomeIcon color={resolveTextColor(color)} icon={stringValue as IconProp} /> }
               console.error('Table rendering error: icon value has incorrect format')
-              return <span>-</span>
+              return <span>{EMPTY_CELL}</span>
 
             case 'widget':
-              // X4: these used to return the SAME `-` this file renders at five other call sites
+              // X4: these used to return the SAME empty mark this file renders at five other call sites
               // for a genuinely empty value, so a broken ref was indistinguishable from no data.
               // RefChild's inline density is a compact marker carrying the id in a tooltip — a full
               // Result here would destroy row height. Denied refs still render as nothing.
               if (!resourceRefId) {
                 console.error('Table rendering error: widget resourceRefId not found')
-                return <span>-</span>
+                return <span>{EMPTY_CELL}</span>
               }
 
               return (
@@ -458,7 +458,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
             case 'jsonSchemaType':
               if (!type) {
                 console.error('Table rendering error: jsonSchemaType cell missing type')
-                return <span>-</span>
+                return <span>{EMPTY_CELL}</span>
               }
 
               switch (type) {
@@ -468,30 +468,30 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
                   // raw value stays in the data (and sorts as a date); only the rendering changes. A cell's
                   // explicit `tooltip` stays its only tooltip (withCellTooltip), so it gets the words alone.
                   const textStyle = { color: resolveTextColor(cellColor ?? color) }
-                  if (!stringValue) { return <span style={textStyle}>-</span> }
+                  if (!stringValue) { return <span style={textStyle}>{EMPTY_CELL}</span> }
                   const timeForm = timeFormOf(format)
                   if (timeForm && !explicitTooltip(cell)) { return <TimeText form={timeForm} style={textStyle} value={stringValue} /> }
                   return <span style={textStyle}>{timeForm ? formatTime(stringValue, timeForm) : stringValue}</span>
                 }
                 case 'number':
                 case 'integer':
-                  return <span style={{ color: resolveTextColor(color) }}>{numberValue ?? '-'}</span>
+                  return <span style={{ color: resolveTextColor(color) }}>{numberValue ?? EMPTY_CELL}</span>
                 case 'decimal':
-                  return <span style={{ color: resolveTextColor(color) }}>{String(decimalValue) ?? '-'}</span>
+                  return <span style={{ color: resolveTextColor(color) }}>{decimalValue || EMPTY_CELL}</span>
                 case 'boolean':
-                  return <span style={{ color: resolveTextColor(color) }}>{booleanValue !== undefined ? String(booleanValue) : '-'}</span>
+                  return <span style={{ color: resolveTextColor(color) }}>{booleanValue !== undefined ? String(booleanValue) : EMPTY_CELL}</span>
                 case 'array':
-                  return <span style={{ color: resolveTextColor(color) }}>{arrayValue ? arrayValue.join(', ') : '-'}</span>
+                  return <span style={{ color: resolveTextColor(color) }}>{arrayValue ? arrayValue.join(', ') : EMPTY_CELL}</span>
                 case 'null':
-                  return <span>-</span>
+                  return <span>{EMPTY_CELL}</span>
                 default:
                   console.error('Table rendering error: unknown jsonSchemaType')
-                  return <span>-</span>
+                  return <span>{EMPTY_CELL}</span>
               }
 
             default:
               console.error('Table rendering error: unknown kind')
-              return <span>-</span>
+              return <span>{EMPTY_CELL}</span>
           }
         }),
         // A truncating table's header wraps onto two lines rather than ellipsize, so a title's unit

@@ -59,6 +59,13 @@ export const NUMERIC_RE = /^-?\d+(?:\.\d+)?$/
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/
 
 /**
+ * The ONE mark the Table draws for a cell with no value: an em dash, the mark the rest of the portal
+ * draws (Descriptions, the Builders' derived fields). The Table drew a hyphen, so a row whose
+ * RESTAction wrote "—" for one empty column showed "-" for the next (UX audit TBL-4).
+ */
+export const EMPTY_CELL = '—'
+
+/**
  * A placeholder a RESTAction writes in place of a value: "-", "—", "null" (a jq `tostring` of null),
  * "n/a". One such cell must not turn a numeric column into a string column, which re-sorted it
  * lexicographically and left-aligned it.

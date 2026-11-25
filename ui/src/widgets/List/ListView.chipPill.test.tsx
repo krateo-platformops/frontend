@@ -4,6 +4,9 @@
  * pill that slides to the next chip while the row stays mounted, and is only PLACED (no motion) the
  * first time, so a row that remounts after a navigating chip shows the new chip at once.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { cleanup, render } from '@testing-library/react'
 import { App } from 'antd'
 import { MemoryRouter } from 'react-router'
@@ -58,5 +61,24 @@ describe('Listy chip row — the sliding pill', () => {
     const { container } = render(view([{ active: true, label: 'a', route: '/x' }, { active: true, label: 'b', route: '/y' }]))
     expect(pillOf(container)).toBeNull()
     expect(container.querySelectorAll('.ant-btn-variant-solid')).toHaveLength(2)
+  })
+
+  // CHIP-1 (UX audit, 2026-11-25): under the pointer the active chip drew antd's light primary tint
+  // over the pill with the on-primary ink kept, about 1.2:1, so the filter just chosen vanished.
+  it('the active chip stays see-through on hover and press, so the pill stays its fill', () => {
+    const { container } = render(view(chips('7d')))
+    const active = container.querySelector<HTMLElement>('[data-chip-active="true"]')
+    // The stylesheet's selector names these antd classes: the active chip must carry every one.
+    for (const name of ['ant-btn', 'ant-btn-color-primary', 'ant-btn-variant-text']) {
+      expect(active?.classList.contains(name)).toBe(true)
+    }
+    // The variables it re-points are the ones antd paints the text variant's hover and press from.
+    const antd = [...document.querySelectorAll('style')].map((style) => style.textContent ?? '').join('\n')
+    expect(antd).toMatch(/background-color:\s*var\(--ant-btn-bg-color-hover\)/)
+    expect(antd).toMatch(/background-color:\s*var\(--ant-btn-bg-color-active\)/)
+    const sheet = readFileSync(join(__dirname, 'ListView.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = sheet.match(/:global\(\.ant-btn\.ant-btn-color-primary\.ant-btn-variant-text\)\.chipOnPill\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(rule).toMatch(/--ant-btn-bg-color-hover:\s*transparent;/)
+    expect(rule).toMatch(/--ant-btn-bg-color-active:\s*transparent;/)
   })
 })

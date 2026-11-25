@@ -10,6 +10,15 @@ import type { Paragraph as WidgetType } from './Paragraph.type'
 
 export type ParagraphWidgetData = WidgetType['spec']['widgetData']
 
+/**
+ * A URL is linked only when it is written with its scheme (`https://…`). linkify's default also links
+ * a bare domain, and in this portal's text a bare "domain" is almost always something else: a file
+ * name (`gen_composition.py`, .py being a country domain), an API group (`acmefeedback.example.io`),
+ * an object path (`composition.krateo.io/Installer/krateo-system/installer`). Each became a link to
+ * an unrelated outside site. An e-mail address is still linked: it cannot be mistaken for one.
+ */
+const hasScheme = (value: string): boolean => /^[a-z][a-z\d+.-]*:\/\//i.test(value)
+
 const Paragraph = ({ uid, widgetData }: WidgetProps<ParagraphWidgetData>) => {
   const { code, copyable, delete: del, disabled, ellipsis, italic, level, mark, strong, text, type, underline, variant } = widgetData
 
@@ -23,6 +32,7 @@ const Paragraph = ({ uid, widgetData }: WidgetProps<ParagraphWidgetData>) => {
       options={{
         rel: 'noopener noreferrer',
         target: '_blank',
+        validate: { url: hasScheme },
       }}
     >
       {resolvedText}
