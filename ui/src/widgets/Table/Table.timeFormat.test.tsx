@@ -11,6 +11,8 @@ import type * as ReactRouter from 'react-router'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { EMPTY_CELL } from './tableSorting'
+
 vi.stubGlobal('ResizeObserver', class { disconnect = vi.fn(); observe = vi.fn(); unobserve = vi.fn() })
 vi.stubGlobal('matchMedia', (query: string) => ({
   addEventListener: vi.fn(), addListener: vi.fn(), dispatchEvent: vi.fn(() => false), matches: false, media: query, onchange: null, removeEventListener: vi.fn(), removeListener: vi.fn(),
@@ -74,7 +76,7 @@ describe('Table cell format', () => {
     const { container } = renderCells([{ stringValue: daysAgo(49) }, { format: 'age', stringValue: '49d ago' }, { format: 'age', stringValue: '' }])
     expect(screen.getByText(daysAgo(49)).tagName).toBe('SPAN')
     expect(screen.getByText('49d ago').tagName).toBe('SPAN')
-    expect(screen.getByText('-')).toBeTruthy()
+    expect(screen.getByText(EMPTY_CELL)).toBeTruthy()
     expect(container.querySelectorAll('time')).toHaveLength(0)
   })
 })
