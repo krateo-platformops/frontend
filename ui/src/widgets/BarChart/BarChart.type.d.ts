@@ -30,6 +30,10 @@ export interface BarChart {
        */
       yField: string
       /**
+       * When set, `xField` values are UNIX epoch SECONDS, one bar per bucket in the order sent, labelled in the VIEWER's time zone as all text is: 'hour' -> the clock ('14:00'), the day named where it changes ('25 Nov', or '25 Nov, 01:00' when the bucket is not at midnight); 'day' -> the day ('24 Nov'; '31 Dec 2025' in another year). The tooltip gives the bar's full date with the zone ('Tue 24 November 2026, 14:00:00 (UTC+1)'). Use this instead of server-side strftime, which is UTC: a chart an hour apart from the text beside it.
+       */
+      xTimeUnit?: 'hour' | 'day'
+      /**
        * field mapped to color / series (G2 `colorField`)
        */
       colorField?: string

@@ -33,6 +33,10 @@ export interface Statistic {
        */
       value: number | string
       /**
+       * when `value` is an ISO (RFC3339) time, how it is written, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). Written in the browser, so it is never stale in snowplow's cache as a jq-computed "5m ago" is. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came. Absent: the value is shown as it came.
+       */
+      format?: 'age' | 'ago' | 'moment' | 'date'
+      /**
        * the number of decimal places
        */
       precision?: number

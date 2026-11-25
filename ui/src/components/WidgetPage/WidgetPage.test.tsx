@@ -17,8 +17,8 @@
  *   - any path with routes NOT yet populated → loading skeleton.
  *   - a genuinely-unknown path WHEN routes ARE populated → Page404 (not masked).
  *
- * Mock strategy: the routes context, the routes-in-flight counter and the
- * document-title hook are mocked so each render is a pure function of
+ * Mock strategy: the routes context and the routes-in-flight counter are
+ * mocked so each render is a pure function of
  * (menuRoutes, isFetchingRoutes, location). WidgetRenderer is stubbed so a
  * resolved route renders an identifiable marker instead of touching the network.
  */
@@ -55,10 +55,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('./routeSource', () => ({
   retryRouteSource: () => mockRetryRouteSource(),
   routeSourceKey: () => JSON.stringify(mockRouteSource),
-}))
-
-vi.mock('../../hooks/useDocumentTitle', () => ({
-  useDocumentTitle: () => undefined,
 }))
 
 vi.mock('../../pages/Page404', () => ({

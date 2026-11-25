@@ -484,6 +484,7 @@
   font-family: var(--font-display, sans-serif);
   font-size: var(--krateo-text-caption);
   font-style: italic;
+  font-variant-numeric: lining-nums;
   letter-spacing: 0.01em;
   margin-bottom: var(--spacing-xsm);
   padding-bottom: var(--spacing-smd);

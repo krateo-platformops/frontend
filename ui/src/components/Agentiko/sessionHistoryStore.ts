@@ -24,6 +24,8 @@
  * `updatedAt`. Nothing more sensitive than what is already on screen in the rail.
  */
 
+import { formatAgo } from '../../utils/dateFormat'
+
 import { ARCHIVE_KEY, CURRENT_KEY } from './storageKeys'
 import type { AgentikoMessage } from './types'
 
@@ -198,27 +200,10 @@ export const saveCurrentThread = (thread: PersistedThread | null): void => {
   writeJson(CURRENT_KEY, thread)
 }
 
-/** Compact relative-time label for a history row ("just now" / "5m ago" / "3h ago" /
- *  "2d ago" / a date past a week). Pure — `now` is injectable for a stable test. */
-export const relativeTime = (updatedAt: number, now: number = Date.now()): string => {
-  const seconds = Math.max(0, Math.round((now - updatedAt) / 1000))
-  if (seconds < 45) {
-    return 'just now'
-  }
-  const minutes = Math.round(seconds / 60)
-  if (minutes < 60) {
-    return `${minutes}m ago`
-  }
-  const hours = Math.round(minutes / 60)
-  if (hours < 24) {
-    return `${hours}h ago`
-  }
-  const days = Math.round(hours / 24)
-  if (days <= 7) {
-    return `${days}d ago`
-  }
-  return new Date(updatedAt).toLocaleDateString()
-}
+/** How long ago a history row was last touched, in a sentence ("just now", "5 minutes ago", "3 weeks ago":
+ *  utils/dateFormat, the approved "Dates and ages" form). Never in the future: a clock a little ahead of this
+ *  one is "just now". Pure — `now` is injectable for a stable test. */
+export const relativeTime = (updatedAt: number, now: number = Date.now()): string => formatAgo(Math.min(updatedAt, now), { now })
 
 /** The list shape the history UI renders (transcript stripped). */
 export const summarize = (threads: PersistedThread[]): ThreadSummary[] =>

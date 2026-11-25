@@ -9,8 +9,8 @@
  * component CSS reads, and the rules that put a title in the display face. visual/typeface.spec.ts
  * reads the faces the browser actually resolves.
  */
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -84,5 +84,35 @@ describe('titles take the display face', () => {
 
   it('a stat value is data, not a title: it stays in the body face', () => {
     expect(rule(css('index.css'), '.ant-statistic-content-value')).not.toMatch(/font-display/)
+  })
+})
+
+/**
+ * H1-1 (UX audit, 2026-11-25): Syne's DEFAULT figures are x-height (old-style) ones, and its zero is
+ * the very outline of its lowercase o (glyphs `zero.osf` and `o` measure the same 37..525 x -10..510
+ * box in Syne[wght].ttf). In the display role that is where people read names to copy:
+ * "rr-20261124-0200" read as "rr-2o261124-o2oo". Syne carries `lnum` (cap-height figures, `zero.lf`),
+ * so every rule that sets the display face also asks for lining figures.
+ */
+describe('the display face draws lining figures', () => {
+  const root = join(__dirname, '..', '..')
+  const sheets = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) { return sheets(path) }
+    return entry.name.endsWith('.css') ? [path] : []
+  })
+  const displayRules = [join(root, 'index.css'), ...sheets(join(root, 'src'))].flatMap((path) => {
+    const source = readFileSync(path, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    return [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter((match) => /font-family:\s*var\(--(?:krateo-)?font-display\b/.test(match[2]))
+      .map((match) => ({ body: match[2], where: `${relative(root, path)} ${match[1].trim()}` }))
+  })
+
+  it('finds the rules that set it (the scan is looking)', () => {
+    expect(displayRules.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('every rule that sets the display face sets lining-nums', () => {
+    expect(displayRules.filter(({ body }) => !/font-variant-numeric:[^;]*\blining-nums\b/.test(body)).map(({ where }) => where)).toEqual([])
   })
 })
