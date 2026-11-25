@@ -11,8 +11,6 @@ import type * as ReactRouter from 'react-router'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { EMPTY_CELL } from './tableSorting'
-
 vi.stubGlobal('ResizeObserver', class { disconnect = vi.fn(); observe = vi.fn(); unobserve = vi.fn() })
 vi.stubGlobal('matchMedia', (query: string) => ({
   addEventListener: vi.fn(), addListener: vi.fn(), dispatchEvent: vi.fn(() => false), matches: false, media: query, onchange: null, removeEventListener: vi.fn(), removeListener: vi.fn(),
@@ -24,6 +22,7 @@ import { formatMoment } from '../../utils/dateFormat'
 
 import Table from './Table'
 import type { TableWidgetData } from './Table'
+import { EMPTY_CELL } from './tableSorting'
 
 type Cell = NonNullable<TableWidgetData['dataSource']>[number][number]
 
