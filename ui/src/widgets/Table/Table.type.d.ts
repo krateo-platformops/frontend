@@ -43,6 +43,14 @@ export interface Table {
          * antd Table column minWidth in px. Mirrors antd ColumnType.minWidth. Usually the better lever under fitContent: a fixed width re-creates the overflow it was meant to fix, while a floor keeps a column readable and lets the others flex.
          */
         minWidth?: number
+        /**
+         * optional, for a column of `span` cells (a waterfall): the label at the start of the bars' scale, e.g. "0". With `rulerEnd`, the header shows the two labels at the ends of the bars' track, as written (not upper-cased), instead of the title; the title stays the column's name for assistive tech. A column with a ruler has no sorter.
+         */
+        rulerStart?: string
+        /**
+         * optional, for a column of `span` cells (a waterfall): the label at the end of the bars' scale, the length that 100% stands for, e.g. "5.81 s". See `rulerStart`.
+         */
+        rulerEnd?: string
       }[]
       /**
        * antd Table dataSource — the table rows (renamed from `data`; `data` still accepted for back-compat)
@@ -76,6 +84,10 @@ export interface Table {
          * value if type = string
          */
         stringValue?: string
+        /**
+         * optional, on a jsonSchemaType string cell: a second line under the value, muted and small (e.g. the service under a span's name in a trace waterfall). It wraps, or ellipsizes in a truncating table, as the value does. Omitted or empty, the cell renders exactly as without it.
+         */
+        secondaryText?: string
         /**
          * value if type = number or integer
          */
