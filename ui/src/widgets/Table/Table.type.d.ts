@@ -204,6 +204,53 @@ export interface Table {
            */
           requireConfirmation?: boolean
           /**
+           * the words of the confirmation this action opens before it runs, written for the person deciding. It does not add a dialog: it changes the words of the one write confirmation that opens anyway (every POST, PUT, PATCH and DELETE, and a read-only action with requireConfirmation). When set, that dialog shows this title, message, optional alert and OK label, and folds its own technical facts (verb, resource, cluster, namespace and the YAML it will send) under a collapsed "What will be sent" disclosure. Without it, the dialog shows those facts as its body. Like any widgetData field it can be filled from widgetDataTemplate (forPath: actions.rest[0].confirmation).
+           */
+          confirmation?: {
+            /**
+             * the dialog title: a question naming what will happen, e.g. "Uninstall my-blueprint?"
+             */
+            title: string
+            /**
+             * one or two sentences under the title saying what the action does, e.g. "This removes the blueprint my-blueprint from the Platform."
+             */
+            message: string
+            /**
+             * an antd Alert under the message, for what the person should know before confirming (e.g. the compositions created from a blueprint). Leave it out when there is nothing to say.
+             */
+            alert?: {
+              /**
+               * the Alert's type: warning (amber), info or error
+               */
+              type: 'warning' | 'info' | 'error'
+              /**
+               * the Alert's text, e.g. "1 composition was created from it."
+               */
+              message: string
+              /**
+               * the objects the Alert is about, one line each under its text
+               */
+              items?: {
+                /**
+                 * the object's name
+                 */
+                label: string
+                /**
+                 * where the label links to; it opens in a new tab, so the confirmation stays open
+                 */
+                href?: string
+                /**
+                 * a short neutral tag after the label, e.g. the object's own state word (Ready, Paused)
+                 */
+                tag?: string
+              }[]
+            }
+            /**
+             * the OK button's label: the verb the action performs, e.g. "Uninstall". The button is danger-styled when the write deletes, as without a confirmation
+             */
+            okLabel: string
+          }
+          /**
            * a message that will be displayed inside a toast in case of error
            */
           errorMessage?: string

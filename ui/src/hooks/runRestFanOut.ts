@@ -81,7 +81,7 @@ export const runRestFanOut = async (
   }
 
   // runRestSet owns the gate, dispatch, set toast, provenance and cache re-invalidation.
-  const results = await runRestSet(ops, ctx, runtime.origin)
+  const results = await runRestSet(ops, ctx, runtime.origin, { confirmation: action.confirmation })
   if (!results || !results.every((result) => result.ok)) {
     return
   }
