@@ -210,10 +210,16 @@ const stringifyValue = (value: unknown): string => {
   return JSON.stringify(value) ?? ''
 }
 
-/** Replace `{path}` / `{a|b|c}` placeholders with the first non-empty resolved value. Literal text is kept. */
+/**
+ * Replace `{path}` / `{a|b|c}` placeholders with the first non-empty resolved value. Literal text is kept.
+ *
+ * Only the innermost braces are a placeholder, so a template can put a resolved value inside a time token
+ * (components/TimeText/withTimeTokens): `Opened {ago:{openedAt}}` resolves to `Opened {ago:2026-11-25T14:08:00Z}`,
+ * which ListView writes as "Opened 52 minutes ago", in the viewer's zone, the full date on hover.
+ */
 export const interpolate = (template: string | undefined, item: unknown): string => {
   if (!template) { return '' }
-  return template.replace(/\{([^}]+)\}/g, (_match, expression: string) => {
+  return template.replace(/\{([^{}]+)\}/g, (_match, expression: string) => {
     for (const path of expression.split('|')) {
       const value = resolvePath(item, path.trim())
       if (value !== undefined && value !== null && value !== '') {

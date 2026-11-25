@@ -11,6 +11,7 @@ import { childHealthFromRow, useReportChildHealth } from '../../components/PageH
 import type { ConditionLike } from '../../components/PageHealth'
 import { RowActionControls, rowActionButtonType, useFireRowAction } from '../../components/RowActions'
 import TimeText from '../../components/TimeText'
+import { withTimeTokens } from '../../components/TimeText/withTimeTokens'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { getColorCode, inkOnFill } from '../../theme/palette'
 import type { ResourcesRefs, Widget, WidgetActions } from '../../types/Widget'
@@ -100,17 +101,19 @@ interface ListViewProps {
  */
 const oneLine = (text: string | undefined, ellipsis: boolean | undefined, type?: 'secondary') => {
   if (!text) { return undefined }
-  if (!ellipsis) { return text }
-  return <Typography.Text className={styles.oneLine} ellipsis={{ tooltip: text }} type={type}>{text}</Typography.Text>
+  const node = withTimeTokens(text)
+  if (!ellipsis) { return node }
+  return <Typography.Text className={styles.oneLine} ellipsis={{ tooltip: node }} type={type}>{node}</Typography.Text>
 }
 
 /**
  * A slot's text, with the full date on hover and focus when the template wrote it in a time form
- * (`formats`, utils/dateFormat). Any other slot is its text, as before.
+ * (`formats`, utils/dateFormat), or where it holds a time token in a sentence (`Opened {ago:{openedAt}}`,
+ * components/TimeText/withTimeTokens). Text without one is its text, as before.
  */
 const slotNode = (row: ResolvedRow, slot: RowSlot): ReactNode => {
   const time = row.times[slot]
-  return time ? <TimeText form={time.form} value={time.value}>{row[slot]}</TimeText> : row[slot]
+  return time ? <TimeText form={time.form} value={time.value}>{row[slot]}</TimeText> : withTimeTokens(row[slot])
 }
 
 /** `oneLine` for a slot: a time is short and carries its own tooltip, so it is never ellipsized. */
@@ -479,7 +482,7 @@ export const ListView = ({
                   )}
                 </div>
                 {/* Always render (even when empty) so the 2-line min-height reserves space → equal-height tiles. */}
-                <div className={styles.cardDesc}>{row.description}</div>
+                <div className={styles.cardDesc}>{withTimeTokens(row.description)}</div>
                 {(cardActions.length > 0 || provider || ctaCue) && (
                   <div className={styles.cardFoot}>
                     {/* Footer-left: provider/ns. Right group: the "Configure →" cue + any action buttons

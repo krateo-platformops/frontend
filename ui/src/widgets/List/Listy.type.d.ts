@@ -112,23 +112,23 @@ export interface Listy {
        */
       itemTemplate?: {
         /**
-         * {dot.path} to the row's main label.
+         * {dot.path} to the row's main label. A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:{dot.path}}` ("52 minutes ago"), `{age:…}` ("52 minutes"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"), around a {dot.path} that resolves to an ISO (RFC3339) time, e.g. "Opened {ago:{openedAt}} · {ordinal} from this alert"; a resolved value may also carry the token itself (`{ago:2026-11-04T10:10:27Z}`). Text without a token is shown as written (a chip and a statistic tile's title always are).
          */
         primaryText?: string
         /**
-         * {dot.path} to the value shown opposite the primary text.
+         * {dot.path} to the value shown opposite the primary text. A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:{dot.path}}` ("52 minutes ago"), `{age:…}` ("52 minutes"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"), around a {dot.path} that resolves to an ISO (RFC3339) time, e.g. "Opened {ago:{openedAt}} · {ordinal} from this alert"; a resolved value may also carry the token itself (`{ago:2026-11-04T10:10:27Z}`). Text without a token is shown as written (a statistic tile's value always is: give it `formats`).
          */
         secondaryText?: string
         /**
-         * {dot.path} to the line beneath the primary text.
+         * {dot.path} to the line beneath the primary text. A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:{dot.path}}` ("52 minutes ago"), `{age:…}` ("52 minutes"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"), around a {dot.path} that resolves to an ISO (RFC3339) time, e.g. "Opened {ago:{openedAt}} · {ordinal} from this alert"; a resolved value may also carry the token itself (`{ago:2026-11-04T10:10:27Z}`). Text without a token is shown as written (as is a subPrimaryTextMono pill).
          */
         subPrimaryText?: string
         /**
-         * {dot.path} to the line beneath the secondary text.
+         * {dot.path} to the line beneath the secondary text. A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:{dot.path}}` ("52 minutes ago"), `{age:…}` ("52 minutes"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"), around a {dot.path} that resolves to an ISO (RFC3339) time, e.g. "Opened {ago:{openedAt}} · {ordinal} from this alert"; a resolved value may also carry the token itself (`{ago:2026-11-04T10:10:27Z}`). Text without a token is shown as written.
          */
         subSecondaryText?: string
         /**
-         * longer body line (2-line clamp); only rendered by the card rowVariant (e.g. a catalog tile description)
+         * longer body line (2-line clamp); only rendered by the card rowVariant (e.g. a catalog tile description). A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:{dot.path}}` ("52 minutes ago"), `{age:…}` ("52 minutes"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"), around a {dot.path} that resolves to an ISO (RFC3339) time, e.g. "Opened {ago:{openedAt}} · {ordinal} from this alert"; a resolved value may also carry the token itself (`{ago:2026-11-04T10:10:27Z}`). Text without a token is shown as written.
          */
         description?: string
         /**

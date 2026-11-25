@@ -36,6 +36,12 @@ describe('itemTemplate — interpolate', () => {
     expect(interpolate(undefined, item)).toBe('')
   })
 
+  it('a placeholder inside a time token resolves, the token stays for ListView to write', () => {
+    expect(interpolate('Opened {ago:{at}} · {n} from this alert', { at: '2026-11-25T14:08:00Z', n: '24th' }))
+      .toBe('Opened {ago:2026-11-25T14:08:00Z} · 24th from this alert')
+    expect(interpolate('{ago:{missing|at}}', { at: '2026-11-25T14:08:00Z' })).toBe('{ago:2026-11-25T14:08:00Z}')
+  })
+
   it('interpolates composite templates', () => {
     expect(interpolate('name: {a} | deep: {nested.c}', item)).toBe('name: x | deep: y')
   })

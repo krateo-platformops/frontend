@@ -6,7 +6,7 @@
  */
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { fas } from '@fortawesome/free-solid-svg-icons'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { App } from 'antd'
 import type * as ReactRouter from 'react-router'
 import { MemoryRouter } from 'react-router'
@@ -20,6 +20,8 @@ library.add(fas)
 vi.mock('react-router', async (importOriginal) => ({ ...(await importOriginal<typeof ReactRouter>()), useNavigate: () => vi.fn() }))
 vi.mock('../../hooks/useHandleActions', () => ({ useHandleAction: () => ({ handleAction: vi.fn(), isActionLoading: false }) }))
 
+import { formatFull } from '../../utils/dateFormat'
+
 import type { ItemTemplate } from './itemTemplate'
 import { ListView } from './ListView'
 
@@ -31,10 +33,10 @@ afterEach(() => {
 })
 
 const item = { at: new Date(NOW - 52 * 60_000).toISOString(), name: 'acme-feedback', reason: 'Started' }
-const renderList = (itemTemplate: ItemTemplate) => render(
+const renderList = (itemTemplate: ItemTemplate, items: unknown[] = [item]) => render(
   <MemoryRouter>
     <App>
-      <ListView itemTemplate={itemTemplate} items={[item]} rowKey='feed' />
+      <ListView itemTemplate={itemTemplate} items={items} rowKey='feed' />
     </App>
   </MemoryRouter>,
 )
@@ -70,5 +72,52 @@ describe('ListView time slots', () => {
     const { container } = renderList({ primaryText: '{name}', secondaryText: '{at}' })
     expect(container.querySelectorAll('time')).toHaveLength(0)
     expect(screen.getByText(item.at)).toBeTruthy()
+  })
+})
+
+/**
+ * Time tokens in item TEXT (components/TimeText/withTimeTokens, the same tokens as Paragraph and
+ * PageHeader): an incident card's footer reads "Opened 52 minutes ago · 24th from this alert", the age
+ * the browser's (never frozen in snowplow's cache), in the viewer's zone, the full date on hover. The
+ * template puts a {dot.path} inside the token; text without one renders exactly as before.
+ */
+describe('ListView time tokens in item text', () => {
+  const incident = {
+    detail: 'Latency on checkout since {moment:2026-11-25T14:08:00Z}',
+    name: 'checkout-latency',
+    openedAt: new Date(NOW - 52 * 60_000).toISOString(),
+    ordinal: '24th',
+  }
+  const tooltip = () => document.querySelector('.ant-tooltip:not(.ant-tooltip-hidden)')
+  const footer = 'Opened {ago:{openedAt}} · {ordinal} from this alert'
+
+  it('a card footer: the time a <time> inside its sentence, the full date on hover', async () => {
+    renderList({ primaryText: '{name}', rowVariant: 'card', subSecondaryText: footer }, [incident])
+    const time = screen.getByText('52 minutes ago')
+    expect(time.tagName).toBe('TIME')
+    expect(time.getAttribute('dateTime')).toBe(incident.openedAt)
+    expect(time.parentElement?.textContent).toBe('Opened 52 minutes ago · 24th from this alert')
+    fireEvent.mouseEnter(time)
+    await waitFor(() => { expect(tooltip()?.textContent).toBe(formatFull(incident.openedAt)) })
+  })
+
+  it('a card description, from a token the RESTAction wrote into the value', () => {
+    renderList({ description: '{detail}', primaryText: '{name}', rowVariant: 'card' }, [incident])
+    const time = screen.getByText(/^25 Nov, \d{2}:08$/)
+    expect(time.tagName).toBe('TIME')
+    expect(time.parentElement?.textContent).toBe(`Latency on checkout since ${time.textContent}`)
+  })
+
+  it('a default row: the meta line and the line beside it, with ellipsis too', () => {
+    renderList({ ellipsis: true, primaryText: '{name}', subPrimaryText: footer, subSecondaryText: 'last {age:{openedAt}}' }, [incident])
+    expect(screen.getAllByText('52 minutes ago').every((node) => node.tagName === 'TIME')).toBe(true)
+    expect(screen.getByText('52 minutes').tagName).toBe('TIME')
+  })
+
+  it('text without a token: the plain string it always was', () => {
+    const { container } = renderList({ description: 'Latency on checkout', primaryText: '{name}', rowVariant: 'card', subSecondaryText: 'Opened 3d ago · {ordinal} from this alert' }, [incident])
+    expect(container.querySelectorAll('time')).toHaveLength(0)
+    expect(screen.getByText('Opened 3d ago · 24th from this alert').innerHTML).toBe('Opened 3d ago · 24th from this alert')
+    expect(screen.getByText('Latency on checkout').innerHTML).toBe('Latency on checkout')
   })
 })
