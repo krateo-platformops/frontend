@@ -33,7 +33,7 @@ exports[`T9 — Preview renders the controller through controller-render-draft >
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined ant-alert-with-description css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -940,7 +940,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
@@ -1726,7 +1726,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
@@ -2419,7 +2419,7 @@ exports[`petstore, authored in the UI with no rail > start → place pet and sto
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">

@@ -128,7 +128,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
@@ -2706,7 +2706,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fre
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
@@ -3695,7 +3695,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
@@ -4675,7 +4675,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -5685,7 +5685,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   <span>
                     "Publishing…"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -6675,7 +6675,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -7767,7 +7767,7 @@ exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > 
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
     <section aria-label="How it gets built" class="_guide_05590d">
@@ -8841,7 +8841,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                 <span>
                   "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
     <section aria-label="How it gets built" class="_guide_05590d">
@@ -9676,7 +9676,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                 <span>
                   "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-warning ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -10310,7 +10310,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                 <span>
                   "Publishing…"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
     <section aria-label="How it gets built" class="_guide_05590d">

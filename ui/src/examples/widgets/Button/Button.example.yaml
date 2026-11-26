@@ -1132,7 +1132,7 @@ spec:
 ---
 # Dismiss role (design rule C26)
 # Target: a button that closes or backs out without deleting anything.
-# Expected behavior: an amber, outlined "Cancel" that navigates back; `intent: dismiss` overrides type/color/danger.
+# Expected behavior: a neutral "Cancel" (like Reset) that navigates back; `intent: dismiss` overrides type/color/danger.
 kind: Button
 apiVersion: widgets.templates.krateo.io/v1beta1
 metadata:
