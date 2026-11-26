@@ -43,6 +43,17 @@ const CASES: Record<string, number[]> = {
   Switch: [0],
   Table: [3],
   Tag: [0, 1],
+  // Docs 0 and 1: the plain vertical rail, then colours + icons + a `loading` node. The loading
+  // node is safe to pin because the config screenshots with `animations: 'disabled'`, so the
+  // spinner is frozen rather than caught mid-rotation.
+  //
+  // NOT doc 2, and not because it is redundant: it is `mode: alternate` with an INLINE CHILD
+  // WIDGET, and this spec mocks nothing (layout.spec.ts is the one that `page.route`s widget
+  // refs). So the referenced markdown cannot resolve here and the node renders without it — the
+  // picture would contradict the example's own stated expectation, "the second node shows the
+  // referenced markdown widget under its text", and pin a half-rendered example as correct.
+  // Screenshot it when this spec can serve a ref, not before.
+  Timeline: [0, 1],
   YamlViewer: [3],
 }
 
@@ -103,6 +114,11 @@ test('an EXCLUDED reason that delegates to unit tests has unit tests to delegate
   expect(uncovered, 'excluded from the pixel suite as covered by its unit tests, but no *.test.* file exists in its widget directory').toEqual([])
 })
 
+// Every example renders against one fixed "now". The dates design writes a time relative to now
+// ("13 Jun, 09:30" this year, "13 Jun 2026, 09:30" from next year on, "52 minutes ago"), so with the
+// real clock a baseline would change on its own: every new year, or every minute for an ago.
+const FIXED_NOW = new Date('2026-11-25T21:00:00Z')
+
 for (const [kind, docs] of Object.entries(CASES)) {
   for (const doc of docs) {
     for (const mode of ['light', 'dark'] as const) {
@@ -110,6 +126,7 @@ for (const [kind, docs] of Object.entries(CASES)) {
         const errors: string[] = []
         page.on('pageerror', (error) => errors.push(error.message))
 
+        await page.clock.setFixedTime(FIXED_NOW)
         await page.goto(`/visual/index.html?example=${kind}&doc=${doc}&mode=${mode}`)
         const shot = page.getByTestId('case')
         await expect(shot).toBeVisible()

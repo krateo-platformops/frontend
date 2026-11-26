@@ -6,7 +6,6 @@ import { buildersStatus, isBuilderPath, subscribeBuilders } from '../../builders
 import BuildersUnavailable from '../../builders/host/BuildersUnavailable'
 import { PageRootProvider } from '../../context/PageRootContext'
 import { useRoutesContext } from '../../context/RoutesContext'
-import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { templatedRouteOf } from '../../otel/route'
 import { useCompositionOpenSpan } from '../../otel/useCompositionOpenSpan'
 import Page404 from '../../pages/Page404'
@@ -57,8 +56,6 @@ export const WidgetPage = ({ defaultWidgetEndpoint }: { defaultWidgetEndpoint?: 
   const location = useLocation()
   const { menuRoutes, routes } = useRoutesContext()
   const currentRoute = menuRoutes.find(({ path }) => path === location.pathname)
-  // Route-driven browser-tab title (relocated off the Page widget's <title>).
-  useDocumentTitle(currentRoute?.title)
   // X5: `krateo.composition.open` — the TEMPLATED route (`/compositions/:namespace/:name`), taken
   // from the router's own match, never from the pathname: a concrete path would be one metric
   // series per composition. Inert on every other route and whenever no provider is registered.
