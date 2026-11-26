@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { graphDouble } from '../../components/DependencyGraph/flowGraphDouble'
 import { NATURAL_PADDING } from '../../components/DependencyGraph/naturalViewport'
+import { formatAge } from '../../utils/dateFormat'
 
 import { DEMO_FILES_DENIED, V1B, V1B_REPO_DENIED } from './__fixtures__/architecture'
 import FlowChart, { type FlowChartData, type FlowChartWidgetData } from './FlowChart'
@@ -115,7 +116,10 @@ describe('FlowChart — the resource card without the fields the architecture va
     const { container } = render(<FlowChart resourcesRefs={REFS} uid='fc' widgetData={card({ date: '2026-09-20T00:00:00Z', version: 'apps/v1' })} />)
     const tags = [...container.querySelectorAll('[class*="tagFlow"]')].map((tag) => tag.textContent)
     expect(tags).toHaveLength(2)
-    expect(tags[0]).toMatch(/^\d+ days?$/)
+    // How old, in words ("Dates and ages"): 66 days is "2 months", where it read "66 days".
+    expect(tags[0]).toBe(formatAge('2026-09-20T00:00:00Z'))
+    expect(tags[0]).toMatch(/^\d+ (minute|hour|day|week|month|year)s?$/)
+    expect(container.querySelector('time[class*="tagFlow"]')?.getAttribute('dateTime')).toBe('2026-09-20T00:00:00.000Z')
     expect(tags[1]).toBe('apps/v1')
   })
 })

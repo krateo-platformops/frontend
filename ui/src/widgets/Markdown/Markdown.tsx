@@ -8,11 +8,15 @@ import { default as ReactMarkdown } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { AppPathLink, isAppPath } from '../../components/AppLink/AppLink'
+import TimeText from '../../components/TimeText'
 import type { WidgetProps } from '../../types/Widget'
+import { timeFormOf } from '../../utils/dateFormat'
+import { hasTimeTokens, timeTokensAsText } from '../../utils/timeTokens'
 
 import styles from './Markdown.module.css'
 import type { Markdown as WidgetType } from './Markdown.type'
 import remarkHtmlAnchors from './remarkHtmlAnchors'
+import remarkTimeTokens from './remarkTimeTokens'
 
 export type MarkdownWidgetData = WidgetType['spec']['widgetData']
 
@@ -99,8 +103,11 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
 
   const hasActions = useMemo(() => allowCopy || allowDownload, [allowCopy, allowDownload])
 
+  // What a copy or a download carries: the source as written, every time token (code included) as its words.
+  const sourceText = hasTimeTokens(markdown) ? timeTokensAsText(markdown) : markdown
+
   const handleDownload = () => {
-    const blob = new Blob([markdown], { type: 'text/plain;charset=utf-8' })
+    const blob = new Blob([sourceText], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const file = document.createElement('a')
     file.href = url
@@ -124,7 +131,7 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
                   setIsCopied(true)
                   setTimeout(() => setIsCopied(false), 2500)
                 }}
-                text={markdown}
+                text={sourceText}
               >
                 <Button aria-label='Copy to clipboard' icon={<FontAwesomeIcon icon={['fas', 'copy'] as IconProp} />} size='large' />
               </CopyToClipboard>
@@ -182,13 +189,20 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
           // unbreakable token (a long ref/URL) so nothing ever needs a scrollbar to be read.
           // CodeBlock adds the per-block copy button — see its own note.
           pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+          // A time token (remarkTimeTokens): the words in the viewer's zone, full date on hover and focus.
+          time: (props) => {
+            const { dateTime } = props as { dateTime?: string }
+            const form = timeFormOf((props as { 'data-form'?: string })['data-form'])
+            return form ? <TimeText form={form} value={dateTime} /> : <time dateTime={dateTime}>{dateTime}</time>
+          },
         }}
         key={uid}
         // GitHub-flavoured markdown: pipe tables, ~~strikethrough~~, task lists, bare URLs as links.
         // Without it a `| a | b |` table — what every generated report is made of — rendered as one
         // paragraph of pipes. Then `<a href>` anchors become links (remarkHtmlAnchors: links only,
-        // no other HTML). Order matters: GFM must have split the table into cells first.
-        remarkPlugins={[remarkGfm, remarkHtmlAnchors]}
+        // no other HTML). Order matters: GFM must have split the table into cells first. Time tokens last,
+        // on the text the others leave (remarkTimeTokens).
+        remarkPlugins={[remarkGfm, remarkHtmlAnchors, remarkTimeTokens]}
       >
         {markdown}
       </ReactMarkdown>

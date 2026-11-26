@@ -1,4 +1,5 @@
 import StatusPill from '../../components/StatusPill'
+import { withTimeTokens } from '../../components/TimeText/withTimeTokens'
 import type { WidgetProps } from '../../types/Widget'
 
 import type { Tag as WidgetType } from './Tag.type'
@@ -16,7 +17,9 @@ const Tag = ({ uid, widgetData }: WidgetProps<TagWidgetData>) => {
   // two must not drift.
   const { color, label, style, ...rest } = widgetData
 
-  return <StatusPill {...rest} color={color} key={uid} label={label} style={style} />
+  // A time token in the label ({ago:<ISO>}…) is written in the browser (components/TimeText/withTimeTokens);
+  // a label without one is the same string, so its state glyph (stateFamily) reads exactly as before.
+  return <StatusPill {...rest} color={color} key={uid} label={withTimeTokens(label)} style={style} />
 }
 
 export default Tag

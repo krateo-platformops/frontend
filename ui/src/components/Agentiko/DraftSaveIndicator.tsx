@@ -13,16 +13,14 @@ import { CheckOutlined } from '@ant-design/icons'
 
 import { findBuilderOf } from '../../builders/builderRegistry'
 import { findDraftKindPlugin } from '../../builders/draftKinds'
+import { formatClock } from '../../utils/dateFormat'
 
 import type { DraftKind } from './blueprintDraftStore'
 import styles from './DraftSaveIndicator.module.css'
 import { draftKeptOnClose, type DraftSaveStatus, useDraftSaveStatus } from './draftSaveStatus'
 
-/** HH:MM, 24-hour, local time — the mockup's format. */
-export const savedClock = (iso: string): string => {
-  const at = new Date(iso)
-  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
-}
+/** HH:MM, 24-hour, the viewer's zone — the mockup's format (utils/dateFormat). */
+export const savedClock = (iso: string): string => formatClock(iso)
 
 /** The indicator's text for a status, or null when it shows nothing. Pure, so the states are testable. */
 export const saveIndicatorText = (status: DraftSaveStatus, kind: DraftKind): string | null => {

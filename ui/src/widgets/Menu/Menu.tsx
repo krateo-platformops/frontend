@@ -1,8 +1,8 @@
 import type { IconProp } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { Menu as AntdMenu } from 'antd'
+import { Menu as AntdMenu, type MenuRef } from 'antd'
 import type { ItemType } from 'antd/es/menu/interface'
-import { type FocusEvent, type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { type FocusEvent, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import { useConfigContext } from '../../context/ConfigContext'
@@ -125,6 +125,17 @@ export function Menu({ deniedRefIds, failedRefs, resourcesRefs, uid, widgetData 
 
   const [firstNavKey] = navKeys
 
+  // The page you are on is marked in the sidebar only if its row is in view. On a laptop (801px tall)
+  // the nav is longer than the rail, and a page low in it (Clusters, Service desk) opened from a
+  // link or the address bar was selected below the fold, with nothing to say so (UX audit SB-1).
+  // When the selection changes its row is scrolled into the rail's view; `nearest` leaves a row
+  // already visible where it is, so a click in the sidebar moves nothing.
+  const menuRef = useRef<MenuRef>(null)
+  useEffect(() => {
+    if (!selectedKey) { return }
+    menuRef.current?.menu?.list.querySelector('.ant-menu-item-selected')?.scrollIntoView({ block: 'nearest' })
+  }, [selectedKey])
+
   const nav = (
     <AntdMenu
       {...navRootProps}
@@ -143,6 +154,7 @@ export function Menu({ deniedRefIds, failedRefs, resourcesRefs, uid, widgetData 
       // project scope on the first navigation (the reported bug). navigateOrExternal carries
       // the global scope params across.
       onClick={(item) => { navigateOrExternal(navigate, item.key) }}
+      ref={menuRef}
       selectedKeys={selectedKey ? [selectedKey] : []}
       theme={theme}
       // R1: in the collapsed icon rail (a Sider below `lg`) antd names each icon in a tooltip, on

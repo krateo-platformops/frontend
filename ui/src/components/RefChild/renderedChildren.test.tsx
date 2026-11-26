@@ -22,6 +22,7 @@ import Layout from '../../widgets/Layout/Layout'
 import Row from '../../widgets/Row/Row'
 import Table from '../../widgets/Table/Table'
 import Tabs from '../../widgets/Tabs/Tabs'
+import Timeline from '../../widgets/Timeline/Timeline'
 import { ShellSlotsProvider } from '../Shell/ShellSlots'
 
 import { renderedChildRefIds } from './renderedChildren'
@@ -85,6 +86,7 @@ const CASES: Array<{ kind: string; Widget: AnyWidget; data: Record<string, unkno
   { Widget: Tabs as unknown as AnyWidget, data: { items: [{ label: 'One', resourceRefId: 'first' }, { label: 'Two', resourceRefId: 'second' }] }, ids: ['first', 'second'], kind: 'Tabs', want: ['first'] },
   { Widget: Tabs as unknown as AnyWidget, data: { items: [{ label: 'One', resourceRefId: 'first' }, { label: 'Two', resourceRefId: 'second' }] }, ids: ['first', 'second'], kind: 'Tabs', search: '?tab=two', want: ['second'] },
   { Widget: Table as unknown as AnyWidget, data: { allowedResources: [], columns: [{ title: 'W', valueKey: 'w' }], dataSource: [widgetCell('r1'), widgetCell('r2'), widgetCell('r3')], pagination: { pageSize: 2 } }, ids: ['r1', 'r2', 'r3'], kind: 'Table', want: ['r1', 'r2'] },
+  { Widget: Timeline as unknown as AnyWidget, data: { items: [{ content: 'One' }, { content: 'Two', resourceRefId: 'a' }, { content: 'Three', resourceRefId: 'b' }] }, ids: ['a', 'b'], kind: 'Timeline', want: ['a', 'b'] },
   { Widget: Layout as unknown as AnyWidget, data: { content: 'body', hasSider: true, header: 'top', sider: { header: 'logo', resourceRefId: 'nav', width: 236 } }, ids: ['body', 'logo', 'nav', 'top'], kind: 'Layout', want: ['body', 'logo', 'nav', 'top'] },
 ]
 

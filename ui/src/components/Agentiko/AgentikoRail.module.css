@@ -213,6 +213,7 @@
      title is where the agent says whose it is. One line, no neighbour text to share a baseline with. */
   font-family: var(--krateo-font-display);
   font-size: var(--krateo-text-body);
+  font-variant-numeric: lining-nums;
   font-weight: 700;
   gap: var(--spacing-sm);
 }
@@ -821,6 +822,7 @@
   color: var(--dark-color);
   font-family: var(--krateo-font-display);
   font-size: var(--krateo-text-body-lg);
+  font-variant-numeric: lining-nums;
   font-weight: 700;
   margin-bottom: var(--spacing-smd);
 }
@@ -1258,6 +1260,7 @@
   color: var(--dark-color);
   font-family: var(--krateo-font-display);
   font-size: var(--krateo-text-body-lg);
+  font-variant-numeric: lining-nums;
   font-weight: 700;
 }
 
