@@ -48,10 +48,10 @@ export const PURPOSE_BUILT: Readonly<Record<string, readonly string[]>> = {
 }
 
 /**
- * Their `items` are plain data (a crumb's title, a label/value pair), so they resolve no children
+ * Their `items` are plain data (a crumb's title, a label/value pair, a tree node), so they resolve no children
  * and a declaration on them could only mislead. They carry no `allowedResources` at all.
  */
-export const HOLDS_NOTHING: readonly string[] = ['Breadcrumb', 'Descriptions']
+export const HOLDS_NOTHING: readonly string[] = ['Breadcrumb', 'Descriptions', 'Tree']
 
 /**
  * The enum for one container kind. Throws rather than guessing, because a wrong list here is a valid

@@ -630,6 +630,11 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // taking the same border token Table's `borderColor` already takes means the rail reads as the
   // same divider as every other one, in both modes, instead of a second kind of hairline.
   Timeline: { itemPaddingBottom: spacing.md, tailColor: palette.border },
+  // T2: Tree row height. antd derives `titleHeight` from controlHeightSM, which compactAlgorithm
+  // turns into 21 — off the spacing scale, and the node's icon and switcher are sized from it too.
+  // Pinned to lg (24, antd's own uncompacted value). Reaches every antd Tree: the Tree widget and
+  // the Page Builder's object tree, whose rows were the same 21.
+  Tree: { titleHeight: spacing.lg },
   // T3: antd's headings were all off the one type scale (compacted: 32/26/20/16/14). A page title
   // rendered at 32px from PageHeader or `level: 1`, and at 26px from a strong Paragraph — one role,
   // two sizes, neither on the scale. One role, one size: a page title is h2 (30), and the lower

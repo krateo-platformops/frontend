@@ -54,6 +54,9 @@ const CASES: Record<string, number[]> = {
   // referenced markdown widget under its text", and pin a half-rendered example as correct.
   // Screenshot it when this spec can serve a ref, not before.
   Timeline: [0, 1],
+  // All three: nested and fully open; lines, palette icons, a selected node and an inert one; a
+  // fixed height with a folded branch, a disabled root and an orphan drawn at the root.
+  Tree: [0, 1, 2],
   YamlViewer: [3],
 }
 
