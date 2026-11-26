@@ -1398,6 +1398,39 @@ Timeline displays a vertical (or horizontal) sequence of events in chronological
 
 ---
 
+### Tree
+
+Tree renders a hierarchy as an antd Tree: resources and what they own, a catalog by category, a folder layout. The nodes arrive as a FLAT list where each node names its parent (`parentKey`), because that is the shape a RESTAction's jq produces naturally and because a CRD schema cannot recurse. A node can open a page (`navigateTo`).
+
+#### Props
+
+| Property | Required | Description | Type |
+|----------|----------|-------------|------|
+| items | yes | the nodes, as a flat list. Siblings keep the order they have here. A node whose `parentKey` names no node in the list is shown at the root, so a filtered answer never loses a branch. | array |
+| items[].key | yes | unique among the nodes: what `parentKey`, `defaultExpandedKeys` and `selectedKey` name (antd TreeNode `key`). When two nodes share a key, the first wins | string |
+| items[].parentKey | no | the `key` of the node this one sits under. Unset, the node is a root | string |
+| items[].title | yes | the node's label (antd TreeNode `title`) | string |
+| items[].description | no | a short muted note after the title, in the data face (eg: a kind, a version, a count) | string |
+| items[].icon | no | a font awesome icon name shown before the title (eg: `fa-folder`) (antd TreeNode `icon`) | string |
+| items[].color | no | the icon colour: a palette colour NAME (resolved through the shared palette for the light or dark mode, never an antd preset or a hex). Unset, the icon takes the muted text colour | `blue` \| `darkBlue` \| `orange` \| `gray` \| `red` \| `green` \| `violet` |
+| items[].navigateTo | no | the page selecting this node opens: an app path (eg: `/compositions/demo/my-app`) or an absolute URL. Unset, the node is not selectable | string |
+| items[].disabled | no | show the node greyed out and not selectable (antd TreeNode `disabled`) | boolean |
+| defaultExpandAll | no | open every node on first render (antd Tree `defaultExpandAll`) | boolean |
+| defaultExpandedKeys | no | the nodes open on first render; their ancestors open with them (antd Tree `defaultExpandedKeys` with `defaultExpandParent`) | array |
+| selectedKey | no | the node shown as selected, eg: the one whose page is open. Its ancestors open with it, so it is in view on first render | string |
+| showLine | no | draw the connector lines between parent and children (antd Tree `showLine`) | boolean |
+| height | no | a fixed height in pixels: the tree scrolls inside it and draws only the nodes in view, for large trees (antd Tree `height`, virtual scroll) | integer |
+| watch | no | live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget. | array |
+| watch[].apiVersion | yes | group/version, e.g. composition.krateo.io/v1alpha1 | string |
+| watch[].kind | yes | e.g. DemoClaim | string |
+| watch[].namespace | no | scope to a namespace; omit to match any | string |
+| watch[].name | no | a specific object; omit to match any object of this kind ("GVR-level") | string |
+
+
+[Examples](../src/examples/widgets/Tree/Tree.example.yaml)
+
+---
+
 ### Upload
 
 Upload lets the user select files and uploads them to a resolved backend endpoint (resourceRefId) with the current bearer token

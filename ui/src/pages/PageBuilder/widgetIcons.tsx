@@ -19,6 +19,7 @@
  * glyph — which is right, since they are the same kind.
  */
 import {
+  ApartmentOutlined,
   AppstoreAddOutlined,
   BarChartOutlined,
   BgColorsOutlined,
@@ -119,6 +120,7 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
   tags: TagOutlined,
   themes: BgColorsOutlined,
   timelines: HistoryOutlined,
+  trees: ApartmentOutlined,
   uploads: UploadOutlined,
   yamlviewers: CodeOutlined,
 }
