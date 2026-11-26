@@ -15,8 +15,8 @@ const containers = Object.entries(WIDGET_KINDS).filter(([, kind]) => kind.contai
 describe('the widget kind table, derived from the CRDs', () => {
   it('covers every widget CRD, not the seven the palette could reach', () => {
     // The palette offered 7 placeable kinds and 5 creatable containers against 44 that existed then
-    // (45 with Collapse, 46 with Dropdown, 47 with Timeline, 48 with Tree).
-    expect(Object.keys(WIDGET_KINDS)).toHaveLength(48)
+    // (45 with Collapse, 46 with Dropdown, 47 with Timeline, 48 with Tree, 49 with Segmented).
+    expect(Object.keys(WIDGET_KINDS)).toHaveLength(49)
   })
 
   it('finds FOURTEEN containers (eleven, Collapse, Dropdown and Timeline), and the builder knew five of them', () => {

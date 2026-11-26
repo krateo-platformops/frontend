@@ -1126,6 +1126,39 @@ name of the k8s Custom Resource
 
 ---
 
+### Segmented
+
+Segmented renders an antd Segmented: a row of mutually exclusive choices that switches the VIEW of a page (a range: 1h / 6h / 24h; a layout: Table / Graph; a scope: Mine / All). It is standalone and URL-bound: the choice lives in a URL search param (`queryParam`), so a link names it, the back button undoes it, and data sources read it as request `extras`, as the URL-bound Select and RangePicker do. For a choice that is a form field, use Radio with `optionType: button`.
+
+#### Props
+
+| Property | Required | Description | Type |
+|----------|----------|-------------|------|
+| queryParam | yes | the URL search param the choice is read from and written to (eg: `range` → `?range=6h`). Other params on the URL are kept | string |
+| options | yes | the choices, in order (antd Segmented `options`) | array |
+| options[].value | yes | what is written to `?<queryParam>=` | string |
+| options[].label | no | the text drawn in the segment. Unset, the value; set to an empty string with an `icon`, an icon-only segment (then give it a `tooltip`, which is also its accessible name) | string |
+| options[].icon | no | a font awesome icon name drawn before the label (eg: `fa-table`) | string |
+| options[].tooltip | no | a tooltip on the segment (antd option `tooltip`) | string |
+| options[].disabled | no | show the segment but do not let it be chosen (antd option `disabled`) | boolean |
+| defaultValue | no | the choice shown while the URL has no `?<queryParam>=`. Choosing it removes the param, so the page's plain address stays its default. Unset, the first option | string |
+| ariaLabel | no | what the group of choices is, for a screen reader (eg: `Time range`): the segments name the options, not the question | string |
+| size | no | antd Segmented `size` | `small` \| `middle` \| `large` |
+| shape | no | antd Segmented `shape`: `round` draws pill-shaped segments | `default` \| `round` |
+| block | no | fill the container's width, the segments sharing it equally (antd Segmented `block`) | boolean |
+| vertical | no | stack the segments vertically (antd Segmented `vertical`) | boolean |
+| disabled | no | disable every segment (antd Segmented `disabled`) | boolean |
+| watch | no | live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget. | array |
+| watch[].apiVersion | yes | group/version, e.g. composition.krateo.io/v1alpha1 | string |
+| watch[].kind | yes | e.g. DemoClaim | string |
+| watch[].namespace | no | scope to a namespace; omit to match any | string |
+| watch[].name | no | a specific object; omit to match any object of this kind ("GVR-level") | string |
+
+
+[Examples](../src/examples/widgets/Segmented/Segmented.example.yaml)
+
+---
+
 ### Select
 
 Select is a form-control widget wrapping Ant Design Select. It renders inside a Form widget's context and binds its value by `name`.

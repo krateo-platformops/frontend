@@ -36,6 +36,8 @@ const CASES: Record<string, number[]> = {
   QRCode: [0],
   Radio: [0],
   Result: [0, 1],
+  // Every document: the default, icons with a disabled segment, icon-only round, and block width.
+  Segmented: [0, 1, 2, 3],
   Select: [0],
   Slider: [0],
   Statistic: [0],

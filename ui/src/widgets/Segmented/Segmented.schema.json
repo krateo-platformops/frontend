@@ -1,0 +1,325 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "default": "v1beta1",
+      "description": "Widget API version."
+    },
+    "kind": {
+      "default": "Segmented",
+      "description": "Segmented renders an antd Segmented: a row of mutually exclusive choices that switches the VIEW of a page (a range: 1h / 6h / 24h; a layout: Table / Graph; a scope: Mine / All). It is standalone and URL-bound: the choice lives in a URL search param (`queryParam`), so a link names it, the back button undoes it, and data sources read it as request `extras`, as the URL-bound Select and RangePicker do. For a choice that is a form field, use Radio with `optionType: button`.",
+      "type": "string"
+    },
+    "spec": {
+      "type": "object",
+      "properties": {
+        "widgetData": {
+          "type": "object",
+          "required": [
+            "queryParam",
+            "options"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "queryParam": {
+              "type": "string",
+              "description": "the URL search param the choice is read from and written to (eg: `range` → `?range=6h`). Other params on the URL are kept"
+            },
+            "options": {
+              "type": "array",
+              "minItems": 2,
+              "description": "the choices, in order (antd Segmented `options`)",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "description": "what is written to `?<queryParam>=`"
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "the text drawn in the segment. Unset, the value; set to an empty string with an `icon`, an icon-only segment (then give it a `tooltip`, which is also its accessible name)"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "description": "a font awesome icon name drawn before the label (eg: `fa-table`)"
+                  },
+                  "tooltip": {
+                    "type": "string",
+                    "description": "a tooltip on the segment (antd option `tooltip`)"
+                  },
+                  "disabled": {
+                    "type": "boolean",
+                    "description": "show the segment but do not let it be chosen (antd option `disabled`)"
+                  }
+                }
+              }
+            },
+            "defaultValue": {
+              "type": "string",
+              "description": "the choice shown while the URL has no `?<queryParam>=`. Choosing it removes the param, so the page's plain address stays its default. Unset, the first option"
+            },
+            "ariaLabel": {
+              "type": "string",
+              "description": "what the group of choices is, for a screen reader (eg: `Time range`): the segments name the options, not the question"
+            },
+            "size": {
+              "type": "string",
+              "enum": [
+                "small",
+                "middle",
+                "large"
+              ],
+              "description": "antd Segmented `size`"
+            },
+            "shape": {
+              "type": "string",
+              "enum": [
+                "default",
+                "round"
+              ],
+              "description": "antd Segmented `shape`: `round` draws pill-shaped segments"
+            },
+            "block": {
+              "type": "boolean",
+              "description": "fill the container's width, the segments sharing it equally (antd Segmented `block`)"
+            },
+            "vertical": {
+              "type": "boolean",
+              "description": "stack the segments vertically (antd Segmented `vertical`)"
+            },
+            "disabled": {
+              "type": "boolean",
+              "description": "disable every segment (antd Segmented `disabled`)"
+            },
+            "watch": {
+              "description": "live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "apiVersion",
+                  "kind"
+                ],
+                "properties": {
+                  "apiVersion": {
+                    "type": "string",
+                    "description": "group/version, e.g. composition.krateo.io/v1alpha1"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "description": "e.g. DemoClaim"
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "scope to a namespace; omit to match any"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "a specific object; omit to match any object of this kind (\"GVR-level\")"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "apiRef": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the RESTAction resource to call."
+            },
+            "namespace": {
+              "type": "string",
+              "description": "Namespace of the RESTAction resource."
+            }
+          },
+          "required": [
+            "name",
+            "namespace"
+          ],
+          "additionalProperties": false,
+          "description": "Binds this widget to a RESTAction whose response feeds the widgetDataTemplate and resourcesRefsTemplate expressions. Omit it for a widget whose data is entirely static."
+        },
+        "widgetDataTemplate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "forPath": {
+                "type": "string",
+                "description": "Dot-path inside widgetData whose value this expression replaces, for example `items[0].title`."
+              },
+              "expression": {
+                "type": "string",
+                "description": "A jq expression evaluated server-side against the apiRef response. Its result replaces the value at forPath."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData."
+        },
+        "resourcesRefs": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "allowed": {
+                    "type": "boolean",
+                    "description": "Set server-side: whether the caller may perform this verb. False entries are stripped before the widget renders and are never authored by hand."
+                  },
+                  "apiVersion": {
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the referenced resource."
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
+                  },
+                  "payload": {
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
+                  },
+                  "resource": {
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
+                  },
+                  "verb": {
+                    "type": "string",
+                    "enum": [
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "GET"
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
+                  },
+                  "slice": {
+                    "type": "object",
+                    "properties": {
+                      "offset": {
+                        "type": "integer",
+                        "description": "Number of items to skip before the returned page."
+                      },
+                      "page": {
+                        "type": "integer",
+                        "description": "One-based page number to return."
+                      },
+                      "perPage": {
+                        "type": "integer",
+                        "description": "Maximum items in the returned page."
+                      },
+                      "continue": {
+                        "type": "boolean",
+                        "description": "Opaque continuation token from a previous response, used to fetch the next page."
+                      }
+                    },
+                    "required": [
+                      "page",
+                      "perPage"
+                    ],
+                    "description": "Server-side paging for this reference: the widget receives one page rather than the whole list."
+                  }
+                },
+                "required": [
+                  "id"
+                ]
+              },
+              "description": "One referenced resource. The widget addresses it by its `id`, never by name."
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "description": "The resources this widget references by id. Each entry is resolved server-side and its endpoint handed to the widget; entries the caller may not read are removed before the widget renders, so a denied reference reads as absence rather than as an error."
+        },
+        "resourcesRefsTemplate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "iterator": {
+                "type": "string",
+                "description": "A jq expression selecting the array in the apiRef response to iterate over."
+              },
+              "template": {
+                "type": "object",
+                "properties": {
+                  "apiVersion": {
+                    "type": "string",
+                    "description": "Group and version of the referenced resource, for example `widgets.templates.krateo.io/v1beta1`."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "The author-chosen handle this widget uses to reference the resource, matching a resourceRefId in widgetData."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the referenced resource."
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "Namespace of the referenced resource."
+                  },
+                  "payload": {
+                    "type": "object",
+                    "description": "Body sent with a mutating verb. Ignored for a GET."
+                  },
+                  "resource": {
+                    "type": "string",
+                    "description": "Plural resource name, for example `paragraphs`."
+                  },
+                  "verb": {
+                    "type": "string",
+                    "enum": [
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE",
+                      "GET"
+                    ],
+                    "description": "HTTP verb used to resolve the reference. GET for a read; a mutating verb makes this a write the widget can dispatch."
+                  }
+                },
+                "additionalProperties": false,
+                "description": "The resourcesRefs entry emitted for each iterated element; its fields may interpolate that element."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
+        }
+      },
+      "required": [
+        "widgetData"
+      ],
+      "additionalProperties": false,
+      "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."
+    }
+  },
+  "required": [
+    "kind",
+    "spec",
+    "version"
+  ]
+}
