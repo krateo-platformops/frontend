@@ -1,0 +1,9 @@
+/* Segmented: antd's Segmented; its density and track are theme tokens (tokens.ts `Segmented`). */
+
+/* The track is as wide as its segments. In a column that stretches its children (a Flex with
+   `align: stretch`, the usual page column) antd's root would otherwise take the whole row, leaving
+   an empty strip of track after the last segment. `block` opts into the full width. */
+.fit {
+  max-width: 100%;
+  width: fit-content;
+}

@@ -186,6 +186,7 @@ spec:
                           - routes
                           - routesloaders
                           - rows
+                          - segmenteds
                           - selects
                           - sliders
                           - statistics

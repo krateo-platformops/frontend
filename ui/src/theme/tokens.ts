@@ -603,6 +603,14 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // Result's title was 20px, a size the one type scale does not have (T3). Nearest role: h3 (22).
   // Reaches every Result: Page404, Auth, the widget error states, empty builders.
   Result: { extraMargin: `${spacing.md}px 0 0 0`, subtitleFontSize: textPx('caption'), titleFontSize: textPx('h3') },
+  // T2: the form-control rule. compactAlgorithm makes controlHeight 28, so a Segmented beside a
+  // Select or a Button in a toolbar sat 4px short; restored to 32 as they are. The track's inset
+  // restates antd's own 2 (lineWidthBold) on the scale, so it is ours to move. antd paints the track
+  // `colorBgLayout`, the page's own background, so on a page the segments read as loose text; the
+  // track takes the table header's tint, which stands off both the page and a card, in both modes.
+  // In dark antd's selected segment is colorBgElevated, the same violet-black as that track, so the
+  // choice vanished; it takes the border tone, one step up, as the Table's rules do.
+  Segmented: { controlHeight: 32, trackBg: palette.lightgray, trackPadding: spacing.xxs, ...(mode === 'dark' ? { itemSelectedBg: palette.border } : {}) },
   Select: { borderRadius: radius.md, controlHeight: 32 },
   // Was 8.75 / 10.5 (controlHeightLG / 4, controlHeightSM / 2). Whole pixels, antd's own pair.
   Slider: { controlSize: 10, handleSize: 10, handleSizeHover: 12 },

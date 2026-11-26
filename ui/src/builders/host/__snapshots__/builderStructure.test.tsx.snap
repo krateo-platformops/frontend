@@ -9019,7 +9019,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "New widgets · 34"
+                "New widgets · 35"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Alert" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Alert · alerts">
                 <span aria-label="warning" class="anticon anticon-warning" role="img">
@@ -9168,6 +9168,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                     <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Result"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Segmented" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Segmented · segmenteds">
+                <span aria-label="switcher" class="anticon anticon-switcher" role="img">
+                  <svg aria-hidden="true" data-icon="switcher" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M752 240H144c-17.7 0-32 14.3-32 32v608c0 17.7 14.3 32 32 32h608c17.7 0 32-14.3 32-32V272c0-17.7-14.3-32-32-32zm-40 600H184V312h528v528zm168-728H264c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h576v576c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V144c0-17.7-14.3-32-32-32zM300 550h296v64H300z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Segmented"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Select" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Select · selects">
                 <span aria-label="down" class="anticon anticon-down" role="img">
                   <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9872,7 +9878,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "New widgets · 34"
+                "New widgets · 35"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Alert" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Alert · alerts">
                 <span aria-label="warning" class="anticon anticon-warning" role="img">
@@ -10021,6 +10027,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Result"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Segmented" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Segmented · segmenteds">
+                <span aria-label="switcher" class="anticon anticon-switcher" role="img">
+                  <svg aria-hidden="true" data-icon="switcher" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M752 240H144c-17.7 0-32 14.3-32 32v608c0 17.7 14.3 32 32 32h608c17.7 0 32-14.3 32-32V272c0-17.7-14.3-32-32-32zm-40 600H184V312h528v528zm168-728H264c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h576v576c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V144c0-17.7-14.3-32-32-32zM300 550h296v64H300z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Segmented"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Select" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Select · selects">
                 <span aria-label="down" class="anticon anticon-down" role="img">
                   <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -10500,7 +10512,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "New widgets · 34"
+                "New widgets · 35"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Alert" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Alert · alerts">
                 <span aria-label="warning" class="anticon anticon-warning" role="img">
@@ -10649,6 +10661,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Result"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Segmented" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Segmented · segmenteds">
+                <span aria-label="switcher" class="anticon anticon-switcher" role="img">
+                  <svg aria-hidden="true" data-icon="switcher" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M752 240H144c-17.7 0-32 14.3-32 32v608c0 17.7 14.3 32 32 32h608c17.7 0 32-14.3 32-32V272c0-17.7-14.3-32-32-32zm-40 600H184V312h528v528zm168-728H264c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h576v576c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V144c0-17.7-14.3-32-32-32zM300 550h296v64H300z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Segmented"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Select" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Select · selects">
                 <span aria-label="down" class="anticon anticon-down" role="img">
                   <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
