@@ -11,7 +11,7 @@ timestamp: 2026-08-07T00:00:00Z
 
 ## Owned CRDs — the widget catalog
 
-frontend owns the **49 widget CRDs** in group `widgets.templates.krateo.io`, version
+frontend owns the **50 widget CRDs** in group `widgets.templates.krateo.io`, version
 `v1beta1` — one per widget kind (Alert, Badge, BarChart, Breadcrumb, Button,
 ButtonGroup, Card, Checkbox, Col, Collapse, DatePicker, Descriptions, Divider, Dropdown,
 Filters, Flex, FlowChart, Form, Image, Input, InputNumber, Layout, LineChart, **Listy**,

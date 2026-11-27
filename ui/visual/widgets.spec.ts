@@ -75,6 +75,7 @@ const EXCLUDED: Record<string, string> = {
   LineChart: 'chart: animated drawing, covered by its own unit tests',
   PieChart: 'chart: animated drawing, covered by its own unit tests',
   Row: 'container: renders child widgets fetched by reference',
+  Splitter: 'container: each panel renders a child widget fetched by reference',
   Tabs: 'container: each tab renders a child widget fetched by reference',
   Upload: 'its picture variants load images from the network',
 }
