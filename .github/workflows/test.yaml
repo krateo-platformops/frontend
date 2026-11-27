@@ -51,6 +51,12 @@ jobs:
       - name: Widget types in step with the schemas
         run: npx tsx scripts/generate-types.ts --check
 
+      # docs/widgets-api-reference.md is generated from the same schemas and committed. Unchecked,
+      # it drifted by ~600 lines and three missing widgets (frontend#812). Regenerated in memory
+      # and diffed, like the two checks above.
+      - name: Widgets API reference in step with the schemas
+        run: npx tsx scripts/update-readme-widgets.ts --check
+
   # What ui/nginx.conf answers, asked of the real server: hidden files and dev-server paths 404, app
   # routes get the shell, and the agents' proxies still receive every path under them (frontend#470).
   nginx:
