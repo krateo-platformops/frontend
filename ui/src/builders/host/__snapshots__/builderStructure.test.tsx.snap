@@ -8928,7 +8928,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "Containers · 14"
+                "Containers · 15"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-ButtonGroup" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="ButtonGroup · buttongroups">
                 <span aria-label="appstore-add" class="anticon anticon-appstore-add" role="img">
@@ -8998,6 +8998,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                     <path d="M180 176h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zm724 0h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zM785.3 504.3L657.7 403.6a7.23 7.23 0 00-11.7 5.7V476H378v-62.8c0-6-7-9.4-11.7-5.7L238.7 508.3a7.14 7.14 0 000 11.3l127.5 100.8c4.7 3.7 11.7.4 11.7-5.7V548h268v62.8c0 6 7 9.4 11.7 5.7l127.5-100.8c3.8-2.9 3.8-8.5.2-11.4z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Row"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Splitter" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Splitter · splitters">
+                <span aria-label="split-cells" class="anticon anticon-split-cells" role="img">
+                  <svg aria-hidden="true" data-icon="split-cells" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M938.2 508.4L787.3 389c-3-2.4-7.3-.2-7.3 3.6V478H636V184h204v128c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V144c0-15.5-12.5-28-28-28H596c-15.5 0-28 12.5-28 28v736c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v128H636V546h144v85.4c0 3.8 4.4 6 7.3 3.6l150.9-119.4a4.5 4.5 0 000-7.2zM428 116H144c-15.5 0-28 12.5-28 28v168c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V184h204v294H244v-85.4c0-3.8-4.3-6-7.3-3.6l-151 119.4a4.52 4.52 0 000 7.1l151 119.5c2.9 2.3 7.3.2 7.3-3.6V546h144v294H184V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v168c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V144c0-15.5-12.5-28-28-28z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Splitter"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Steps" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Steps · steps">
                 <span aria-label="ordered-list" class="anticon anticon-ordered-list" role="img">
                   <svg aria-hidden="true" data-icon="ordered-list" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9787,7 +9793,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "Containers · 14"
+                "Containers · 15"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-ButtonGroup" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="ButtonGroup · buttongroups">
                 <span aria-label="appstore-add" class="anticon anticon-appstore-add" role="img">
@@ -9857,6 +9863,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M180 176h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zm724 0h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zM785.3 504.3L657.7 403.6a7.23 7.23 0 00-11.7 5.7V476H378v-62.8c0-6-7-9.4-11.7-5.7L238.7 508.3a7.14 7.14 0 000 11.3l127.5 100.8c4.7 3.7 11.7.4 11.7-5.7V548h268v62.8c0 6 7 9.4 11.7 5.7l127.5-100.8c3.8-2.9 3.8-8.5.2-11.4z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Row"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Splitter" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Splitter · splitters">
+                <span aria-label="split-cells" class="anticon anticon-split-cells" role="img">
+                  <svg aria-hidden="true" data-icon="split-cells" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M938.2 508.4L787.3 389c-3-2.4-7.3-.2-7.3 3.6V478H636V184h204v128c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V144c0-15.5-12.5-28-28-28H596c-15.5 0-28 12.5-28 28v736c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v128H636V546h144v85.4c0 3.8 4.4 6 7.3 3.6l150.9-119.4a4.5 4.5 0 000-7.2zM428 116H144c-15.5 0-28 12.5-28 28v168c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V184h204v294H244v-85.4c0-3.8-4.3-6-7.3-3.6l-151 119.4a4.52 4.52 0 000 7.1l151 119.5c2.9 2.3 7.3.2 7.3-3.6V546h144v294H184V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v168c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V144c0-15.5-12.5-28-28-28z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Splitter"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Steps" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Steps · steps">
                 <span aria-label="ordered-list" class="anticon anticon-ordered-list" role="img">
                   <svg aria-hidden="true" data-icon="ordered-list" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -10421,7 +10433,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "Containers · 14"
+                "Containers · 15"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-ButtonGroup" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="ButtonGroup · buttongroups">
                 <span aria-label="appstore-add" class="anticon anticon-appstore-add" role="img">
@@ -10491,6 +10503,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M180 176h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zm724 0h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zM785.3 504.3L657.7 403.6a7.23 7.23 0 00-11.7 5.7V476H378v-62.8c0-6-7-9.4-11.7-5.7L238.7 508.3a7.14 7.14 0 000 11.3l127.5 100.8c4.7 3.7 11.7.4 11.7-5.7V548h268v62.8c0 6 7 9.4 11.7 5.7l127.5-100.8c3.8-2.9 3.8-8.5.2-11.4z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Row"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Splitter" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Splitter · splitters">
+                <span aria-label="split-cells" class="anticon anticon-split-cells" role="img">
+                  <svg aria-hidden="true" data-icon="split-cells" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M938.2 508.4L787.3 389c-3-2.4-7.3-.2-7.3 3.6V478H636V184h204v128c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V144c0-15.5-12.5-28-28-28H596c-15.5 0-28 12.5-28 28v736c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v128H636V546h144v85.4c0 3.8 4.4 6 7.3 3.6l150.9-119.4a4.5 4.5 0 000-7.2zM428 116H144c-15.5 0-28 12.5-28 28v168c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V184h204v294H244v-85.4c0-3.8-4.3-6-7.3-3.6l-151 119.4a4.52 4.52 0 000 7.1l151 119.5c2.9 2.3 7.3.2 7.3-3.6V546h144v294H184V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v168c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V144c0-15.5-12.5-28-28-28z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Splitter"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Steps" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Steps · steps">
                 <span aria-label="ordered-list" class="anticon anticon-ordered-list" role="img">
                   <svg aria-hidden="true" data-icon="ordered-list" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">

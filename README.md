@@ -8,7 +8,7 @@ shipping frontend code.
 
 The web UI of Krateo PlatformOps, deliberately thin: a static SPA behind nginx with no
 product state and no hardcoded pages. The app shell, sidebar, routes and content are all
-widget CRs (`widgets.templates.krateo.io`, 49 kinds), RBAC-shaped per user by snowplow.
+widget CRs (`widgets.templates.krateo.io`, 50 kinds), RBAC-shaped per user by snowplow.
 One monorepo, one version line: the app (`ui/`) and its Helm charts (`helm/frontend/`,
 `helm/frontend-crds/`) ship together from a single tag.
 Full picture: [docs/index.md](docs/index.md).
@@ -50,7 +50,7 @@ See [docs/configuration.md](docs/configuration.md). Most used:
 - [docs/overview.md](docs/overview.md) — what it does and how it works
 - [docs/usage.md](docs/usage.md) — how to install / consume it
 - [docs/configuration.md](docs/configuration.md) — the whole config surface
-- [docs/api.md](docs/api.md) — the 49 widget CRDs + the widget spec model
+- [docs/api.md](docs/api.md) — the 50 widget CRDs + the widget spec model
 - [docs/examples.md](docs/examples.md) — examples index
 - [docs/release.md](docs/release.md) — how a release ships
 - [docs/log.md](docs/log.md) — curated history

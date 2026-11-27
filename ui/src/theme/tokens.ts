@@ -544,11 +544,7 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // ink 5.26:1, so dark flips to the ink. The hover and pressed fills are set on the theme tokens
   // below; tokens.contrast.test.ts pins every state.
   Button: { borderRadius: radius.md, controlHeight: 32, fontWeight: typography.weight.bold, primaryShadow: 'none', ...(mode === 'dark' ? { colorTextLightSolid: palette.panelbg } : {}) },
-  Card: {
-    borderRadiusLG: radius.lg,
-    boxShadowTertiary: mode === 'dark' ? elevationDark.sm : elevation.sm,
-    paddingLG: 14,
-  },
+  Card: { borderRadiusLG: radius.lg, boxShadowTertiary: mode === 'dark' ? elevationDark.sm : elevation.sm, paddingLG: 14 },
   // T2 form controls. The compactAlgorithm derives controlHeight 28, controlHeightLG 35 and
   // controlHeightSM 21 from our 32; Input/Select/DatePicker/Button restore 32 explicitly, and the
   // controls below did not, so they sat 4px short of their neighbours or landed on fractional px.
@@ -614,6 +610,9 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   Select: { borderRadius: radius.md, controlHeight: 32 },
   // Was 8.75 / 10.5 (controlHeightLG / 4, controlHeightSM / 2). Whole pixels, antd's own pair.
   Slider: { controlSize: 10, handleSize: 10, handleSizeHover: 12 },
+  // T2: the bar's grip and hit area on the scale, a little larger than antd's (24 on 8, was 20 on 6),
+  // and in the border tone: antd's translucent colorFill grip vanished on a card in both modes.
+  Splitter: { colorFill: palette.border, splitBarDraggableSize: spacing.lg, splitTriggerSize: spacing.sm },
   Statistic: { contentFontSize: 31, titleFontSize: 13 },
   // WCAG AA, the Button's rule: the current step's number is `colorTextLightSolid` on the painted
   // primary. In dark antd paints the primary #A86BDC (its dark algorithm moves the #C27AFF seed),

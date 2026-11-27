@@ -197,6 +197,7 @@ spec:
                           - segmenteds
                           - selects
                           - sliders
+                          - splitters
                           - statistics
                           - steps
                           - switches

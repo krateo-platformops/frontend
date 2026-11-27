@@ -1208,6 +1208,31 @@ Slider is a form-control widget wrapping Ant Design Slider. It renders inside a 
 
 ---
 
+### Splitter
+
+Splitter divides an area into panels side by side (or stacked) that the reader resizes by dragging the bar between them; each panel holds a child widget
+
+#### Props
+
+| Property | Required | Description | Type |
+|----------|----------|-------------|------|
+| allowedResources | yes | the resource plurals this container may hold as children. Typed loosely on purpose; containment is checked by the chart lint (design rule X5) against the real widget registry. | array |
+| orientation | no | antd Splitter `orientation`: `horizontal` sets the panels side by side, `vertical` stacks them. Default horizontal. | `horizontal` \| `vertical` |
+| height | no | the splitter's height in pixels. A vertical splitter needs one, since its panels share it; absent, a horizontal splitter is as tall as its tallest panel. | integer |
+| lazy | no | antd Splitter `lazy`: the panels take their new sizes when the bar is released, not while it is dragged. For panels whose content is costly to lay out (a large table, a chart). | boolean |
+| items | yes | the panels, in order (left to right, or top to bottom). | array |
+| items[].resourceRefId | yes | the identifier of the k8s custom resource drawn inside the panel | string |
+| items[].defaultSize | no | antd Splitter.Panel `defaultSize`: the panel's starting size, in percent ("25%") or pixels ("240px"). Absent, the panels without one share the space left equally. | string |
+| items[].min | no | antd Splitter.Panel `min`: the smallest the reader can drag the panel to, "NN%" or "NNpx". | string |
+| items[].max | no | antd Splitter.Panel `max`: the largest the reader can drag the panel to, "NN%" or "NNpx". | string |
+| items[].resizable | no | antd Splitter.Panel `resizable`: false fixes the panel at its size. Default true. | boolean |
+| items[].collapsible | no | which edge of the panel shows a button that folds it shut: `start` (its left or top edge), `end` (its right or bottom edge), or `both`. Absent, the panel cannot be folded. | `start` \| `end` \| `both` |
+
+
+[Examples](../src/examples/widgets/Splitter/Splitter.example.yaml)
+
+---
+
 ### Statistic
 
 Statistic highlights a single numeric value

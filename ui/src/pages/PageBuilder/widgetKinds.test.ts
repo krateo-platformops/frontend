@@ -15,14 +15,14 @@ const containers = Object.entries(WIDGET_KINDS).filter(([, kind]) => kind.contai
 describe('the widget kind table, derived from the CRDs', () => {
   it('covers every widget CRD, not the seven the palette could reach', () => {
     // The palette offered 7 placeable kinds and 5 creatable containers against 44 that existed then
-    // (45 with Collapse, 46 with Dropdown, 47 with Timeline, 48 with Tree, 49 with Segmented).
-    expect(Object.keys(WIDGET_KINDS)).toHaveLength(49)
+    // (45 with Collapse, 46 with Dropdown, 47 with Timeline, 48 with Tree, 49 with Segmented, 50 with Splitter).
+    expect(Object.keys(WIDGET_KINDS)).toHaveLength(50)
   })
 
-  it('finds FOURTEEN containers (eleven, Collapse, Dropdown and Timeline), and the builder knew five of them', () => {
+  it('finds FIFTEEN containers (eleven, Collapse, Dropdown, Timeline and Splitter), and the builder knew five of them', () => {
     expect(containers.sort()).toEqual([
-      'ButtonGroup', 'Card', 'Col', 'Collapse', 'Dropdown', 'Filters', 'Flex', 'Form', 'Menu', 'PageHeader', 'Row', 'Steps', 'Tabs',
-      'Timeline',
+      'ButtonGroup', 'Card', 'Col', 'Collapse', 'Dropdown', 'Filters', 'Flex', 'Form', 'Menu', 'PageHeader', 'Row', 'Splitter', 'Steps',
+      'Tabs', 'Timeline',
     ])
     // Everything the old literal claimed is still a container — this widens, it does not reclassify.
     for (const known of Object.keys(LAYOUT_KINDS)) {
