@@ -42,6 +42,12 @@ export interface BarChart {
        */
       colorField?: string
       /**
+       * map each colorField category to a Krateo palette colour name (e.g. {"Created":"cyan"}); sets the G2 color scale domain/range so the bars render in the brand colour, not G2's default blue palette
+       */
+      colorMap?: {
+        [k: string]: string
+      }
+      /**
        * stack series sharing an x value (G2 `stack`)
        */
       stack?: boolean
@@ -61,6 +67,18 @@ export interface BarChart {
        * fixed height in px (G2 `height`); omit to autofit
        */
       height?: number
+      /**
+       * G2 per-channel scale config (G2 `scale`), e.g. {"y":{"zero":true,"nice":true,"domainMin":0,"domainMax":3,"tickCount":4}}. domainMax is the top of the axis as written: a value above it is drawn past the top of the plot, so set it from the data (at or above the largest value), e.g. in the widgetDataTemplate.
+       */
+      scale?: {
+        [k: string]: unknown
+      }
+      /**
+       * G2 per-channel axis config (G2 `axis`), e.g. {"x":{"tickCount":6},"y":{"tickCount":4}}
+       */
+      axis?: {
+        [k: string]: unknown
+      }
       /**
        * live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.
        */
