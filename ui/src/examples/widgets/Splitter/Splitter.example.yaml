@@ -1,0 +1,142 @@
+# Navigation beside content
+# Target: a tree at a quarter of the width, foldable from its end, beside a table.
+# Expected behavior: dragging the bar resizes both panels; the tree cannot go below 180px or above
+# 40%; the arrow on the bar folds the tree away and unfolds it again.
+kind: Splitter
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-splitter-tree-table
+  namespace: krateo-system
+spec:
+  widgetData:
+    allowedResources:
+      - tables
+      - trees
+    items:
+      - resourceRefId: example-tree-resources
+        defaultSize: "25%"
+        min: "180px"
+        max: "40%"
+        collapsible: end
+      - resourceRefId: example-table-basic
+  resourcesRefs:
+    items:
+      - id: example-tree-resources
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-tree-resources
+        namespace: krateo-system
+        resource: trees
+        verb: GET
+      - id: example-table-basic
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-table-basic
+        namespace: krateo-system
+        resource: tables
+        verb: GET
+---
+# Stacked panels
+# Target: a vertical splitter, 480px tall, a chart above the YAML it is drawn from.
+# Expected behavior: the bar between them moves up and down; each panel scrolls its own content.
+# `lazy`: the panels take their new sizes when the bar is released.
+kind: Splitter
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-splitter-vertical
+  namespace: krateo-system
+spec:
+  widgetData:
+    allowedResources:
+      - linecharts
+      - yamlviewers
+    orientation: vertical
+    height: 480
+    lazy: true
+    items:
+      - resourceRefId: example-linechart
+        defaultSize: "60%"
+        min: "20%"
+      - resourceRefId: example-yamlviewer-nested-json
+  resourcesRefs:
+    items:
+      - id: example-linechart
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-linechart
+        namespace: krateo-system
+        resource: linecharts
+        verb: GET
+      - id: example-yamlviewer-nested-json
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-yamlviewer-nested-json
+        namespace: krateo-system
+        resource: yamlviewers
+        verb: GET
+---
+# Three panels, the middle one bounded
+# Target: three panels; the middle one moves between 200px and 50%, the last one is fixed.
+# Expected behavior: only the bar between the first two panels drags (a fixed panel has no bar on
+# its side); the first panel folds from its start edge and from its end edge.
+kind: Splitter
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-splitter-three
+  namespace: krateo-system
+spec:
+  widgetData:
+    allowedResources:
+      - markdowns
+      - paragraphs
+    height: 240
+    items:
+      - resourceRefId: example-paragraph-multiline
+        collapsible: both
+      - resourceRefId: example-markdown-basic
+        min: "200px"
+        max: "50%"
+      - resourceRefId: example-paragraph-basic
+        defaultSize: "200px"
+        resizable: false
+  resourcesRefs:
+    items:
+      - id: example-paragraph-multiline
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-paragraph-multiline
+        namespace: krateo-system
+        resource: paragraphs
+        verb: GET
+      - id: example-markdown-basic
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-markdown-basic
+        namespace: krateo-system
+        resource: markdowns
+        verb: GET
+      - id: example-paragraph-basic
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-paragraph-basic
+        namespace: krateo-system
+        resource: paragraphs
+        verb: GET
+---
+# A panel whose widget is missing
+# Target: the second panel references a resourceRefId with no resourcesRefs entry.
+# Expected behavior: the panel stays and says the reference cannot be resolved; the first panel
+# renders as usual.
+kind: Splitter
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-splitter-dangling
+  namespace: krateo-system
+spec:
+  widgetData:
+    allowedResources:
+      - paragraphs
+    items:
+      - resourceRefId: example-paragraph-basic
+      - resourceRefId: missing-ref
+  resourcesRefs:
+    items:
+      - id: example-paragraph-basic
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: example-paragraph-basic
+        namespace: krateo-system
+        resource: paragraphs
+        verb: GET

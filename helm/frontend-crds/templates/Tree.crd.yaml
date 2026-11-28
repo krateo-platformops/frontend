@@ -1,0 +1,263 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: trees.widgets.templates.krateo.io
+spec:
+  group: widgets.templates.krateo.io
+  names:
+    categories:
+      - widgets
+      - krateo
+    kind: Tree
+    listKind: TreeList
+    plural: trees
+    singular: tree
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: 'The widget''s contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides.'
+              properties:
+                apiRef:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                    - namespace
+                  type: object
+                resourcesRefs:
+                  properties:
+                    items:
+                      items:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          slice:
+                            properties:
+                              continue:
+                                type: boolean
+                              offset:
+                                type: integer
+                              page:
+                                type: integer
+                              perPage:
+                                type: integer
+                            required:
+                              - perPage
+                            type: object
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                      type: array
+                    slice:
+                      properties:
+                        continue:
+                          type: boolean
+                        offset:
+                          type: integer
+                        page:
+                          type: integer
+                        perPage:
+                          type: integer
+                      required:
+                        - perPage
+                      type: object
+                  required:
+                    - items
+                  type: object
+                resourcesRefsTemplate:
+                  items:
+                    properties:
+                      iterator:
+                        type: string
+                      template:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                    type: object
+                  type: array
+                widgetData:
+                  properties:
+                    defaultExpandAll:
+                      description: open every node on first render (antd Tree `defaultExpandAll`)
+                      type: boolean
+                    defaultExpandedKeys:
+                      description: the nodes open on first render; their ancestors open with them (antd Tree `defaultExpandedKeys` with `defaultExpandParent`)
+                      items:
+                        type: string
+                      type: array
+                    height:
+                      description: 'a fixed height in pixels: the tree scrolls inside it and draws only the nodes in view, for large trees (antd Tree `height`, virtual scroll)'
+                      minimum: 1
+                      type: integer
+                    items:
+                      description: the nodes, as a flat list. Siblings keep the order they have here. A node whose `parentKey` names no node in the list is shown at the root, so a filtered answer never loses a branch.
+                      items:
+                        properties:
+                          color:
+                            description: 'the icon colour: a palette colour NAME (resolved through the shared palette for the light or dark mode, never an antd preset or a hex). Unset, the icon takes the muted text colour'
+                            enum:
+                              - blue
+                              - darkBlue
+                              - orange
+                              - gray
+                              - red
+                              - green
+                              - violet
+                            type: string
+                          description:
+                            description: 'a short muted note after the title, in the data face (eg: a kind, a version, a count)'
+                            type: string
+                          disabled:
+                            description: show the node greyed out and not selectable (antd TreeNode `disabled`)
+                            type: boolean
+                          icon:
+                            description: 'a font awesome icon name shown before the title (eg: `fa-folder`) (antd TreeNode `icon`)'
+                            type: string
+                          key:
+                            description: 'unique among the nodes: what `parentKey`, `defaultExpandedKeys` and `selectedKey` name (antd TreeNode `key`). When two nodes share a key, the first wins'
+                            type: string
+                          navigateTo:
+                            description: 'the page selecting this node opens: an app path (eg: `/compositions/demo/my-app`) or an absolute URL. Unset, the node is not selectable'
+                            type: string
+                          parentKey:
+                            description: the `key` of the node this one sits under. Unset, the node is a root
+                            type: string
+                          title:
+                            description: the node's label (antd TreeNode `title`)
+                            type: string
+                        required:
+                          - key
+                          - title
+                        type: object
+                      type: array
+                    selectedKey:
+                      description: 'the node shown as selected, eg: the one whose page is open. Its ancestors open with it, so it is in view on first render'
+                      type: string
+                    showLine:
+                      description: draw the connector lines between parent and children (antd Tree `showLine`)
+                      type: boolean
+                    watch:
+                      description: 'live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.'
+                      items:
+                        properties:
+                          apiVersion:
+                            description: group/version, e.g. composition.krateo.io/v1alpha1
+                            type: string
+                          kind:
+                            description: e.g. DemoClaim
+                            type: string
+                          name:
+                            description: a specific object; omit to match any object of this kind ("GVR-level")
+                            type: string
+                          namespace:
+                            description: scope to a namespace; omit to match any
+                            type: string
+                        required:
+                          - apiVersion
+                          - kind
+                        type: object
+                      type: array
+                  required:
+                    - items
+                  type: object
+                widgetDataTemplate:
+                  items:
+                    properties:
+                      expression:
+                        type: string
+                      forPath:
+                        type: string
+                    type: object
+                  type: array
+                identityContext:
+                  items:
+                    enum:
+                      - username
+                      - groups
+                    type: string
+                  type: array
+                keyExtras:
+                  description: 'F6 (snowplow#130): the request-extras keys (route params / URL query folded into ?extras=) whose values this widget''s resolution depends on. Only declared keys partition the widget cache cell. Absent/empty = the widget does not vary by any request extra (chrome/layout default).'
+                  items:
+                    type: string
+                  type: array
+                freshness:
+                  description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).'
+                  type: boolean
+              required:
+                - widgetData
+              type: object
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ''
+    plural: ''
+  conditions: null
+  storedVersions: null

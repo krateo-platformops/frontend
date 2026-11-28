@@ -2,6 +2,7 @@ import { RightOutlined } from '@ant-design/icons'
 import { Alert as AntdAlert, Button, Tag } from 'antd'
 import { useId, useState } from 'react'
 
+import { withTimeTokens } from '../../components/TimeText/withTimeTokens'
 import { getTagStyle } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
 
@@ -46,23 +47,26 @@ const Details = ({ text }: { text: string }) => {
   )
 }
 
+// `title` and `description` may carry time tokens ({ago:<ISO>}…, components/TimeText/withTimeTokens), written
+// in the browser in the viewer's zone. Text without one is passed through as the same string.
 const Alert = ({ uid, widgetData }: WidgetProps<AlertWidgetData>) => {
-  const { description, details, tag, ...rest } = widgetData
+  const { description: rawDescription, details, tag, ...rest } = widgetData
+  const description = withTimeTokens(rawDescription)
 
   // Neither new field set: antd's Alert exactly as before, with nothing wrapped around title or
   // description.
   if (!tag && !details) {
-    return <AntdAlert key={uid} {...rest} description={description} />
+    return <AntdAlert key={uid} {...rest} description={description} title={withTimeTokens(rest.title)} />
   }
 
   const title = tag
     ? (
       <span className={styles.title}>
-        {rest.title}
+        {withTimeTokens(rest.title)}
         <Tag className={styles.tag} style={getTagStyle(paintedType(widgetData))}>{tag}</Tag>
       </span>
     )
-    : rest.title
+    : withTimeTokens(rest.title)
 
   const body = details
     ? (

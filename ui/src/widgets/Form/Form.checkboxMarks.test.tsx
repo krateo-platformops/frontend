@@ -249,6 +249,33 @@ describe('requiredMark: optional', () => {
     expect(label.querySelector('[aria-hidden="true"]')?.textContent).toBe('imagePullSecrets')
   })
 
+  it('shows no key for a field the portal adds itself (__composition_name__), and still shows a chart key', () => {
+    const schema = {
+      properties: {
+        __composition_name__: { title: 'Name', type: 'string' },
+        __composition_namespace__: { title: 'Namespace', type: 'string' },
+        imagePullSecrets: { title: 'Image pull secrets', type: 'string' },
+      },
+      required: ['__composition_name__', '__composition_namespace__', 'imagePullSecrets'],
+      type: 'object',
+    }
+    const { container } = renderForm(widgetData({}, schema))
+    const name = itemOf(container, '__composition_name__').querySelector('label') as HTMLElement
+    expect(name.textContent).toBe('Name *')
+    expect(name.querySelector('[aria-hidden="true"]')).toBeNull()
+    expect(itemOf(container, '__composition_namespace__').querySelector('label [aria-hidden="true"]')).toBeNull()
+    expect(container.textContent).not.toContain('__composition_')
+    expect(itemOf(container, 'imagePullSecrets').querySelector('label [aria-hidden="true"]')?.textContent).toBe('imagePullSecrets')
+  })
+
+  it('keeps the key of every other field, underscores included, and hides only a key wrapped in two on both sides', () => {
+    const keys = ['__secret_value__', '_private', '__prefixOnly', 'suffixOnly__', '____', 'a__b__c']
+    const schema = { properties: Object.fromEntries(keys.map((key) => [key, { title: 'Title', type: 'string' }])), type: 'object' }
+    const { container } = renderForm(widgetData({}, schema))
+    const shown = keys.map((key) => container.querySelector(`[id="${key}"]`)?.closest('.ant-form-item')?.querySelector('label [aria-hidden="true"]')?.textContent ?? null)
+    expect(shown).toEqual([null, '_private', '__prefixOnly', 'suffixOnly__', '____', 'a__b__c'])
+  })
+
   it('does not repeat a key that only differs from its title in letter case', () => {
     const schema = { properties: { name: { title: 'Name', type: 'string' } }, type: 'object' }
     const { container } = renderForm(widgetData({}, schema))
