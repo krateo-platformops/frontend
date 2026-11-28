@@ -19,6 +19,7 @@
  * glyph — which is right, since they are the same kind.
  */
 import {
+  ApartmentOutlined,
   AppstoreAddOutlined,
   BarChartOutlined,
   BgColorsOutlined,
@@ -44,7 +45,9 @@ import {
   QrcodeOutlined,
   RightOutlined,
   SlidersOutlined,
+  SplitCellsOutlined,
   SwapOutlined,
+  SwitcherOutlined,
   TagOutlined,
   UploadOutlined,
   WarningOutlined,
@@ -109,8 +112,10 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
   rangepickers: CalendarOutlined,
   results: CheckCircleOutlined,
   rows: ColumnWidthOutlined,
+  segmenteds: SwitcherOutlined,
   selects: DownOutlined,
   sliders: SlidersOutlined,
+  splitters: SplitCellsOutlined,
   statistics: FieldNumberOutlined,
   steps: OrderedListOutlined,
   switches: SwapOutlined,
@@ -119,6 +124,7 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
   tags: TagOutlined,
   themes: BgColorsOutlined,
   timelines: HistoryOutlined,
+  trees: ApartmentOutlined,
   uploads: UploadOutlined,
   yamlviewers: CodeOutlined,
 }

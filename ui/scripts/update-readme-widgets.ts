@@ -110,6 +110,11 @@ async function generateWidgetsSection(): Promise<string> {
   return `${WIDGETS_ANCHOR}\n\nList of implemented widgets:\n\n${docs.join('\n---\n\n')}`
 }
 
+/**
+ * The reference is generated from the schemas and committed, and nothing used to check it: it
+ * drifted by ~600 lines and three widgets (frontend#812). `--check` regenerates in memory and fails
+ * when the committed file differs, so a schema change that skips the reference fails CI.
+ */
 async function updateReadme() {
   let readmeContent = ''
   try {
@@ -120,19 +125,25 @@ async function updateReadme() {
   }
 
   const widgetsSection = await generateWidgetsSection()
+  const updated = readmeContent.includes(WIDGETS_ANCHOR)
+    ? `${readmeContent.split(WIDGETS_ANCHOR)[0]}${widgetsSection}`
+    : `${readmeContent.trim()}\n\n${widgetsSection}`
 
-  if (readmeContent.includes(WIDGETS_ANCHOR)) {
-    const [beforeWidgets] = readmeContent.split(WIDGETS_ANCHOR)
-    const updated = `${beforeWidgets}${widgetsSection}`
-    await fs.writeFile(OUTPUT_FILE, updated)
-    console.log(`✅ Widgets updated in ${OUTPUT_FILE}`)
-  } else {
-    const updated = `${readmeContent.trim()}\n\n${widgetsSection}`
-    await fs.writeFile(OUTPUT_FILE, updated)
-    console.log(`✅ Widgets updated in ${OUTPUT_FILE}`)
+  if (process.argv.includes('--check')) {
+    if (updated !== readmeContent) {
+      console.error('docs/widgets-api-reference.md is out of date with the widget schemas.')
+      console.error('Run `npm run update-readme-widgets` and commit the result.')
+      process.exit(1)
+    }
+    console.log('widgets API reference is in step with the schemas')
+    return
   }
+
+  await fs.writeFile(OUTPUT_FILE, updated)
+  console.log(`✅ Widgets updated in ${OUTPUT_FILE}`)
 }
 
 updateReadme().catch((err) => {
   console.error(`❌ Error updating ${OUTPUT_FILE}:`, err)
+  process.exit(1)
 })

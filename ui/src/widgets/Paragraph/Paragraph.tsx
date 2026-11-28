@@ -1,6 +1,7 @@
 import { Typography } from 'antd'
 import Linkify from 'linkify-react'
 
+import { withTimeTokens } from '../../components/TimeText/withTimeTokens'
 import type { WidgetProps } from '../../types/Widget'
 import { resolveLocalTokens } from '../../utils/localTokens'
 
@@ -21,9 +22,10 @@ const hasScheme = (value: string): boolean => /^[a-z][a-z\d+.-]*:\/\//i.test(val
 const Paragraph = ({ uid, widgetData }: WidgetProps<ParagraphWidgetData>) => {
   const { code, copyable, delete: del, disabled, ellipsis, italic, level, mark, strong, text, type, underline, variant } = widgetData
 
-  // Resolve client-side tokens (currently {localTimeOfDay}) in the browser so they reflect the
-  // viewer's local time regardless of snowplow's cached server `now`. See utils/localTokens.
-  const resolvedText = resolveLocalTokens(text)
+  // Resolve client-side tokens ({localTimeOfDay}, {displayName}, and time tokens such as {ago:<ISO>}) in the
+  // browser so they reflect the viewer's clock and zone regardless of snowplow's cached server `now`. See
+  // utils/localTokens and components/TimeText/withTimeTokens.
+  const resolvedText = withTimeTokens(resolveLocalTokens(text))
 
   const content = (
     <Linkify

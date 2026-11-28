@@ -28,6 +28,12 @@ export const opaqueOver = (colour: string, ground: string): string => {
   return `#${channel(top.r, under.r)}${channel(top.g, under.g)}${channel(top.b, under.b)}`
 }
 
+/** `share` (0-1) of a `#rrggbb` token laid over an opaque ground: a tint OF a token, not a new colour. */
+export const tintOf = (colour: string, share: number, ground: string): string => {
+  const { b: blue, g: green, r: red } = parse(colour)
+  return opaqueOver(`rgba(${red}, ${green}, ${blue}, ${share})`, ground)
+}
+
 const linear = (channel: number): number => {
   const unit = channel / 255
   return unit <= 0.04045 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4

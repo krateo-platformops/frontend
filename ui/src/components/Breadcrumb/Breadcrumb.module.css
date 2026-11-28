@@ -28,30 +28,42 @@
 }
 
 .breadcrumbItem {
-  /* Adopt the page-header EYEBROW treatment (IBM Plex Mono, uppercase, letter-spaced, muted
-     graphite — mirrors .paragraph.eyebrow). The breadcrumb now reads as the section eyebrow
-     above the H1, replacing the separate eyebrow widget. */
+  /* The page-header EYEBROW treatment (mono, letter-spaced, muted graphite — mirrors
+     .paragraph.eyebrow). Only the section crumb is upper-case (`.section`): route words and object
+     names keep their own case, because names are case-sensitive and people copy them (BC-1). */
   color: var(--gray-color);
   display: inline-block;
   font-family: var(--font-mono);
   font-size: var(--krateo-text-label-sm);
   font-weight: var(--font-weight-medium);
   letter-spacing: 0.08em;
-  text-transform: uppercase;
   vertical-align: bottom;
   white-space: nowrap;
 
-  &.capitalize {
+  &.section {
     text-transform: uppercase;
   }
 
-  /* Only the leaf crumb truncates — it fills the remaining row width and ellipsizes,
-     with a sane upper bound so an extremely long name can't monopolize the row. */
+  /* Only the leaf crumb shortens — it fills the remaining row width, with a sane upper bound so an
+     extremely long name can't monopolize the row. A long name is drawn as a head and a tail
+     (Breadcrumb.tsx): the head ellipsizes and the tail never shrinks, so the cut falls in the
+     middle and the end of the name, the part that tells two names apart, stays visible. */
   &.leaf {
-    display: inline-block;
+    display: inline-flex;
     max-width: 48ch;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  & .leafHead {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  & .leafTail {
+    flex: none;
   }
 
   & .link:hover {

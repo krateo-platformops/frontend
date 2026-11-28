@@ -86,38 +86,6 @@ export const getExportEndpoint = (readQuery: string, exportQuery: string): strin
   return `${SNOWPLOW_EXPORT_PATH}${query ? `?${query}` : ''}`
 }
 
-export const formatISODate = (value: string, showTime: boolean = false) => {
-  return showTime
-    ? new Date(value).toLocaleDateString('en', {
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    })
-    : new Date(value).toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' })
-}
-
-/** Compact relative time ("now", "12s", "5m", "3h", "2d", "2w") — flight-deck
- * telemetry style, no " ago" suffix, with a weeks tier; falls back to the absolute
- * date beyond ~8 weeks. Used by feed/list rows + table cells. */
-export const formatRelativeTime = (value: string): string => {
-  const then = new Date(value).getTime()
-  if (Number.isNaN(then)) { return value }
-  const seconds = Math.round((Date.now() - then) / 1000)
-  if (seconds < 10) { return 'now' }
-  if (seconds < 60) { return `${seconds}s` }
-  const minutes = Math.round(seconds / 60)
-  if (minutes < 60) { return `${minutes}m` }
-  const hours = Math.round(minutes / 60)
-  if (hours < 24) { return `${hours}h` }
-  const days = Math.round(hours / 24)
-  if (days < 7) { return `${days}d` }
-  const weeks = Math.round(days / 7)
-  if (days < 60) { return `${weeks}w` }
-  return formatISODate(value)
-}
-
 export const getHeadersObject = (headers: string[]): Record<string, string> | undefined => {
   const result: Record<string, string> = {}
 

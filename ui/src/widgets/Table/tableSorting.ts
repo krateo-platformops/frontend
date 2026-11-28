@@ -35,9 +35,10 @@ export type ColumnSortProps = {
 export const SNIFF_SAMPLE_ROWS = 250
 
 /**
- * kubectl-style relative age, the format this portal's jq `def rel` (and the
- * frontend's own formatRelativeTime) emits: "45s", "3m", "8h", "5d", "1w",
- * "2mo", "1y" — plus "now" for < 10s. `mo` is tried before bare `m`.
+ * kubectl-style relative age, the format this portal's jq `def rel` emits into a
+ * RESTAction-formatted cell: "45s", "3m", "8h", "5d", "1w", "2mo", "1y" — plus
+ * "now". `mo` is tried before bare `m`. (A cell with a time `format` holds the ISO
+ * time itself, which sorts as a date.)
  */
 const AGE_RE = /^(?:now|(\d+)(mo|[smhdwy]))$/
 

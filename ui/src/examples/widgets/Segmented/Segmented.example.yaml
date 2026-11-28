@@ -1,0 +1,90 @@
+# Time range
+# Target: a URL-bound choice a data source reads as `extras.range`; the first option is the default.
+# Expected behavior: "1h" is selected while the URL has no `?range=`; choosing "6h" writes
+# `?range=6h`, choosing "1h" again removes the param.
+kind: Segmented
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-segmented-range
+  namespace: krateo-system
+spec:
+  widgetData:
+    queryParam: range
+    ariaLabel: Time range
+    options:
+      - value: 1h
+      - value: 6h
+      - value: 24h
+      - value: 7d
+---
+# View switch with icons
+# Target: labelled segments with icons, a `defaultValue` that is not the first option,
+# and a disabled segment.
+# Expected behavior: "Graph" is selected while the URL has no `?view=`; "Timeline" is greyed out.
+kind: Segmented
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-segmented-view
+  namespace: krateo-system
+spec:
+  widgetData:
+    queryParam: view
+    ariaLabel: View
+    defaultValue: graph
+    options:
+      - value: table
+        label: Table
+        icon: fa-table
+      - value: graph
+        label: Graph
+        icon: fa-diagram-project
+      - value: timeline
+        label: Timeline
+        icon: fa-timeline
+        disabled: true
+---
+# Icon-only, round, small
+# Target: icon-only segments named by their tooltip, `shape: round`, `size: small`.
+# Expected behavior: two small pill segments with only an icon; hovering one shows its tooltip,
+# which is also its accessible name.
+kind: Segmented
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-segmented-icons
+  namespace: krateo-system
+spec:
+  widgetData:
+    queryParam: layout
+    ariaLabel: Layout
+    shape: round
+    size: small
+    options:
+      - value: list
+        label: ""
+        icon: fa-list
+        tooltip: List
+      - value: grid
+        label: ""
+        icon: fa-grip
+        tooltip: Grid
+---
+# Full-width scope
+# Target: `block` makes the segments share the container's width equally.
+# Expected behavior: three equal segments spanning the whole row.
+kind: Segmented
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-segmented-block
+  namespace: krateo-system
+spec:
+  widgetData:
+    queryParam: scope
+    ariaLabel: Scope
+    block: true
+    options:
+      - value: mine
+        label: Mine
+      - value: team
+        label: My team
+      - value: all
+        label: Everyone
