@@ -13,6 +13,7 @@ import TimeText from '../../components/TimeText'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useMeasuredWidth } from '../../hooks/useMeasuredWidth'
 import { getColorCode, getTagStyle, resolveTextColor } from '../../theme/palette'
+import { spacing } from '../../theme/tokens'
 import type { WidgetProps } from '../../types/Widget'
 import { formatTime, timeFormOf } from '../../utils/dateFormat'
 import { navigateOrExternal } from '../../utils/navigation'
@@ -36,6 +37,46 @@ type CellRender = (value: unknown, row: TableRow) => ReactNode
 
 /** A cell's explicit `tooltip`, or undefined when it has none to show (absent or blank). */
 const explicitTooltip = (cell: TableCell | undefined): string | undefined => (cell?.tooltip?.trim() ? cell.tooltip : undefined)
+
+/** A percentage a cell sends, as a number in 0-100; anything else is 0. */
+const percent = (value: number | undefined): number => (typeof value === 'number' && Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0)
+
+/**
+ * A cell's `indent`, in whole levels (0 when absent or not a positive number). Any cell kind may carry it: the
+ * trace waterfall indents each span's name under the span that called it.
+ */
+const cellIndent = (cell: TableCell | undefined): number => (typeof cell?.indent === 'number' && cell.indent > 0 ? Math.floor(cell.indent) : 0)
+
+/** One indent level, px: the spacing scale's `md` step. */
+const INDENT_STEP = spacing.md
+
+/**
+ * A column's header. A ruler (`rulerStart`/`rulerEnd`): the scale of a waterfall column's bars, one label at each
+ * end of the bars' track, in the header's face but as written (not upper-cased: "5.81 s", not "5.81 S"); the
+ * title stays the column's name for assistive tech (and for resizing and export). Otherwise the title: in a
+ * truncating table it wraps onto two lines rather than ellipsize, so a title's unit ("CPU request (m)") is not
+ * the part that is cut (columnLayout sizes the columns for that), and past two lines it ellipsizes, full title on
+ * hover; in any other table it ellipsizes on one line.
+ */
+const columnHeader = ({ rulerEnd, rulerStart, title }: { rulerEnd?: string; rulerStart?: string; title: string }, truncating: boolean): ReactNode => {
+  if (rulerStart !== undefined || rulerEnd !== undefined) {
+    return (
+      <div className={styles.ruler}>
+        <span className={styles.srOnly}>{title}</span>
+        <span aria-hidden>{rulerStart}</span>
+        <span aria-hidden>{rulerEnd}</span>
+      </div>
+    )
+  }
+  if (truncating) { return <span className={styles.headerWrap} title={title}>{title}</span> }
+  return (
+    <div className={styles.headerEllipsis}>
+      <Typography.Text ellipsis={{ tooltip: true }}>
+        {title}
+      </Typography.Text>
+    </div>
+  )
+}
 
 /** --krateo-text-label-sm, px: the header's font size. */
 const HEADER_FONT_SIZE = 11
@@ -134,6 +175,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
       case 'tag':
         return <TableCellTooltip display='tag' title={tooltip}>{node}</TableCellTooltip>
       case 'bar':
+      case 'span':
         return <TableCellTooltip display='block' label={{ name: tooltip, role: 'group' }} title={tooltip}>{node}</TableCellTooltip>
       case 'conditions':
         return <TableCellTooltip display='block' title={tooltip}>{node}</TableCellTooltip>
@@ -197,7 +239,8 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
   // started right of its header, 568px against 534px.
   const truncating = Boolean(fitContent) || virtual
   // antd Table cell inline padding: `padding` for large, `paddingXS` for middle and small.
-  const cellPadding = 2 * (size === 'large' ? token.padding : token.paddingXS) + (bordered ? token.lineWidth : 0)
+  const cellInlinePadding = size === 'large' ? token.padding : token.paddingXS
+  const cellPadding = 2 * cellInlinePadding + (bordered ? token.lineWidth : 0)
   // `rowActions` (#700) — only when the widget has a way to fire them (the Table wrapper below), so
   // a Table without them lays out, and renders, exactly as it did.
   const actionControls = fireRowAction && rowActions?.length ? rowActions : undefined
@@ -335,12 +378,15 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
   const table = (
     <AntdTable
       bordered={bordered}
-      columns={[...columns.map(({ color, minWidth, title, valueKey, width }, index) => ({
+      columns={[...columns.map(({ color, minWidth, rulerEnd, rulerStart, title, valueKey, width }, index) => ({
         // UX #13: inferred client-side sorting — an automatic `sorter` comparing
         // the RAW dataSource values (numeric / kubectl-age / ISO-date / string,
         // sniffed per column) + `align: 'right'` for numeric/age columns. No
         // default sortOrder: the server's jq order stays until a header click.
-        ...getColumnSortProps(dataTable, valueKey),
+        //
+        // A column with a ruler (`rulerStart`/`rulerEnd`, a waterfall) has no sorter: its rows are in the trace's
+        // own order, and the sorter's icon would sit at the ruler's end, off the end of the bars' track.
+        ...(rulerStart === undefined && rulerEnd === undefined ? getColumnSortProps(dataTable, valueKey) : {}),
         // Numbers right-align and text left-aligns, decided by the cells' kind (isNumericColumn), so
         // one placeholder cell cannot flip a column of numbers to the left.
         ...(layout.numeric[index] ? { align: 'right' as const } : {}),
@@ -373,6 +419,13 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
         // The resize handle's wiring, read by TableResizableHeaderCell; antd merges it with the
         // sorter's own th props. Cast: onHeaderCell is typed as plain th attributes. Without it
         // (resizableColumns: false) the cell renders a plain th, with no handle.
+        // `indent` (any cell kind): the cell's content starts that many levels in, as the td's own inline-start
+        // padding grows, so nothing is wrapped round the content (a truncating table's full-text-on-hover title,
+        // which rc-table reads off the content, still works). A cell without one gets no style at all.
+        onCell: (row: TableRow) => {
+          const levels = cellIndent(row.find((cell) => cell.valueKey === valueKey))
+          return levels ? { style: { paddingInlineStart: cellInlinePadding + levels * INDENT_STEP } } : {}
+        },
         onHeaderCell: resizable ? () => ({ resize: columnResize(index) }) as HTMLAttributes<HTMLElement> : undefined,
         render: withCellTooltip(valueKey, (_: unknown, row: TableRow) => {
           const cell = row.find((cell) => cell.valueKey === valueKey)
@@ -382,7 +435,7 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
             return <span>{EMPTY_CELL}</span>
           }
 
-          const { arrayValue, booleanValue, color: cellColor, decimalValue, format, kind, numberValue, resourceRefId, stringValue, type } = cell
+          const { arrayValue, booleanValue, color: cellColor, decimalValue, format, kind, numberValue, offsetPercent, resourceRefId, secondaryText, stringValue, type, widthPercent } = cell
 
           switch (kind) {
             case 'tag':
@@ -404,6 +457,27 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
               return (
                 <div className={styles.railBar} style={{ '--rail-rem': barColor } as CSSProperties}>
                   <Progress percent={Number.isFinite(pct) ? pct : 0} showInfo={false} size='small' strokeColor={getColorCode('cyan')} />
+                </div>
+              )
+            }
+
+            case 'span': {
+              // A waterfall bar (the trace page's spans): it starts `offsetPercent` of the way along the cell
+              // and is `widthPercent` long, never thinner than 2px so a span of a few microseconds still shows,
+              // in the cell's colour (the column's, else the neutral grey). `stringValue` (the duration) is
+              // written after it, in a fixed-width slot so every row's track lines up. Quarter rules behind
+              // the bar read as the column title's scale ("0 … 5.81 s").
+              const offset = percent(offsetPercent)
+              const length = Math.min(percent(widthPercent), 100 - offset)
+              return (
+                <div className={styles.span}>
+                  <div aria-hidden className={styles.spanTrack}>
+                    <span
+                      className={styles.spanBar}
+                      style={{ background: getColorCode(cellColor ?? color ?? 'gray'), insetInlineStart: `min(${offset}%, calc(100% - 2px))`, width: `${length}%` }}
+                    />
+                  </div>
+                  {stringValue ? <span className={styles.spanValue}>{stringValue}</span> : null}
                 </div>
               )
             }
@@ -468,10 +542,27 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
                   // raw value stays in the data (and sorts as a date); only the rendering changes. A cell's
                   // explicit `tooltip` stays its only tooltip (withCellTooltip), so it gets the words alone.
                   const textStyle = { color: resolveTextColor(cellColor ?? color) }
-                  if (!stringValue) { return <span style={textStyle}>{EMPTY_CELL}</span> }
                   const timeForm = timeFormOf(format)
-                  if (timeForm && !explicitTooltip(cell)) { return <TimeText form={timeForm} style={textStyle} value={stringValue} /> }
-                  return <span style={textStyle}>{timeForm ? formatTime(stringValue, timeForm) : stringValue}</span>
+                  let main: ReactNode
+                  if (!stringValue) {
+                    main = <span style={textStyle}>{EMPTY_CELL}</span>
+                  } else if (timeForm && !explicitTooltip(cell)) {
+                    main = <TimeText form={timeForm} style={textStyle} value={stringValue} />
+                  } else {
+                    main = <span style={textStyle}>{timeForm ? formatTime(stringValue, timeForm) : stringValue}</span>
+                  }
+                  if (!secondaryText) { return main }
+                  // `secondaryText`: a second line, muted and small, under the value (the trace waterfall's
+                  // service under each span's name). Each line wraps or ellipsizes as the cell's text does; in a
+                  // truncating table rc-table cannot title two lines, so each carries its own full text on hover,
+                  // unless the cell has its own `tooltip`, which stays its only one.
+                  const titled = truncating && !explicitTooltip(cell)
+                  return (
+                    <div className={styles.twoLines}>
+                      <span className={styles.lineMain} title={titled && typeof stringValue === 'string' && !timeForm ? stringValue : undefined}>{main}</span>
+                      <span className={styles.lineSecondary} title={titled ? secondaryText : undefined}>{secondaryText}</span>
+                    </div>
+                  )
                 }
                 case 'number':
                 case 'integer':
@@ -494,18 +585,8 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
               return <span>{EMPTY_CELL}</span>
           }
         }),
-        // A truncating table's header wraps onto two lines rather than ellipsize, so a title's unit
-        // ("CPU request (m)") is not the part that is cut; columnLayout sizes the columns for that.
-        // Past two lines it ellipsizes, full title on hover.
-        title: truncating
-          ? <span className={styles.headerWrap} title={title}>{title}</span>
-          : (
-            <div className={styles.headerEllipsis}>
-              <Typography.Text ellipsis={{ tooltip: true }}>
-                {title}
-              </Typography.Text>
-            </div>
-          ),
+        // The ruler, or the title (columnHeader).
+        title: columnHeader({ rulerEnd, rulerStart, title }, truncating),
         width: resized ? resizedWidth(index) : widths[index] ?? width,
       })), ...actionsColumn]}
       components={TABLE_COMPONENTS}

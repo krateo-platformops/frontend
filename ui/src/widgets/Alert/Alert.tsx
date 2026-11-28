@@ -2,6 +2,7 @@ import { RightOutlined } from '@ant-design/icons'
 import { Alert as AntdAlert, Button, Tag } from 'antd'
 import { type ReactNode, useId, useState } from 'react'
 
+import { withTimeTokens } from '../../components/TimeText/withTimeTokens'
 import { getTagStyle } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
 
@@ -75,24 +76,27 @@ const Rows = ({ fold, mono, rows }: { fold?: RowsFold; mono?: boolean; rows: str
     : <div className={styles.rowsBlock}>{list}</div>
 }
 
+// `title` and `description` may carry time tokens ({ago:<ISO>}…, components/TimeText/withTimeTokens), written
+// in the browser in the viewer's zone. Text without one is passed through as the same string.
 const Alert = ({ uid, widgetData }: WidgetProps<AlertWidgetData>) => {
-  const { description, details, rows, rowsFold, rowsMonospace, tag, ...rest } = widgetData
+  const { description: rawDescription, details, rows, rowsFold, rowsMonospace, tag, ...rest } = widgetData
+  const description = withTimeTokens(rawDescription)
   const hasRows = rows !== undefined && rows.length > 0
 
   // None of the optional fields set: antd's Alert exactly as before, with nothing wrapped around
   // title or description.
   if (!tag && !details && !hasRows) {
-    return <AntdAlert key={uid} {...rest} description={description} />
+    return <AntdAlert key={uid} {...rest} description={description} title={withTimeTokens(rest.title)} />
   }
 
   const title = tag
     ? (
       <span className={styles.title}>
-        {rest.title}
+        {withTimeTokens(rest.title)}
         <Tag className={styles.tag} style={getTagStyle(paintedType(widgetData))}>{tag}</Tag>
       </span>
     )
-    : rest.title
+    : withTimeTokens(rest.title)
 
   const body = hasRows || details
     ? (

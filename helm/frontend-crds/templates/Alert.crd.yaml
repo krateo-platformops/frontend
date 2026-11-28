@@ -145,7 +145,7 @@ spec:
                       description: whether the alert can be dismissed
                       type: boolean
                     description:
-                      description: the alert detail text
+                      description: 'the alert detail text. A time in it is a token the browser writes, in the viewer''s time zone with the full date on hover: `{ago:2026-11-04T10:10:27Z}` ("3 weeks ago"), `{age:…}` ("3 weeks"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"). Never a time formatted in jq: it is in UTC, and an age is frozen in snowplow''s cache.'
                       type: string
                     details:
                       description: the full message, folded inside the alert under a collapsed "Details" disclosure; plain text, line breaks kept. Omit it for no disclosure.
@@ -177,7 +177,7 @@ spec:
                       description: a short reason drawn beside the title as a tag in the alert's own type colour, for example `CrashLoopBackOff`. Omit it for no tag.
                       type: string
                     title:
-                      description: the alert title
+                      description: 'the alert title. A time in it is a token the browser writes, in the viewer''s time zone with the full date on hover: `{ago:2026-11-04T10:10:27Z}` ("3 weeks ago"), `{age:…}` ("3 weeks"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"). Never a time formatted in jq: it is in UTC, and an age is frozen in snowplow''s cache.'
                       type: string
                     type:
                       description: the alert severity

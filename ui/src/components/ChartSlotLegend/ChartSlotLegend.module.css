@@ -1,0 +1,39 @@
+/* The slot marks' legend under a chart (approved charts mockup, 2026-11-25): centred, as G2 centres its own
+   series legend, in the muted ink at caption size. */
+.legend {
+  align-items: center;
+  color: var(--gray-color);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--krateo-text-caption);
+  gap: var(--spacing-xs) var(--spacing-smd);
+  justify-content: center;
+  list-style: none;
+  margin: var(--spacing-xs) 0 0;
+  padding: 0;
+}
+
+.item {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--spacing-xsm);
+}
+
+.swatch {
+  border-radius: 1px;
+  flex: none;
+  height: 10px;
+  width: 10px;
+}
+
+/* The slot still filling: a dashed outline round a faint fill, as a partial bar is drawn. */
+.partial {
+  background: color-mix(in srgb, var(--faint-color) 15%, transparent);
+  border: 1px dashed var(--faint-color);
+}
+
+/* No data: the band's hatch, inside the band's own border. */
+.missing {
+  background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--faint-color) 50%, transparent) 0 1.3px, transparent 1.3px 4.2px);
+  border: 1px solid var(--border-color);
+}

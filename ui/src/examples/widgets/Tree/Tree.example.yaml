@@ -1,0 +1,107 @@
+# Basic tree
+# Target: a flat list of nodes nested through `parentKey`, every node open.
+# Expected behavior: two roots; "frontend" holds two children, one of which holds a third level.
+kind: Tree
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-tree-basic
+  namespace: krateo-system
+spec:
+  widgetData:
+    defaultExpandAll: true
+    items:
+      - key: frontend
+        title: frontend
+      - key: frontend-ui
+        parentKey: frontend
+        title: ui
+      - key: frontend-ui-src
+        parentKey: frontend-ui
+        title: src
+      - key: frontend-helm
+        parentKey: frontend
+        title: helm
+      - key: backend
+        title: backend
+---
+# A composition and the resources it owns
+# Target: icons coloured by health (palette names), a muted `description` with the kind,
+# connector lines, `navigateTo` on the nodes that have a page, and `selectedKey` marking
+# the open one.
+# Expected behavior: the composition is open on its Deployment (selected, highlighted)
+# because the selected node's ancestors open with it; the failing Secret has a red icon;
+# the ConfigMap has no page, so it is not selectable.
+kind: Tree
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-tree-resources
+  namespace: krateo-system
+spec:
+  widgetData:
+    showLine: true
+    selectedKey: deploy
+    items:
+      - key: app
+        title: fireworks-app
+        description: FireworksApp
+        icon: fa-cubes
+        color: blue
+        navigateTo: /compositions/demo/fireworks-app
+      - key: chart
+        parentKey: app
+        title: fireworks-app-chart
+        description: Release
+        icon: fa-box
+        color: green
+      - key: deploy
+        parentKey: chart
+        title: fireworks-app
+        description: Deployment
+        icon: fa-circle-check
+        color: green
+        navigateTo: /compositions/demo/fireworks-app?resource=deployment
+      - key: svc
+        parentKey: chart
+        title: fireworks-app
+        description: Service
+        icon: fa-circle-check
+        color: green
+        navigateTo: /compositions/demo/fireworks-app?resource=service
+      - key: cm
+        parentKey: chart
+        title: fireworks-app-config
+        description: ConfigMap
+        icon: fa-file-lines
+      - key: secret
+        parentKey: chart
+        title: fireworks-app-db
+        description: Secret
+        icon: fa-circle-xmark
+        color: red
+        navigateTo: /compositions/demo/fireworks-app?resource=secret
+---
+# A large tree in a fixed height
+# Target: `height` turns on virtual scroll; `defaultExpandedKeys` opens one branch;
+# a disabled node; a node whose parent is missing.
+# Expected behavior: a 160px box that scrolls; "region-eu" is open; "region-us" is greyed
+# out; "orphan-cluster" names a parent that is not in the list, so it is drawn at the root.
+kind: Tree
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-tree-large
+  namespace: krateo-system
+spec:
+  widgetData:
+    height: 160
+    defaultExpandedKeys: [region-eu]
+    items:
+      - { key: region-eu, title: eu-west-1, icon: fa-earth-europe }
+      - { key: eu-1, parentKey: region-eu, title: cluster-prod-01, description: "12 nodes", icon: fa-server }
+      - { key: eu-2, parentKey: region-eu, title: cluster-prod-02, description: "9 nodes", icon: fa-server }
+      - { key: eu-3, parentKey: region-eu, title: cluster-staging, description: "4 nodes", icon: fa-server }
+      - { key: eu-4, parentKey: region-eu, title: cluster-dev, description: "2 nodes", icon: fa-server }
+      - { key: eu-5, parentKey: region-eu, title: cluster-ci, description: "6 nodes", icon: fa-server }
+      - { key: eu-6, parentKey: region-eu, title: cluster-data, description: "8 nodes", icon: fa-server }
+      - { key: region-us, title: us-east-1, icon: fa-earth-americas, disabled: true }
+      - { key: us-1, parentKey: region-us, title: cluster-prod-us, description: "15 nodes", icon: fa-server }
+      - { key: orphan-cluster, parentKey: region-ap, title: cluster-tokyo, description: "3 nodes", icon: fa-server }
