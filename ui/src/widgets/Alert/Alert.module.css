@@ -45,3 +45,29 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
+/* The rows (Alert.tsx): a compact list under the description, in the alert's own text. Open they
+   follow the description at the same gap the Details disclosure uses; folded they sit inside the
+   same disclosure panel, which supplies the gap. */
+.rows,
+.rowsMono {
+  display: grid;
+  gap: var(--spacing-xxs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rowsMono {
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-xs);
+}
+
+.rows li,
+.rowsMono li {
+  overflow-wrap: anywhere;
+}
+
+.rowsBlock:not(:first-child) {
+  margin-top: var(--spacing-xsm);
+}

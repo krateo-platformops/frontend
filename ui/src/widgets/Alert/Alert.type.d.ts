@@ -56,6 +56,27 @@ export interface Alert {
        * the full message, folded inside the alert under a collapsed "Details" disclosure; plain text, line breaks kept. Omit it for no disclosure.
        */
       details?: string
+      /**
+       * short lines drawn inside the alert's box under the description, as a compact list, one per entry; plain text. The widget has no length limit of its own, the page decides how many to send. Omit it for no list.
+       */
+      rows?: string[]
+      /**
+       * draw the rows in the monospace font, for paths, keys and other identifiers. Default false.
+       */
+      rowsMonospace?: boolean
+      /**
+       * fold the rows under a disclosure button with this label instead of drawing them straight away. Omit it and the rows are always shown, with no disclosure. The page decides when to fold; the widget has no threshold.
+       */
+      rowsFold?: {
+        /**
+         * the disclosure button's text, for example `Show the 14 fields`
+         */
+        label: string
+        /**
+         * whether the rows start expanded. Default false.
+         */
+        open?: boolean
+      }
     }
     /**
      * Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData.

@@ -97,3 +97,78 @@ describe('Alert — tag and details', () => {
     expect(widget).toBe(antd)
   })
 })
+
+describe('Alert — rows', () => {
+  afterEach(() => { cleanup() })
+
+  const rows = ['replicaCount: form 1 · chart 2', 'image.tag: form "latest" · chart "0.4.2"', '+4 more']
+
+  it('draws the rows open, inside the box under the description, with no disclosure', () => {
+    const { container } = renderAlert({ description: 'Align them.', rows, title: 'Differ', type: 'info' })
+
+    const body = container.querySelector('.ant-alert-description')
+    const items = body?.querySelectorAll('ul > li')
+    expect(Array.from(items ?? []).map((li) => li.textContent)).toEqual(rows)
+    expect(body?.textContent?.startsWith('Align them.')).toBe(true)
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('picks the monospace font by rowsMonospace', () => {
+    const plain = renderAlert({ rows, title: 't' }).container.querySelector('ul')
+    const plainClass = plain?.className
+    cleanup()
+    const mono = renderAlert({ rows, rowsMonospace: true, title: 't' }).container.querySelector('ul')
+    expect(mono?.className).not.toBe(plainClass)
+    expect(mono?.className).toMatch(/rowsMono/)
+    expect(plainClass).not.toMatch(/rowsMono/)
+  })
+
+  it('folds the rows under the CR\'s label: closed, hidden, opens on click, aria-expanded flips', async () => {
+    const { container } = renderAlert({ rows, rowsFold: { label: 'Show the 14 fields' }, title: 'Differ', type: 'info' })
+
+    const toggle = screen.getByRole('button', { name: 'Show the 14 fields' })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    const panel = document.getElementById(toggle.getAttribute('aria-controls') ?? '')
+    expect(panel?.hidden).toBe(true)
+    expect(panel?.querySelectorAll('li')).toHaveLength(3)
+    expect(container.querySelector('.ant-alert-description')?.contains(toggle)).toBe(true)
+
+    const user = userEvent.setup()
+    await user.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(panel?.hidden).toBe(false)
+    await user.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(panel?.hidden).toBe(true)
+  })
+
+  it('starts a fold expanded when rowsFold.open is true', () => {
+    renderAlert({ rows, rowsFold: { label: 'Fields', open: true }, title: 't' })
+
+    expect(screen.getByRole('button', { name: 'Fields' }).getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('adds nothing for no rows, an empty list, or a fold without rows', () => {
+    for (const widgetData of [
+      { title: 't' },
+      { rows: [], title: 't' },
+      { rowsFold: { label: 'Show' }, title: 't' },
+    ] satisfies AlertWidgetData[]) {
+      const widget = renderAlert(widgetData).container.innerHTML
+      cleanup()
+      const antd = render(<AntdAlert title='t' />).container.innerHTML
+      expect(widget).toBe(antd)
+    }
+  })
+
+  it('puts rows between the description and Details when both are set', () => {
+    const { container } = renderAlert({ description: 'Summary.', details: 'Long message.', rows, title: 't' })
+
+    const body = container.querySelector('.ant-alert-description') as HTMLElement
+    const text = body.textContent ?? ''
+    expect(text.indexOf('Summary.')).toBeLessThan(text.indexOf(rows[0]))
+    expect(text.indexOf(rows[0])).toBeLessThan(text.indexOf('Details'))
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Details' }).getAttribute('aria-expanded')).toBe('false')
+  })
+})

@@ -40,3 +40,45 @@ spec:
     details: |-
       Deployment "web" exceeded its progress deadline.
       ReplicaSet "web-7d9c" has 0 of 3 replicas available.
+---
+# Rows: a compact list inside the alert's box, under the description. Shown open when no fold is
+# given; `rowsMonospace` draws them in the mono font (paths, keys). The page decides how many rows
+# to send and whether to fold; the widget has no threshold. Templatable like the other fields.
+kind: Alert
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-alert-rows
+  namespace: krateo-system
+spec:
+  widgetData:
+    title: "Form defaults differ from the chart's values"
+    description: "Align values.schema.json's defaults with values.yaml."
+    type: "info"
+    showIcon: true
+    rowsMonospace: true
+    rows:
+      - "replicaCount: form 1 · chart 2"
+      - "image.tag: form \"latest\" · chart \"0.4.2\""
+      - "service.type: form \"ClusterIP\" · chart \"LoadBalancer\""
+---
+# The same rows folded under a disclosure the CR labels; `open: false` (the default) starts closed.
+kind: Alert
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-alert-rows-folded
+  namespace: krateo-system
+spec:
+  widgetData:
+    title: "Form defaults differ from the chart's values"
+    description: "Align values.schema.json's defaults with values.yaml."
+    type: "info"
+    showIcon: true
+    rowsMonospace: true
+    rowsFold:
+      label: "Show the 14 fields"
+      open: false
+    rows:
+      - "replicaCount: form 1 · chart 2"
+      - "image.tag: form \"latest\" · chart \"0.4.2\""
+      - "service.type: form \"ClusterIP\" · chart \"LoadBalancer\""
+      - "+11 more"

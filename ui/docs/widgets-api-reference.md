@@ -33,6 +33,11 @@ Alert displays an inline contextual message
 | closable | no | whether the alert can be dismissed | boolean |
 | tag | no | a short reason drawn beside the title as a tag in the alert's own type colour, for example `CrashLoopBackOff`. Omit it for no tag. | string |
 | details | no | the full message, folded inside the alert under a collapsed "Details" disclosure; plain text, line breaks kept. Omit it for no disclosure. | string |
+| rows | no | short lines drawn inside the alert's box under the description, as a compact list, one per entry; plain text. The widget has no length limit of its own, the page decides how many to send. Omit it for no list. | array |
+| rowsMonospace | no | draw the rows in the monospace font, for paths, keys and other identifiers. Default false. | boolean |
+| rowsFold | no | fold the rows under a disclosure button with this label instead of drawing them straight away. Omit it and the rows are always shown, with no disclosure. The page decides when to fold; the widget has no threshold. | object |
+| rowsFold.label | yes | the disclosure button's text, for example `Show the 14 fields` | string |
+| rowsFold.open | no | whether the rows start expanded. Default false. | boolean |
 
 
 [Examples](../src/examples/widgets/Alert/Alert.example.yaml)
