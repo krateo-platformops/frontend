@@ -11,6 +11,9 @@
  * a fixed width from its widest value and its two-line header, as a tag column does; the text columns
  * share what is left. Numbers right-align and text left-aligns, decided by the cells' kind.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { cleanup, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -36,7 +39,7 @@ vi.mock('../../components/FiltesProvider/FiltersProvider', () => ({
 
 import Table from './Table'
 import type { TableWidgetData } from './Table'
-import { columnLayout, HEADER_GLYPH_EM, headerLineChars, headerWidth, isNumericColumn, NUM_GLYPH_EM, TAG_GLYPH_EM } from './tableColumnWidths'
+import { columnLayout, HEADER_GLYPH_EM, headerLineChars, headerWidth, isNumericColumn, isSentence, NUM_GLYPH_EM, SENTENCE_CHARS, squeezeSlack, TAG_GLYPH_EM } from './tableColumnWidths'
 import { VIRTUAL_ROW_THRESHOLD } from './tablePagination'
 
 afterEach(cleanup)
@@ -152,8 +155,20 @@ describe('columnLayout — numeric and text columns', () => {
     expect(scrollX).toBe(containerWidth)
   })
 
+  // TBL-1 (UX audit, 2026-11-25): /agents' token tables overran their card by a few px (measured in
+  // Chromium: 478px of floors in 470px) and drew a full-width scrollbar for them.
+  it('a fitContent table within squeezeSlack of fitting squeezes its text columns instead of scrolling', () => {
+    const floors = header('Pod') + header('Namespace')
+    const containerWidth = fixed + floors - squeezeSlack(floors)
+    const { scrollX, widths } = columnLayout(columns, rows, tokens, { containerWidth })
+
+    expect((widths[0] ?? 0) + (widths[1] ?? 0)).toBe(floors - squeezeSlack(floors))
+    expect(scrollX).toBe(containerWidth)
+  })
+
   it('a fitContent table too narrow for every header keeps their floors and scrolls', () => {
     const containerWidth = fixed + 60
+    expect(header('Pod') + header('Namespace') - 60).toBeGreaterThan(squeezeSlack(header('Pod') + header('Namespace')))
     const { scrollX, widths } = columnLayout(columns, rows, tokens, { containerWidth })
 
     expect(widths.slice(0, 2)).toEqual([undefined, undefined])
@@ -213,5 +228,42 @@ describe('Table — headers, widths and alignment', () => {
 
     const row = container.querySelector('.ant-table-tbody .ant-table-row')
     expect(alignOf(row?.children[2])).toBe('right')
+  })
+})
+
+// TBL-1 (UX audit, 2026-11-25): in a table sized to its content one unwrapped sentence made the table
+// several times its container's width (measured in Chromium: 997px in 608; with the wrap, 608 in 608).
+describe('a sentence wraps inside its cell', () => {
+  const sentence = 'The composition demo-system/spring-summit has remained Synced=False because the apiserver rejected the patch.'
+  const evidence = (fitContent?: boolean) => renderTable({
+    columns: [{ title: 'Source', valueKey: 'source' }, { title: 'What the model saw', valueKey: 'saw' }],
+    dataSource: [[
+      { kind: 'jsonSchemaType', stringValue: 'kubernetes', type: 'string', valueKey: 'source' },
+      { kind: 'jsonSchemaType', stringValue: sentence, type: 'string', valueKey: 'saw' },
+    ]] as unknown as Rows,
+    fitContent,
+  })
+  const spanOf = (container: HTMLElement, text: string) => [...container.querySelectorAll('.ant-table-tbody span')].find((span) => span.textContent === text)
+
+  it('a sentence is text past SENTENCE_CHARS with a space in it; a long name is not', () => {
+    expect(isSentence(sentence)).toBe(true)
+    expect(isSentence('short text')).toBe(false)
+    expect(isSentence('x'.repeat(SENTENCE_CHARS + 20))).toBe(false)
+    const css = readFileSync(join(__dirname, 'Table.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = /\.sentence\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(rule).toMatch(new RegExp(`max-width:\\s*${SENTENCE_CHARS}ch;`))
+    expect(rule).toMatch(/white-space:\s*normal;/)
+    expect(rule).toMatch(/display:\s*inline-block;/)
+  })
+
+  it('in a max-content table its cell carries the wrapping class, a name\'s does not', () => {
+    const { container } = evidence()
+    expect(spanOf(container, sentence)?.className).toMatch(/sentence/)
+    expect(spanOf(container, 'kubernetes')?.className ?? '').not.toMatch(/sentence/)
+  })
+
+  it('a truncating (fitContent) table keeps its one-line ellipsis', () => {
+    const { container } = evidence(true)
+    expect(spanOf(container, sentence)?.className ?? '').not.toMatch(/sentence/)
   })
 })

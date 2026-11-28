@@ -21,7 +21,7 @@ import styles from './Table.module.css'
 import type { Table as WidgetType } from './Table.type'
 import TableCellTooltip from './TableCellTooltip'
 import { type ColumnWidths, DEFAULT_COLUMN_WIDTH, readColumnWidths, writeColumnWidths } from './tableColumnResize'
-import { columnLayout, rowActionsColumnWidth } from './tableColumnWidths'
+import { columnLayout, isSentence, rowActionsColumnWidth } from './tableColumnWidths'
 import { buildExportRequest } from './tableExport'
 import TableExportControl from './TableExportControl'
 import { computeTablePagination, shouldVirtualize, VIRTUAL_SCROLL_Y } from './tablePagination'
@@ -471,7 +471,13 @@ const TableView = ({ deniedRefIds, exportRequestFor, failedRefs, fireRowAction, 
                   if (!stringValue) { return <span style={textStyle}>{EMPTY_CELL}</span> }
                   const timeForm = timeFormOf(format)
                   if (timeForm && !explicitTooltip(cell)) { return <TimeText form={timeForm} style={textStyle} value={stringValue} /> }
-                  return <span style={textStyle}>{timeForm ? formatTime(stringValue, timeForm) : stringValue}</span>
+                  const text = timeForm ? formatTime(stringValue, timeForm) : stringValue
+                  // A sentence wraps inside its cell (TBL-1) in a table that sizes columns to their
+                  // content: one unwrapped sentence (a proposal's evidence, a controller's next step)
+                  // made the table several times its container's width, and the sentence that mattered
+                  // was the one cut. A truncating table keeps its one-line ellipsis.
+                  const sentence = !truncating && isSentence(text)
+                  return <span className={sentence ? styles.sentence : undefined} style={textStyle}>{text}</span>
                 }
                 case 'number':
                 case 'integer':

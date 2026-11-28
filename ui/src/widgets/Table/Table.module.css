@@ -18,6 +18,17 @@
   white-space: nowrap;
 }
 
+/* A sentence in a table that sizes its columns to their content (`scroll.x: max-content`) wraps
+   inside its cell instead of widening the table (TBL-1). An inline-block's max-content width is
+   capped by its max-width, so the column asks for at most 60ch (SENTENCE_CHARS in
+   tableColumnWidths.ts) and the text wraps there; a shorter sentence keeps its one line. */
+.sentence {
+  display: inline-block;
+  max-width: 60ch;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 /* `bar` cell — the reconciliation-rail gauge (Progress fill in the state colour + an
    amber "desired/target" target-tick at the 100% edge). Ports the List railBar marker. */
 .railBar {
