@@ -533,19 +533,18 @@ today, and stop the seventh being added.
 *Evidence: measured across 44 `ui/src/widgets/*/*.schema.json` (2,317 properties, 799 described) and
 the 44 widget `.tsx` files (30 import their own antd namesake, 14 do not)*
 
-### C26 — A button's colour says what it does to the work: closing is amber, deleting is red.
+### C26 — A button's colour says what it does to the work: closing is the neutral outline, deleting is red.
 
 **Status:** **enforced** — app side (`ui/src/test/buttonRoles.test.ts`) and chart side (the composition lint's `button-role` rule)
 
 Three roles, decided by what the button does, not by where it sits:
 
 - **Dismiss** — it closes or backs out and deletes nothing stored: *Cancel*, *Close*, *Close draft*,
-  *Keep editing*, *Dismiss*. **Amber, outlined** (`--krateo-color-status-warning-text`, the hover on
-  `…-warning-subtle`). In the app: `components/DismissButton`, or `dismissButtonProps` where antd
+  *Keep editing*, *Dismiss*. **The neutral default outline** — antd's default button, the look of
+  *Reset*, *Discard* in a form and *Reject*; never primary, never amber. In the app: `components/DismissButton`, or `dismissButtonProps` where antd
   builds the button itself — every `Popconfirm`'s and `Modal`'s Cancel, and `modal.confirm`'s. In a
   CR: `intent: dismiss` on the `Button` widget. The `Form` widget's secondary takes it on its own
-  when it navigates away (`secondary.navigateTo`); a `Reset`, which clears unsaved input in place,
-  stays neutral.
+  when it navigates away (`secondary.navigateTo`), and looks like the `Reset` it replaces.
 - **Destroy** — it deletes content: *Delete*, *Remove*, *Discard* a draft, *Uninstall*. **Red**:
   antd's `danger`, on the button that opens the confirmation and on the confirmation's own OK. When
   one dialog can do either — *Close draft* keeps the draft if it was saved and discards it if not —
@@ -557,18 +556,25 @@ Three roles, decided by what the button does, not by where it sits:
 - **Everything else** keeps its place in the primary / secondary hierarchy
   ([P6](03-composition.md#p6--one-primary-action-per-container--a-page-header-or-a-self-contained-panel)).
 
-Amber and red are kept apart on purpose: if closing a dialog and deleting a chart shared a colour,
-the colour would stop warning about the one that cannot be undone.
+Closing is neutral and deleting is red on purpose: if closing a dialog and deleting a chart shared a
+colour, the colour would stop warning about the one that cannot be undone. Amber is kept for real
+warnings, the transitional and the cautionary, so the safest button on a form does not wear it.
 
 The check reads labels, because a label is the only place a CR — or a `<Button>` in the app — says
 which role it has. The app-side test also requires the Cancel that antd draws inside every
 `Popconfirm`, `Modal` and confirm dialog to carry `dismissButtonProps`, since no label in the code
 names that button. A native `<button>` is outside both checks: the one there is (the Agentiko voice
-row's *Cancel*) is styled amber in its own stylesheet.
+row's *Cancel*) draws the same neutral outline in its own stylesheet.
 
 > **Decided 2026-10-08.** Reported on *Close draft*, which looked exactly like *Preview* and *Undo*
 > beside it. The product call extends it to every Cancel, "so the role of something that closes is
 > defined", and keeps red for a real deletion of content.
+>
+> **Revised 2026-11-25: closing is no longer amber.** The UX audit (COL-2, portal#516) found
+> *Cancel*, *Close* and *Dismiss* drawn as amber outlines beside a neutral *Reset*, *Discard* and
+> *Reject*: amber means transitional or warning, so the safest button on the form looked like a
+> caution. Approved: the dismiss role keeps its definition, its component, `intent: dismiss` and
+> both checks (a Cancel is still never primary), and draws the neutral default outline.
 
 *Evidence: the first run of the app-side check found 32 sites — 15 Cancel buttons drawn by
 `Popconfirm`/`Modal`/`modal.confirm`, 5 dismiss `<Button>`s, 12 deletions without `danger`. Against

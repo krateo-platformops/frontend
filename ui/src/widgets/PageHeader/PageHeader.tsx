@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 
 import { CHILD_STATE_COLOR, CHILD_STATE_LABEL, describeChildHealth, usePageChildHealth } from '../../components/PageHealth'
 import StatusPill from '../../components/StatusPill'
+import { withTimeTokens } from '../../components/TimeText/withTimeTokens'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import type { WidgetProps } from '../../types/Widget'
 import { resolveLocalTokens } from '../../utils/localTokens'
@@ -154,7 +155,7 @@ const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWi
             )}
           </Flex>
           {progress && <HeaderProgress progress={progress} />}
-          {resolvedSubtitle && <Typography.Paragraph className={styles.subtitle}>{resolvedSubtitle}</Typography.Paragraph>}
+          {resolvedSubtitle && <Typography.Paragraph className={styles.subtitle}>{withTimeTokens(resolvedSubtitle)}</Typography.Paragraph>}
         </div>
 
         {actions.length > 0 && (

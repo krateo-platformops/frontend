@@ -67,12 +67,15 @@ describe('relativeTime', () => {
   const base = 1_000_000_000_000
   it('buckets seconds / minutes / hours / days', () => {
     expect(relativeTime(base, base + 10_000)).toBe('just now')
-    expect(relativeTime(base, base + 5 * 60_000)).toBe('5m ago')
-    expect(relativeTime(base, base + 3 * 3_600_000)).toBe('3h ago')
-    expect(relativeTime(base, base + 2 * 86_400_000)).toBe('2d ago')
+    expect(relativeTime(base, base + 5 * 60_000)).toBe('5 minutes ago')
+    expect(relativeTime(base, base + 3 * 3_600_000)).toBe('3 hours ago')
+    expect(relativeTime(base, base + 2 * 86_400_000)).toBe('2 days ago')
   })
-  it('falls back to a date past a week', () => {
-    expect(relativeTime(base, base + 30 * 86_400_000)).toBe(new Date(base).toLocaleDateString())
+  it('keeps saying how long ago past a week, never the browser locale’s date', () => {
+    expect(relativeTime(base, base + 30 * 86_400_000)).toBe('4 weeks ago')
+  })
+  it('a clock a little ahead is "just now", never a time to come', () => {
+    expect(relativeTime(base + 5 * 60_000, base)).toBe('just now')
   })
 })
 

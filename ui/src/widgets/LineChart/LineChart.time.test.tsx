@@ -8,6 +8,8 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { formatClock, formatFull } from '../../utils/dateFormat'
+
 import type { LineChartWidgetData } from './LineChart'
 import LineChart, { timeTick, timeTitle } from './LineChart'
 
@@ -37,8 +39,15 @@ const draw = (over: Partial<LineChartWidgetData>): Drawn => {
   return lineProps.at(-1) as unknown as Drawn
 }
 
-beforeEach(() => { lineProps.length = 0 })
-afterEach(() => { cleanup() })
+// "This year" is the clock's: pinned, so a label does not change on 1 January.
+beforeEach(() => {
+  lineProps.length = 0
+  vi.useFakeTimers({ now: new Date(2026, 10, 25, 12), toFake: ['Date'] })
+})
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 describe('LineChart on a time axis', () => {
   it('24 hours: the first and the last bucket are different places, though both read 11:00', () => {
@@ -57,9 +66,11 @@ describe('LineChart on a time axis', () => {
     expect(drawn.annotations?.[1].data).toEqual([{ t: new Date(2026, 10, 24, 8), v: 3 }])
   })
 
-  it('the tooltip says the day as well as the time', () => {
+  it('the tooltip is the full date, with the viewer’s zone named, as every time’s hover is', () => {
     const drawn = draw({ data: [{ t: at(24, 8), v: 3 }] })
-    expect(drawn.tooltip?.title({ t: new Date(2026, 10, 24, 8) })).toBe('Nov 24, 08:00')
+    const title = drawn.tooltip?.title({ t: new Date(2026, 10, 24, 8) })
+    expect(title).toMatch(/^Tue 24 November 2026, 08:00:00 \(UTC([+-]\d+(:\d{2})?)?\)$/)
+    expect(title).toBe(formatFull(new Date(2026, 10, 24, 8)))
   })
 
   it('a CR’s own axis.x and scale.x still win', () => {
@@ -79,13 +90,22 @@ describe('LineChart on a time axis', () => {
 describe('tick labels', () => {
   it('an hourly axis names the day where it changes', () => {
     expect([timeTick(new Date(2026, 10, 23, 21), 'hour'), timeTick(new Date(2026, 10, 24), 'hour'), timeTick(new Date(2026, 10, 24, 3, 30), 'hour')])
-      .toEqual(['21:00', 'Nov 24', '03:30'])
+      .toEqual(['21:00', '24 Nov', '03:30'])
   })
 
   it('a daily axis labels each day once, whatever ticks fall between', () => {
     expect([timeTick(new Date(2026, 10, 23), 'day'), timeTick(new Date(2026, 10, 23, 12), 'day'), timeTick(new Date(2026, 10, 24), 'day')])
-      .toEqual(['Nov 23', '', 'Nov 24'])
-    expect(timeTitle(new Date(2026, 10, 23, 1), 'day')).toBe('Nov 23')
+      .toEqual(['23 Nov', '', '24 Nov'])
+    expect(timeTitle(new Date(2026, 10, 23, 1), 'day')).toBe('Mon 23 November 2026')
+  })
+
+  it('a day in another year carries its year, as text does', () => {
+    expect(timeTick(new Date(2025, 11, 31), 'day')).toBe('31 Dec 2025')
+  })
+
+  it('a tick reads the same clock as the text beside the chart: one zone, the viewer’s', () => {
+    const iso = '2026-11-24T07:00:00Z'
+    expect(timeTick(new Date(iso), 'hour')).toBe(formatClock(iso))
   })
 
   it('what is not a moment is left alone', () => {

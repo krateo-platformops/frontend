@@ -102,7 +102,7 @@ describe('history column (split view)', () => {
     expect(getByText('How do I scale my app?')).toBeTruthy()
     expect(getByText('What is a composition?')).toBeTruthy()
     // Relative time + message count metadata is shown.
-    expect(getByText(/5m ago · 4 msgs/)).toBeTruthy()
+    expect(getByText(/5 minutes ago · 4 msgs/)).toBeTruthy()
   })
 
   it('shows the honest empty note when there is no history', () => {

@@ -1,5 +1,5 @@
 import type { Table as WidgetType } from './Table.type'
-import { isBlank, NUMERIC_RE } from './tableSorting'
+import { EMPTY_CELL, isBlank, NUMERIC_RE } from './tableSorting'
 
 type WidgetData = WidgetType['spec']['widgetData']
 type Column = WidgetData['columns'][number]
@@ -123,7 +123,7 @@ export const headerWidth = (column: Column, tokens: ColumnTokens): number => (
 const longestValue = (rows: Row[], valueKey: string, accept: (cell: Cell) => boolean): number => rows.reduce((longest, row) => {
   const cell = cellOf(row, valueKey)
   if (!cell || !accept(cell)) { return longest }
-  return Math.max(longest, (cell.kind === 'tag' ? cell.stringValue ?? '-' : cellText(cell) ?? '-').length)
+  return Math.max(longest, (cell.kind === 'tag' ? cell.stringValue ?? EMPTY_CELL : cellText(cell) ?? EMPTY_CELL).length)
 }, 0)
 
 /**

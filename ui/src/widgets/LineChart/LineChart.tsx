@@ -6,6 +6,7 @@ import { useAutoFitChart } from '../../hooks/useAutoFitChart'
 import { getChartCatPalette } from '../../theme/chart-utils'
 import { getColorCode } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
+import { formatClock, formatDate, formatFull, formatFullDay } from '../../utils/dateFormat'
 
 import styles from './LineChart.module.css'
 import type { LineChart as WidgetType } from './LineChart.type'
@@ -64,26 +65,26 @@ const axisWithInk = (axis: LineChartWidgetData['axis']) => {
 
 type TimeUnit = NonNullable<LineChartWidgetData['xTimeUnit']>
 
-const DAY: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
-const dayLabel = (date: Date): string => date.toLocaleDateString('en-US', DAY)
-const timeLabel = (date: Date): string => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-const isMidnight = (date: Date): boolean => date.getHours() === 0 && date.getMinutes() === 0
+const isMidnight = (date: Date): boolean => formatClock(date) === '00:00'
 
 /**
- * A tick on a time axis, in the BROWSER's timezone (a server-side strftime is UTC: a 21:00-Rome bucket read
- * 19:00). `Date`'s accessors follow the local zone's rules, DST included. An hourly axis names the day where it
- * changes, so a week reads as days and a day as hours; a daily axis labels days only.
+ * A tick on a time axis, in the VIEWER's time zone, as all text is (utils/dateFormat; a server-side strftime is
+ * UTC: a 21:00-Rome bucket read 19:00). An hourly axis names the day where it changes ("4 Nov", with the year
+ * when it is another year), so a week reads as days and a day as hours ("11:00"); a daily axis labels days only.
  */
 export const timeTick = (value: unknown, unit: TimeUnit): unknown => {
   if (!(value instanceof Date)) { return value }
-  if (unit === 'day') { return isMidnight(value) ? dayLabel(value) : '' }
-  return isMidnight(value) ? dayLabel(value) : timeLabel(value)
+  if (unit === 'day') { return isMidnight(value) ? formatDate(value) : '' }
+  return isMidnight(value) ? formatDate(value) : formatClock(value)
 }
 
-/** A point's own time, whole: the tooltip's title. */
+/**
+ * A point's own time, whole, as every time's hover is: "Tue 24 November 2026, 08:00:00 (UTC+1)", the zone named
+ * so a chart and the text beside it can be told to agree; a daily bucket is its day, "Tue 24 November 2026".
+ */
 export const timeTitle = (value: unknown, unit: TimeUnit): unknown => {
   if (!(value instanceof Date)) { return value }
-  return unit === 'day' ? dayLabel(value) : `${dayLabel(value)}, ${timeLabel(value)}`
+  return unit === 'day' ? formatFullDay(value) : formatFull(value)
 }
 
 /**

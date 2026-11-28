@@ -49,9 +49,9 @@ One tag ships everything. This monorepo has a single version line: the app image
    - [`release-tag.yaml`](../.github/workflows/release-tag.yaml) `crds` → regenerates
      the widget CRDs from the schemas (`npm ci && npm run generate-crds` in `ui/`, via
      this repo's own `crdgen/` module), uploads them as the `frontend-crds-yaml-files`
-     artifact, and — gated on the `PAT` repo secret — pushes a `generated-crds-<tag>` branch and opens
-     an auto-PR syncing them. Without `PAT` the release does **not** fail: the step
-     skips with a run-summary warning and the manual copy command.
+     artifact, and fails the release if they differ from the tag's own
+     `helm/frontend-crds/templates` (the chart `release-oci` publishes from the same commit). It
+     pushes nothing: the PR-time `crd-drift` gate keeps main in step, so no token is needed.
 
 4. **Verify** the artifacts pair up:
 

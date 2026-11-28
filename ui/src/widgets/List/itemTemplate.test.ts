@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { formatISODate } from '../../utils/utils'
+import { formatMoment } from '../../utils/dateFormat'
 
 import { interpolate, resolveColor, resolvePath, resolveRow, resolveStatus, type ItemTemplate } from './itemTemplate'
 
@@ -119,8 +119,42 @@ describe('itemTemplate — resolveRow', () => {
     expect(row.subSecondaryText).toBe('Started')
     expect(row.icon).toBe('fa-ellipsis-h')
     expect(row.color).toBe('blue')
-    // secondaryText falls back to firstTimestamp and is datetime-formatted
-    expect(row.secondaryText).toBe(formatISODate('2026-06-13T09:30:00Z', true))
+    // secondaryText falls back to firstTimestamp and is datetime-formatted: a moment, in the viewer's zone
+    expect(row.secondaryText).toBe(formatMoment('2026-06-13T09:30:00Z'))
+    expect(row.times).toEqual({ secondaryText: { form: 'moment', value: '2026-06-13T09:30:00Z' } })
+  })
+
+  describe('time forms ("Dates and ages")', () => {
+    const NOW = Date.parse('2026-11-25T15:00:00Z')
+    beforeEach(() => { vi.useFakeTimers({ now: NOW, toFake: ['Date'] }) })
+    afterEach(() => { vi.useRealTimers() })
+    const item = { at: new Date(NOW - 49 * 86_400_000).toISOString(), recent: new Date(NOW - 52 * 60_000).toISOString(), said: '49d ago' }
+
+    it('age, ago and the older `relative` write the ISO time in words', () => {
+      const row = resolveRow({
+        formats: { primaryText: 'age', secondaryText: 'ago', subSecondaryText: 'relative' },
+        primaryText: '{at}',
+        secondaryText: '{recent}',
+        subSecondaryText: '{at}',
+      }, item)
+      expect([row.primaryText, row.secondaryText, row.subSecondaryText]).toEqual(['7 weeks', '52 minutes ago', '7 weeks'])
+      expect(Object.keys(row.times).sort()).toEqual(['primaryText', 'secondaryText', 'subSecondaryText'])
+    })
+
+    it('beyond 8 weeks `relative` is still an age, not a date beside the ages ("September 10, 2026" beside "4w")', () => {
+      const row = resolveRow({ formats: { primaryText: 'relative' }, primaryText: '{at}' }, { at: new Date(NOW - 76 * 86_400_000).toISOString() })
+      expect(row.primaryText).toBe('2 months')
+    })
+
+    it('a value the RESTAction already wrote is shown as it came and carries no hover date', () => {
+      const row = resolveRow({ formats: { primaryText: 'age' }, primaryText: '{said}' }, item)
+      expect(row.primaryText).toBe('49d ago')
+      expect(row.times).toEqual({})
+    })
+
+    it('a template without formats has no times', () => {
+      expect(resolveRow({ primaryText: '{at}' }, item)).toMatchObject({ primaryText: item.at, times: {} })
+    })
   })
 
   it('resolves navigateTo per-item (clickable-row / catalog binding)', () => {

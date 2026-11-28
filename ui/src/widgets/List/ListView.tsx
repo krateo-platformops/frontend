@@ -10,6 +10,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { childHealthFromRow, useReportChildHealth } from '../../components/PageHealth'
 import type { ConditionLike } from '../../components/PageHealth'
 import { RowActionControls, rowActionButtonType, useFireRowAction } from '../../components/RowActions'
+import TimeText from '../../components/TimeText'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { getColorCode, inkOnFill } from '../../theme/palette'
 import type { ResourcesRefs, Widget, WidgetActions } from '../../types/Widget'
@@ -53,7 +54,7 @@ const rowNavProps = (to: string | undefined, go: (path: string) => void) => {
   }
 }
 
-import { resolveAccent, resolveHighlight, resolveRow, type ItemTemplate } from './itemTemplate'
+import { resolveAccent, resolveHighlight, resolveRow, type ItemTemplate, type ResolvedRow, type RowSlot } from './itemTemplate'
 import styles from './ListView.module.css'
 
 interface ListViewProps {
@@ -103,6 +104,20 @@ const oneLine = (text: string | undefined, ellipsis: boolean | undefined, type?:
   if (!ellipsis) { return text }
   return <Typography.Text className={styles.oneLine} ellipsis={{ tooltip: text }} type={type}>{text}</Typography.Text>
 }
+
+/**
+ * A slot's text, with the full date on hover and focus when the template wrote it in a time form
+ * (`formats`, utils/dateFormat). Any other slot is its text, as before.
+ */
+const slotNode = (row: ResolvedRow, slot: RowSlot): ReactNode => {
+  const time = row.times[slot]
+  return time ? <TimeText form={time.form} value={time.value}>{row[slot]}</TimeText> : row[slot]
+}
+
+/** `oneLine` for a slot: a time is short and carries its own tooltip, so it is never ellipsized. */
+const slotLine = (row: ResolvedRow, slot: RowSlot, ellipsis: boolean | undefined, type?: 'secondary') => (
+  row.times[slot] ? slotNode(row, slot) : oneLine(row[slot], ellipsis, type)
+)
 
 /**
  * `bar.tooltip`: a default row's bar label with the reason behind it (a reconciliation-rail row's
@@ -379,8 +394,13 @@ export const ListView = ({
                 style={framed ? { borderColor: `color-mix(in srgb, ${accentCode ?? 'var(--text-color)'} 45%, var(--border-color))` } : undefined}
                 {...(borderless ? { variant: 'borderless' as const } : {})}
               >
-                <Statistic styles={{ content: valueStyle }} title={title} value={missing ? '—' : row.secondaryText} />
-                {row.subPrimaryText && <Typography.Text className={styles.statCaption} type='secondary'>{row.subPrimaryText}</Typography.Text>}
+                <Statistic
+                  styles={{ content: valueStyle }}
+                  title={title}
+                  value={missing ? '—' : row.secondaryText}
+                  {...(row.times.secondaryText ? { formatter: () => slotNode(row, 'secondaryText') } : {})}
+                />
+                {row.subPrimaryText && <Typography.Text className={styles.statCaption} type='secondary'>{slotNode(row, 'subPrimaryText')}</Typography.Text>}
               </Card>
             </AntdList.Item>
           )
@@ -399,9 +419,9 @@ export const ListView = ({
               {...rowNavProps(row.navigateTo, (path) => navigateOrExternal(navigate, path))}
             >
               <span className={styles.treeDot} style={{ backgroundColor: colorCode, boxShadow: `0 0 5px 1px ${colorCode}` }} />
-              <span className={styles.treeKind}>{row.primaryText}</span>
-              {row.subPrimaryText && <span className={styles.treeName}>{row.subPrimaryText}</span>}
-              {row.secondaryText && <span className={styles.treeState} style={{ color: colorCode }}>{row.secondaryText}</span>}
+              <span className={styles.treeKind}>{slotNode(row, 'primaryText')}</span>
+              {row.subPrimaryText && <span className={styles.treeName}>{slotNode(row, 'subPrimaryText')}</span>}
+              {row.secondaryText && <span className={styles.treeState} style={{ color: colorCode }}>{slotNode(row, 'secondaryText')}</span>}
             </AntdList.Item>
           )
         }
@@ -430,7 +450,7 @@ export const ListView = ({
           const ctaCue = row.cardCta && row.navigateTo
             ? <span className={styles.cardCta}>{row.cardCta}<span className={styles.cardCtaArrow}>→</span></span>
             : null
-          const provider = row.subSecondaryText ? <span className={styles.cardProvider}>{row.subSecondaryText}</span> : null
+          const provider = row.subSecondaryText ? <span className={styles.cardProvider}>{slotNode(row, 'subSecondaryText')}</span> : null
           return (
             <AntdList.Item key={`${rowKey}-${index}`}>
               <Card
@@ -443,13 +463,13 @@ export const ListView = ({
                   {avatar}
                   <div className={styles.cardTitles}>
                     {/* Name alone on the first line; version badge + category tag share the meta line below it. */}
-                    <span className={styles.cardName}>{row.primaryText}</span>
+                    <span className={styles.cardName}>{slotNode(row, 'primaryText')}</span>
                     {(row.secondaryText || row.subPrimaryText) && (
                       <div className={styles.cardMeta}>
                         {row.secondaryText && (
-                          <Tag className={`${styles.tag} ${styles.cardCatTag}`} style={{ backgroundColor: soft, color: colorCode }}>{row.secondaryText}</Tag>
+                          <Tag className={`${styles.tag} ${styles.cardCatTag}`} style={{ backgroundColor: soft, color: colorCode }}>{slotNode(row, 'secondaryText')}</Tag>
                         )}
-                        {row.subPrimaryText && <span className={styles.verBadge}>{row.subPrimaryText}</span>}
+                        {row.subPrimaryText && <span className={styles.verBadge}>{slotNode(row, 'subPrimaryText')}</span>}
                       </div>
                     )}
                   </div>
@@ -531,11 +551,11 @@ export const ListView = ({
               (row.secondaryText || row.subSecondaryText)
                 ? (
                   <div className={styles.extra}>
-                    {row.subSecondaryText && <Typography.Text type='secondary'>{row.subSecondaryText}</Typography.Text>}
+                    {row.subSecondaryText && <Typography.Text type='secondary'>{slotNode(row, 'subSecondaryText')}</Typography.Text>}
                     {row.secondaryText && (
                       itemTemplate.secondaryTextAsTag
-                        ? <Tag className={styles.tag} style={{ backgroundColor: soft, color: colorCode }}>{row.secondaryText}</Tag>
-                        : <span className={styles.stateText} style={{ color: colorCode }}>{row.secondaryText}</span>
+                        ? <Tag className={styles.tag} style={{ backgroundColor: soft, color: colorCode }}>{slotNode(row, 'secondaryText')}</Tag>
+                        : <span className={styles.stateText} style={{ color: colorCode }}>{slotNode(row, 'secondaryText')}</span>
                     )}
                   </div>
                 )
@@ -551,8 +571,8 @@ export const ListView = ({
                 avatar={avatar}
                 description={row.subPrimaryText && itemTemplate.subPrimaryTextMono
                   ? <span className={styles.refPill}>{row.subPrimaryText}</span>
-                  : oneLine(row.subPrimaryText, itemTemplate.ellipsis, 'secondary')}
-                title={oneLine(row.primaryText, itemTemplate.ellipsis)}
+                  : slotLine(row, 'subPrimaryText', itemTemplate.ellipsis, 'secondary')}
+                title={slotLine(row, 'primaryText', itemTemplate.ellipsis)}
               />
             )}
             {barEl}

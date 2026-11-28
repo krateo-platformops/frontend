@@ -5,7 +5,7 @@
  */
 
 import { cleanup, render } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import Statistic from './Statistic'
 import type { StatisticWidgetData } from './Statistic'
@@ -39,5 +39,23 @@ describe('Statistic widget — genuine 0 vs data-missing (audit §6)', () => {
   it('a real numeric value renders normally', () => {
     const el = renderStat({ value: 42 })
     expect(el.textContent).toContain('42')
+  })
+})
+
+describe('Statistic `format` ("Dates and ages", 2026-11-24)', () => {
+  const NOW = Date.parse('2026-11-25T15:00:00Z')
+  beforeEach(() => { vi.useFakeTimers({ now: NOW, toFake: ['Date'] }) })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('an ISO value is written in its form, in the browser: never a jq "5m ago" frozen in the cache', () => {
+    const el = renderStat({ format: 'ago', value: '2026-11-25T14:55:00Z' })
+    expect(el.textContent).toBe('5 minutes ago')
+    expect(el.querySelector('time')?.getAttribute('dateTime')).toBe('2026-11-25T14:55:00.000Z')
+  })
+
+  it('a value that is not a time, or no format, is shown as it came', () => {
+    expect(renderStat({ format: 'ago', value: '5m ago' }).textContent).toBe('5m ago')
+    cleanup()
+    expect(renderStat({ value: '2026-11-25T14:55:00Z' }).querySelector('time')).toBeNull()
   })
 })
