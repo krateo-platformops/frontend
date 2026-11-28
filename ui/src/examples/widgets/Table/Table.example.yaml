@@ -480,3 +480,136 @@ spec:
           kind: jsonSchemaType
           type: string
           stringValue: "team-b"
+---
+# A trace waterfall (`span` cells): each span is a bar that starts where it started and is as long as it lasted,
+# its name indented under the span that called it (`indent`, any cell kind) with its service under it
+# (`secondaryText`). Offsets and widths are percentages of the trace's length, which the column's ruler names
+# (`rulerStart`/`rulerEnd`).
+kind: Table
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-table-waterfall
+  namespace: krateo-system
+spec:
+  widgetData:
+    allowedResources: []
+    fitContent: true
+    resizableColumns: false
+    columns:
+      - valueKey: span
+        title: Span
+      - valueKey: timeline
+        title: Timeline
+        rulerStart: "0"
+        rulerEnd: "5.81 s"
+        minWidth: 240
+      - valueKey: status
+        title: Status
+    dataSource:
+      - - valueKey: span
+          kind: jsonSchemaType
+          type: string
+          stringValue: "POST /api/a2a/krateo-system/agentiko"
+          secondaryText: agentgateway
+        - valueKey: timeline
+          kind: span
+          offsetPercent: 0.0
+          widthPercent: 100.0
+          color: gray
+          stringValue: "5.81 s"
+          tooltip: "starts at 0.000 s, lasts 5.81 s"
+        - valueKey: status
+          kind: jsonSchemaType
+          type: string
+          stringValue: "Unset"
+          color: gray
+      - - valueKey: span
+          kind: jsonSchemaType
+          type: string
+          stringValue: "message/send"
+          secondaryText: agentiko
+          indent: 1
+        - valueKey: timeline
+          kind: span
+          offsetPercent: 0.07
+          widthPercent: 99.66
+          color: gray
+          stringValue: "5.79 s"
+          tooltip: "starts at 0.004 s, lasts 5.79 s"
+        - valueKey: status
+          kind: jsonSchemaType
+          type: string
+          stringValue: "Unset"
+          color: gray
+      - - valueKey: span
+          kind: jsonSchemaType
+          type: string
+          stringValue: "POST /llm/v1/chat/completions"
+          secondaryText: agentgateway
+          indent: 2
+        - valueKey: timeline
+          kind: span
+          offsetPercent: 0.53
+          widthPercent: 36.14
+          color: gray
+          stringValue: "2.10 s"
+          tooltip: "starts at 0.031 s, lasts 2.10 s"
+        - valueKey: status
+          kind: jsonSchemaType
+          type: string
+          stringValue: "Unset"
+          color: gray
+      - - valueKey: span
+          kind: jsonSchemaType
+          type: string
+          stringValue: "POST / (x-kagent-host k8s-agent)"
+          secondaryText: agentgateway
+          indent: 2
+        - valueKey: timeline
+          kind: span
+          offsetPercent: 37.18
+          widthPercent: 24.1
+          color: gray
+          stringValue: "1.40 s"
+          tooltip: "starts at 2.160 s, lasts 1.40 s"
+        - valueKey: status
+          kind: jsonSchemaType
+          type: string
+          stringValue: "Unset"
+          color: gray
+      - - valueKey: span
+          kind: jsonSchemaType
+          type: string
+          stringValue: "message/send"
+          secondaryText: k8s-agent
+          indent: 3
+        - valueKey: timeline
+          kind: span
+          offsetPercent: 37.35
+          widthPercent: 23.75
+          color: gray
+          stringValue: "1.38 s"
+          tooltip: "starts at 2.170 s, lasts 1.38 s"
+        - valueKey: status
+          kind: jsonSchemaType
+          type: string
+          stringValue: "Unset"
+          color: gray
+      - - valueKey: span
+          kind: jsonSchemaType
+          type: string
+          stringValue: "POST /llm/v1/chat/completions"
+          secondaryText: agentgateway
+          indent: 4
+        - valueKey: timeline
+          kind: span
+          offsetPercent: 61.96
+          widthPercent: 37.52
+          color: gray
+          stringValue: "2.18 s"
+          tooltip: "starts at 3.600 s, lasts 2.18 s"
+        - valueKey: status
+          kind: jsonSchemaType
+          type: string
+          stringValue: "Unset"
+          color: gray
