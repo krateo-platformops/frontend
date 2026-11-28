@@ -1096,6 +1096,9 @@ spec:
                         - field
                         - map
                       type: object
+                    submitDisabled:
+                      description: 'when true, the primary (submit) button is disabled. The fields, Cancel and the other buttons keep their own state (`disabled` disables the fields only). Use it with `notice`/`notices` when the form must say why it cannot be submitted, e.g. the caller may create the object in no namespace. Templatable through widgetDataTemplate. Absent or false: the button behaves as before.'
+                      type: boolean
                     submitDisabledWhenPristine:
                       description: when true, the primary (submit) button stays disabled until at least one field differs from its initial value (initialValues overlaid on schema defaults). Use for update forms where submitting an unchanged value is a no-op — e.g. a version picker pre-set to the currently-installed version.
                       type: boolean

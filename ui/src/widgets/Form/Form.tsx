@@ -216,7 +216,7 @@ export const ReviewSummary = ({ agentKeys, optionLabels, schema, secretPaths, va
  * button runs the same submit action. Default (flag off) is unchanged.
  */
 const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<FormWidgetData>) => {
-  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, fieldChecks, fieldHelp, fieldInputs, hasFeedback, initialValues, items, layout, notice, noticeVariant, notices, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabledWhenPristine, submitPost, suggestions, textareas, title, validationMessages } = widgetData
+  const { actions, autocomplete, buttonConfig, checkboxes, dependencies: optionDependencies, disabled, displayingDependencies, draftActionId, fieldChecks, fieldHelp, fieldInputs, hasFeedback, initialValues, items, layout, notice, noticeVariant, notices, objectFields, propertiesToHide, requiredMark, reviewBeforeSubmit, schema, size, stringSchema, submitActionId, submitActionSelector, submitDisabled: submitDisabledByData, submitDisabledWhenPristine, submitPost, suggestions, textareas, title, validationMessages } = widgetData
   // Prefer `stringSchema` (the schema as a raw JSON STRING) when present: `JSON.parse`
   // preserves the object's key insertion order, so a server that hands us the blueprint's
   // values.schema.json verbatim (e.g. from the per-blueprint jsonschema ConfigMap, which
@@ -624,7 +624,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       form={formId}
       loading={isActionLoading || posting}
       onDraft={onDraft}
-      submitDisabled={submitPristine}
+      submitDisabled={submitPristine || submitDisabledByData === true}
       submitLabel={reviewBeforeSubmit ? (buttonConfig?.review?.label || 'Review →') : undefined}
     />
   )
