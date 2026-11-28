@@ -79,7 +79,7 @@ describe('fetchWidgetPage deadline', () => {
 })
 
 describe('the deadline under the widget retry policy', () => {
-  it('is retried as a 504 is: the first attempt plus MAX_WIDGET_FETCH_RETRIES, each with its own deadline, then the timeout state', async () => {
+  it('is NOT retried: a hang makes exactly one attempt and ends as the timeout state', async () => {
     const fetch = vi.fn<Fetch>(hangs)
     const queryClient = new QueryClient()
     const key = widgetQueryKey('/call?name=x', '')
@@ -92,9 +92,26 @@ describe('the deadline under the widget retry policy', () => {
     }).catch((error: unknown) => error)
     await vi.advanceTimersByTimeAsync(10 * 60_000)
     const error = await outcome
-    expect(fetch).toHaveBeenCalledTimes(1 + MAX_WIDGET_FETCH_RETRIES)
+    expect(fetch).toHaveBeenCalledTimes(1)
     expect(error).toBeInstanceOf(WidgetReadTimeoutError)
     expect(isTimeoutError(error)).toBe(true)
+  })
+
+  it('a snowplow 504 keeps today\'s policy: the first attempt plus MAX_WIDGET_FETCH_RETRIES', async () => {
+    const fetch = vi.fn<Fetch>(() => Promise.resolve(new Response('{}', { status: 504, statusText: 'Gateway Timeout' })))
+    const queryClient = new QueryClient()
+    const outcome = queryClient.fetchInfiniteQuery({
+      initialPageParam: {},
+      queryFn: ({ pageParam, signal }) => fetchWidgetPage(readWith(fetch), pageParam, signal),
+      queryKey: widgetQueryKey('/call?name=x', ''),
+      retry: (count: number, error: unknown) => shouldRetryWidgetFetch(count, error),
+      retryDelay: widgetFetchRetryDelay,
+    }).catch((error: unknown) => error)
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+    const error = await outcome
+    expect(fetch).toHaveBeenCalledTimes(1 + MAX_WIDGET_FETCH_RETRIES)
+    expect(isTimeoutError(error)).toBe(true)
+    expect(shouldRetryWidgetFetch(0, new WidgetReadTimeoutError(WIDGET_READ_DEADLINE_MS))).toBe(false)
   })
 
   it('a query cancelled by react-query (observer unmount) is not retried and ends as a cancel', async () => {

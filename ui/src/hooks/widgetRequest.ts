@@ -107,26 +107,30 @@ export interface WidgetRead {
 }
 
 /**
- * HOW LONG ONE WIDGET READ MAY TAKE before the client gives up on it: 15 s.
+ * HOW LONG ONE WIDGET READ MAY TAKE before the client gives up on it: 30 s.
  *
  * WHY A DEADLINE. A read that never settles (a connection that stalls, a proxy that holds it open)
  * left the widget on its loading skeleton for good: the fetch had no deadline, so neither an error
  * nor the calm timeout state (WidgetStates' WidgetTimeout, with Retry) was ever reached.
  *
- * WHY 15 s. snowplow bounds a /call read by its page budget, a 10 s goal after which it ends the
- * exchange with a 504 (builder-gate/src/snowplow.ts, STAGE_TIMEOUT_REASON, snowplow#1115). The client
- * deadline must be LONGER than that, or it would cut off the very 504 that carries the server's own
- * answer and replace it with a guess; 15 s leaves a 5 s margin for the network and the proxy hops. It
- * is also the deadline the other client reads of snowplow already use (builders/clusterBuilders.ts,
- * READ_TIMEOUT_MS). A deadline past the 30 s the nginx session proxies wait would never be reached.
+ * WHY 30 s, AND WHAT IT IS NOT. This is NOT a snowplow bound; it is the point at which a read is
+ * "almost certainly hung". snowplow's 10 s budget bounds only the NETWORK part of a read
+ * (pagebudget.PageMaxGoal, snowplow internal/pagebudget/pagebudget.go:35). In-process work (jq, a
+ * single-flight wait behind another request's fill, a cold informer sync) is not cut by it, and the
+ * only hard server cap is the server WriteTimeout of 300 s. Warm first loads measure p95 0.7 s, max
+ * 3.9 s. So 30 s sits well above the 10 s network budget plus warm work, and no read that is
+ * merely slow lands on it. The 057 gateway route sets no timeout of its own, so nothing upstream
+ * ends a hang sooner. snowplow is adding a server-side deadline; when it lands this client value
+ * stays a backstop above it and must be revisited, never made shorter than it.
  */
-export const WIDGET_READ_DEADLINE_MS = 15_000
+export const WIDGET_READ_DEADLINE_MS = 30_000
 
 /**
  * The read did not settle within WIDGET_READ_DEADLINE_MS. Carries NO status: none was received, and
  * inventing a 504 would claim the server said something it did not. isTimeoutError recognises it by
- * its message ("timed out"), so WidgetRenderer shows the calm timeout state; shouldRetryWidgetFetch
- * sees no 4xx status and retries it as it retries a 504.
+ * its message ("timed out"), so WidgetRenderer shows the calm timeout state. It is NOT retried
+ * automatically (shouldRetryWidgetFetch): at 30 s a hung read retried 3 times would hold the
+ * skeleton about two minutes. The state's Retry button is how a person tries again.
  */
 export class WidgetReadTimeoutError extends WidgetFetchError {
   constructor(deadlineMs: number) {
