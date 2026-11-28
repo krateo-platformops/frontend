@@ -130,7 +130,7 @@ describe('Table — the waterfall parts beside main\'s empty cell and the existi
     const data = trace({})
     data.dataSource![0][1] = { kind: 'span', offsetPercent: 5, valueKey: 'timeline', widthPercent: 10 }
     renderTable(data)
-    const td = screen.getAllByRole('row')[1].querySelectorAll('td')[1]
+    const [, td] = screen.getAllByRole('row')[1].querySelectorAll('td')
     expect(td.textContent).toBe('')
   })
 
