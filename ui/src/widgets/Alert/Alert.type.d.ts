@@ -48,6 +48,14 @@ export interface Alert {
        * whether the alert can be dismissed
        */
       closable?: boolean
+      /**
+       * a short reason drawn beside the title as a tag in the alert's own type colour, for example `CrashLoopBackOff`. Omit it for no tag.
+       */
+      tag?: string
+      /**
+       * the full message, folded inside the alert under a collapsed "Details" disclosure; plain text, line breaks kept. Omit it for no disclosure.
+       */
+      details?: string
     }
     /**
      * Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData.

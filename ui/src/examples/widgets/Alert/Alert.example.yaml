@@ -22,3 +22,21 @@ spec:
     banner: true
     title: "Reconciliation failed"
     type: "error"
+---
+# Error with its reason as a tag beside the title, and the full message folded under "Details".
+# Both fields are optional and templatable like the others (widgetDataTemplate forPath `tag` /
+# `details`); without them the alert renders exactly as the two documents above.
+kind: Alert
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: example-alert-error-details
+  namespace: krateo-system
+spec:
+  widgetData:
+    title: "This part cannot be served"
+    tag: "ProgressDeadlineExceeded"
+    type: "error"
+    showIcon: true
+    details: |-
+      Deployment "web" exceeded its progress deadline.
+      ReplicaSet "web-7d9c" has 0 of 3 replicas available.

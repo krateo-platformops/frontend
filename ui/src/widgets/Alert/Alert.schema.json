@@ -64,6 +64,14 @@
             "closable": {
               "description": "whether the alert can be dismissed",
               "type": "boolean"
+            },
+            "tag": {
+              "description": "a short reason drawn beside the title as a tag in the alert's own type colour, for example `CrashLoopBackOff`. Omit it for no tag.",
+              "type": "string"
+            },
+            "details": {
+              "description": "the full message, folded inside the alert under a collapsed \"Details\" disclosure; plain text, line breaks kept. Omit it for no disclosure.",
+              "type": "string"
             }
           },
           "description": "The properties Alert renders. Where Alert wraps an antd component these are antd's own prop names, so antd's documentation for that component describes them."
