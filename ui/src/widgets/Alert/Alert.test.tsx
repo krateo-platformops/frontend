@@ -78,6 +78,16 @@ describe('Alert — tag and details', () => {
     expect(body?.querySelector('button')?.textContent).toBe('Details')
   })
 
+  it('separates the disclosure from the description: the description is an element, so the gap below it applies', () => {
+    const { container } = renderAlert({ description: 'Short summary.', details: 'Long message.', title: 'T', type: 'warning' })
+
+    const body = container.querySelector('.ant-alert-description') as HTMLElement
+    const [first, second] = Array.from(body.children)
+    expect(first.textContent).toBe('Short summary.')
+    expect(first.querySelector('button')).toBeNull()
+    expect(second.querySelector('button')?.textContent).toBe('Details')
+  })
+
   it('renders no disclosure and no tag when neither field is set', () => {
     const { container } = renderAlert({ description: 'd', title: 't', type: 'error' })
 

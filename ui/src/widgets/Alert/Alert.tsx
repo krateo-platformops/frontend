@@ -71,7 +71,8 @@ const Alert = ({ uid, widgetData }: WidgetProps<AlertWidgetData>) => {
   const body = details
     ? (
       <>
-        {description}
+        {/* An element, so the CSS `:not(:first-child)` gap below it sees the description (a bare text node is not a child). */}
+        {description && <div>{description}</div>}
         <Details text={details} />
       </>
     )
