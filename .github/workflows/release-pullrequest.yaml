@@ -7,9 +7,9 @@ on:
 
 jobs:
   lint-docs:
-    uses: krateo-platformops/.github/.github/workflows/lint-docs.yaml@main
+    uses: krateo-platformops/.github/.github/workflows/lint-docs.yaml@7da11cb60cee5cbfc7d9e8c9328692807b43cefd # 2.0.0
   build:
-    uses: krateo-platformops/.github/.github/workflows/component-image-build.yaml@main
+    uses: krateo-platformops/.github/.github/workflows/component-image-build.yaml@7da11cb60cee5cbfc7d9e8c9328692807b43cefd # 2.0.0
     permissions:
       contents: read
       packages: write
@@ -39,9 +39,9 @@ jobs:
     steps:
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 @ 2026-11-23
       - name: Set up Go for the CRD generator
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5 @ 2026-11-23
         with:
           # From crdgen/go.mod, not a literal. The krateoctl install this replaced carried a
           # version pinned by hand in THREE workflows with a comment in each saying "if one moves,
@@ -71,7 +71,7 @@ jobs:
 
       # working-directory does not apply to `uses:` steps, so this path is spelled out.
       - name: Upload .yaml files from scripts/generated-crds
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 @ 2026-11-23
         with:
           name: frontend-crds-yaml-files
           path: ${{ github.workspace }}/ui/scripts/generated-crds/*.yaml

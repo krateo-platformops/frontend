@@ -1,5 +1,5 @@
 /**
- * NAMED SLOTS — the third containment shape, which the composer could not see.
+ * NAMED SLOTS — the third containment shape, which the builder could not see.
  *
  * A container holds an ordered `items[]`. A Card ALSO has `cover` and `extraRefId`; a Layout holds
  * its children entirely through `content`, `header` and `footer`. Each is one property carrying one

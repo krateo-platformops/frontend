@@ -71,7 +71,7 @@ export interface AgentikoConfigValues {
    * `/chat/completions` on the agent gateway (the dedicated `/stt/v1` route when the
    * platform ships it, `<gateway>/llm/v1/chat/completions` otherwise). ITS PRESENCE IS
    * THE ON/OFF SWITCH (voice spec FR 4): absent or empty, the microphone control does
-   * not render and the composer's DOM is unchanged. Nothing is hard-coded — no default
+   * not render and the builder's DOM is unchanged. Nothing is hard-coded — no default
    * path, no derived origin — because the route is still with the platform team.
    * Dictation ALSO requires `isSecureContext`, so this key alone does not enable it. */
   VOICE_TRANSCRIBE_URL?: string
@@ -137,6 +137,10 @@ export interface Config {
     EVENTS_API_BASE_URL: string
     EVENTS_PUSH_API_BASE_URL: string
     INIT: string
+    /** The navigation Menu's `/call` endpoint. When set, the shell reads it at mount, in parallel with
+     * INIT, and registers the routes from it before the sidebar renders (components/Shell/NavRoutesPrefetch).
+     * Unset: the Menu stays the only route source, as before. */
+    NAV?: string
     TERMINAL_SOCKET_URL: string
     /** Kill-switch for snowplow's per-widget live-refresh SSE (`/refreshes`), which makes
      * widgets push-update when their backing cluster object changes (see hooks/refreshSse.ts).
@@ -264,7 +268,7 @@ interface ConfigContextType {
  * Exported so a surface can read the config WITHOUT the throwing hook.
  *
  * `useConfigContext` throws when no provider is above it, which is right for a component that
- * cannot work without config. A route that merely degrades — the page composer loses its
+ * cannot work without config. A route that merely degrades — the portal builder loses its
  * widget-picker list and says so — must not take the whole page down instead, and must stay
  * mountable bare in tests, which is a property those tests deliberately assert.
  */

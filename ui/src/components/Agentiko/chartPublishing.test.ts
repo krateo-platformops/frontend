@@ -42,7 +42,7 @@ const pageSet = (): Record<string, string> => {
 }
 
 describe.each([
-  { builder: 'Blueprint Composer', keyword: 'blueprint', start: blueprint },
+  { builder: 'Blueprint Builder', keyword: 'blueprint', start: blueprint },
   { builder: 'Controller Builder', keyword: 'controller', start: controller },
   { builder: 'Portal Builder (page set)', keyword: 'page-set', start: pageSet },
 ])('a freshly started $builder chart', ({ keyword, start }) => {

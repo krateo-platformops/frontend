@@ -25,6 +25,14 @@ describe('a configuration fault offers NO sign-in form', () => {
     expect(description).toMatch(/administrator/i)
   })
 
+  it('TokenAudienceMismatch says the sign-in is misconfigured, not step-up, and names no service', () => {
+    const shown = authFailurePresentation({ action: 'configuration-fault', reason: AUTH_FAILURE_REASONS.tokenAudienceMismatch })
+    expect(shown).toMatchObject({ showAuthForm: false, title: 'Sign-in is misconfigured' })
+    expect(shown.description).toMatch(/will not help/i)
+    expect(shown.description).toMatch(/administrator must fix the sign-in configuration/i)
+    expect(shown.description).not.toMatch(/step-up|elevated|identity provider/i)
+  })
+
   it('does not apologise or tell the person to try later', () => {
     const { description } = authFailurePresentation({ action: 'configuration-fault', reason: null })
     expect(description).not.toMatch(/sorry|oops|try (again )?later/i)

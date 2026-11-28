@@ -1,7 +1,7 @@
 /**
  * DRAFT RECORDS — every held draft, stored where a dead tab cannot lose it. Pure.
  *
- * WHY. A held draft lived only in the tab: the blueprint composer's chart in memory, and a page's
+ * WHY. A held draft lived only in the tab: the blueprint builder's chart in memory, and a page's
  * live preview as sandbox CRs nobody owned, that a closed tab could neither clean up nor give back.
  * A draft record is ONE ConfigMap per user and draft in the preview sandbox, holding the whole held
  * tree. The record IS the draft; every preview artifact (a page's sandbox CRs, a chart's render
@@ -61,6 +61,8 @@ export interface DraftRecordBody {
    * publish locked (publishedLocks.ts): opaque here, read back only by that kind's code.
    */
   publish?: { repo: string; prUrl?: string; locked?: Record<string, Record<string, unknown>> }
+  /** The record's own uid, on a record READ from the cluster. Never stored in it. */
+  uid?: string
 }
 
 /**
@@ -107,7 +109,7 @@ export const draftRecordConfigMap = (
   body: DraftRecordBody,
 ): Record<string, unknown> => ({
   apiVersion: 'v1',
-  data: { [DRAFT_RECORD_KEY]: JSON.stringify(body) },
+  data: { [DRAFT_RECORD_KEY]: JSON.stringify({ ...body, uid: undefined }) },
   kind: 'ConfigMap',
   metadata: {
     annotations: { [ANNOTATION_NAME]: body.name, [ANNOTATION_UPDATED]: body.updatedAt },
@@ -146,5 +148,6 @@ export const readDraftRecord = (configMap: unknown): DraftRecordBody | null => {
   if (typeof body.name !== 'string' || !isRecord(body.files)) { return null }
   if (!Object.values(body.files).every((content) => typeof content === 'string')) { return null }
   if (body.state !== 'open' && body.state !== 'published') { return null }
-  return body as unknown as DraftRecordBody
+  const uid = isRecord(configMap.metadata) && typeof configMap.metadata.uid === 'string' ? configMap.metadata.uid : undefined
+  return { ...(body as unknown as DraftRecordBody), uid }
 }

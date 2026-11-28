@@ -12,6 +12,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 import type { ServerPagination } from '../../types/Widget'
+import { pagerRange } from '../../utils/pagerRange'
 
 import { computeTablePagination, shouldVirtualize, usesServerPagination, VIRTUAL_ROW_THRESHOLD, VIRTUAL_SCROLL_Y } from './tablePagination'
 
@@ -93,16 +94,16 @@ describe('computeTablePagination — server-side classic pager', () => {
 })
 
 describe('computeTablePagination — non-server tables unchanged', () => {
-  it('uses the CR pagination config verbatim when the pager is not engaged', () => {
-    const cr = { defaultPageSize: 20, hideOnSinglePage: true } as never
-    expect(computeTablePagination({ crPagination: cr, rowCount: 5, serverPagination: undefined })).toBe(cr)
+  it('uses the CR pagination config when the pager is not engaged, with the range and total', () => {
+    const cr = { defaultPageSize: 20, hideOnSinglePage: true }
+    expect(computeTablePagination({ crPagination: cr, rowCount: 5, serverPagination: undefined })).toEqual({ ...cr, showTotal: pagerRange })
   })
 
   it('a Table with pager controls but no `total` keeps client-side pagination (no dead server pager)', () => {
     // Received `serverPagination` (all `tables` do) but the template did not slice
     // (no `total`) → falls back to the CR pagination, exactly as before this fix.
-    const cr = { defaultPageSize: 20 } as never
-    expect(computeTablePagination({ crPagination: cr, rowCount: 300, serverPagination: makeServer() })).toBe(cr)
+    const cr = { defaultPageSize: 20 }
+    expect(computeTablePagination({ crPagination: cr, rowCount: 300, serverPagination: makeServer() })).toEqual({ ...cr, hideOnSinglePage: true, showTotal: pagerRange })
   })
 
   it('returns false (no pager) when neither an engaged server pager nor CR pagination is set', () => {
@@ -110,5 +111,29 @@ describe('computeTablePagination — non-server tables unchanged', () => {
     expect(computeTablePagination({ crPagination: undefined, rowCount: 999, serverPagination: undefined })).toBe(false)
     // pager controls present but no total → still no controlled pager
     expect(computeTablePagination({ crPagination: undefined, rowCount: 999, serverPagination: makeServer() })).toBe(false)
+  })
+})
+
+// PAG-1 (UX audit, 2026-11-25): a pager showed page numbers only, and a lone "1" under one page.
+describe('every pager says how much there is, and is hidden on a single page', () => {
+  it('the range and total read "1–15 of 94", grouped past a thousand', () => {
+    expect(pagerRange(94, [1, 15])).toBe('1–15 of 94')
+    expect(pagerRange(60_026, [1_001, 1_050])).toBe('1,001–1,050 of 60,026')
+  })
+
+  it('a client-side pager hides on one page and shows the total; an author\'s explicit false is kept', () => {
+    const config = computeTablePagination({ crPagination: { pageSize: 15 }, rowCount: 5, serverPagination: undefined })
+    if (config === false) { throw new Error('expected pagination config') }
+    expect(config.hideOnSinglePage).toBe(true)
+    expect(config.showTotal?.(94, [1, 15])).toBe('1–15 of 94')
+    const kept = computeTablePagination({ crPagination: { hideOnSinglePage: false, pageSize: 15 } as never, rowCount: 5, serverPagination: undefined })
+    expect(kept !== false && kept.hideOnSinglePage).toBe(false)
+  })
+
+  it('the server pager does the same', () => {
+    const config = computeTablePagination({ crPagination: { total: 94 }, rowCount: 15, serverPagination: makeServer({ pageSize: 15 }) })
+    if (config === false) { throw new Error('expected pagination config') }
+    expect(config.hideOnSinglePage).toBe(true)
+    expect(config.showTotal?.(94, [16, 30])).toBe('16–30 of 94')
   })
 })

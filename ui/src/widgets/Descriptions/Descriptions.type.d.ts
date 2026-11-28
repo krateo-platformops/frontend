@@ -28,6 +28,14 @@ export interface Descriptions {
        */
       items: {
         /**
+         * when `value` is an ISO (RFC3339) time, how it is written, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came. Absent: the value is shown as it came.
+         */
+        format?: 'age' | 'ago' | 'moment' | 'date'
+        /**
+         * makes the value a link: a page of this app (`/blueprints/ns/name`) opens through the router in the same tab; anything else opens in a new tab
+         */
+        href?: string
+        /**
          * the label of the item
          */
         label: string
@@ -36,13 +44,13 @@ export interface Descriptions {
          */
         section?: string
         /**
-         * the value of the item (rendered as the antd Descriptions item children)
-         */
-        value: string
-        /**
          * how many columns this item spans (antd Descriptions item `span`)
          */
         span?: number
+        /**
+         * the value of the item (rendered as the antd Descriptions item children)
+         */
+        value: string
       }[]
       /**
        * the size of the description list

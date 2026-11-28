@@ -62,6 +62,12 @@ describe('ListView variants render as they did before statistic / removable', ()
     expect(container.innerHTML).toMatchSnapshot()
   })
 
+  it('tree row draws no branch connector (UX review round 3: a branch with no parent)', () => {
+    const { container } = renderList({ color, primaryText: '{name}', rowVariant: 'tree', secondaryText: '{state}', subPrimaryText: '{desc}' })
+    expect(container.textContent).not.toContain('└')
+    expect(container.querySelectorAll('li')).toHaveLength(3)
+  })
+
   it('card tile', () => {
     const { container } = renderList({ cardCta: 'Open', color, description: '{desc}', navigateTo: '{to}', primaryText: '{name}', rowVariant: 'card', secondaryText: '{state}' })
     expect(container.innerHTML).toMatchSnapshot()

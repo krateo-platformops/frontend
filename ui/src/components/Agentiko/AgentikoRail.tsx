@@ -67,8 +67,9 @@ const AgentikoRail = () => {
   const railBadge = agentikoConfig(config?.api, 'RAIL_BADGE')?.trim()
   // The composer draft + its PROVENANCE (purely dictated vs touched by the keyboard) live in
   // a module-level store, not `useState`: a routerVersion remount used to wipe a half-written
-  // question, and speak-back's whole trigger is a property of HOW the draft was composed, so
-  // it has to survive the remount alongside the text. See composerDraftStore.ts.
+  // question (gone since frontend 1.8.75: the router is built once), and speak-back's whole trigger is
+  // a property of HOW the draft was composed, so it has to survive any remount alongside the
+  // text. See composerDraftStore.ts.
   const { text: draft } = useSyncExternalStore(agentikoComposerDraftStore.subscribe, agentikoComposerDraftStore.getSnapshot)
   // FR 25: Send (and the microphone) are held while a transcription is in flight.
   const voiceBusy = useVoiceBusy()

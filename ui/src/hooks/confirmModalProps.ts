@@ -7,11 +7,13 @@
  * without rendering the hook, and to keep useHandleActions.ts under its line cap.
  */
 import type { ModalFuncProps } from 'antd/es/modal/interface'
-import { createElement } from 'react'
+import { createElement, type ReactElement } from 'react'
 
+import ActionConfirmation from '../components/BlastRadius/ActionConfirmation'
 import BlastRadiusConfirm, { VERB_INTENT } from '../components/BlastRadius/BlastRadiusConfirm'
 import { dismissButtonProps } from '../components/DismissButton'
 import { LAYER } from '../theme/layers'
+import type { RestActionConfirmation } from '../types/Widget'
 import { countNoun } from '../utils/utils'
 
 import type { BlastRadius, BlastRadiusSet } from './blastRadius.types'
@@ -48,11 +50,18 @@ export const BLAST_RADIUS_CONFIRM_Z_INDEX = ABOVE_PREVIEW_DRAWER_Z_INDEX
  * "Are you sure?" read-only opt-in; a scalar/set radius renders the structured
  * BlastRadiusConfirm as the body and titles the intent. The Confirm button goes danger
  * for anything irreversible (a DELETE, or a set containing one).
+ *
+ * `confirmation` is the rest action's own words (actions.schema.json). With it, the SAME gate takes
+ * the action's title, message, optional Alert and OK label, and folds the facts above under a
+ * collapsed "What will be sent" (ActionConfirmation); danger, zIndex and width do not change.
+ * Without it, every prop is exactly what it was before the field existed. It never opens a second
+ * dialog: it is the words of this one.
  */
 export const buildConfirmModalProps = (
   radius: BlastRadius | BlastRadiusSet | undefined,
   onOk: () => void,
-  onCancel: () => void
+  onCancel: () => void,
+  confirmation?: RestActionConfirmation
 ): ModalFuncProps => {
   const isSet = radius !== undefined && 'ops' in radius
   const irreversible = radius !== undefined
@@ -74,10 +83,19 @@ export const buildConfirmModalProps = (
     okText = `Confirm ${VERB_INTENT[radius.verb]}`
   }
 
+  let content: ReactElement | undefined = radius ? createElement(BlastRadiusConfirm, { radius }) : undefined
+  if (confirmation) {
+    // A templated confirmation can arrive without a field the schema requires (widgetDataTemplate
+    // output is not validated by the CRD): a missing title or label keeps the gate's own words.
+    title = confirmation.title || title
+    okText = confirmation.okLabel || okText
+    content = createElement(ActionConfirmation, { confirmation, radius })
+  }
+
   return {
     cancelButtonProps: dismissButtonProps,
     cancelText: 'Cancel',
-    content: radius ? createElement(BlastRadiusConfirm, { radius }) : undefined,
+    content,
     okButtonProps: irreversible ? { danger: true } : undefined,
     okText,
     onCancel,

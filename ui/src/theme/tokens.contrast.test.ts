@@ -300,7 +300,7 @@ describe('Status and de-emphasised icons — WCAG non-text contrast ≥ 3:1', ()
  *
  * A preset Tag (`<Tag color='blue'>`) paints antd's `<color>7` on `<color>1`. Under the dark
  * algorithm those come from the seed, and antd's stock `geekblue` seed gave #5273E0 on #131629:
- * 4.16:1, below AA for the 12px tags the composer uses ("Publishes to", "data", "1 data"). The dark
+ * 4.16:1, below AA for the 12px tags the builder uses ("Publishes to", "data", "1 data"). The dark
  * theme now seeds the blue ramps from colorDark; the light theme keeps antd's stock ramps untouched.
  */
 describe('Preset blue Tags — WCAG AA ink on fill', () => {
@@ -415,6 +415,13 @@ describe('Sidebar nav — every label, heading and the selected bar on the rail'
 
     it(`${mode}: an idle label and icon on the rail is >= 4.5:1`, () => {
       expect(contrastRatio(opaqueOver(sidebarNav.item, rail), rail)).toBeGreaterThanOrEqual(4.5)
+    })
+
+    it(`${mode}: the marks on an entry that could not be checked are >= 3:1 on the rail and the selected row`, () => {
+      for (const mark of [sidebarNav.unchecked, sidebarNav.broken]) {
+        expect(contrastRatio(mark, rail)).toBeGreaterThanOrEqual(3)
+        expect(contrastRatio(mark, selectedRow)).toBeGreaterThanOrEqual(3)
+      }
     })
 
     it(`${mode}: a group heading on the rail is >= 4.5:1, and quieter than an item`, () => {

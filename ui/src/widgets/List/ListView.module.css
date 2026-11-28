@@ -150,8 +150,8 @@
 }
 
 /* Tree row (itemTemplate.rowVariant: tree) — detail Relations "composed children":
-   tight single-line mono row, `└─` connector + glow dot + Kind + muted name +
-   right-aligned colored state. Mirrors the mockup `.rel-row`. */
+   tight single-line mono row, glow dot + Kind + muted name + right-aligned colored state.
+   No branch connector: each row is a direct child of the page's composition. */
 .treeRow {
   align-items: center;
   display: flex;
@@ -159,11 +159,6 @@
   font-size: var(--krateo-text-caption);
   gap: var(--spacing-sm);
   padding: var(--spacing-xsm) var(--spacing-xxs) !important;
-}
-
-.treeConnector {
-  color: var(--gray-color);
-  flex: none;
 }
 
 .treeDot {
@@ -242,6 +237,27 @@
      name rather than crowding it (issue #75 §0.3). */
   gap: var(--spacing-xsm);
   min-width: 0;
+}
+
+/* A card with two title lines (name, then the tag and version line). Centred, the 32px tile met
+   neither line: it started below the name and ended above the tags (portal review). The tile is now
+   a square as tall as the two lines, and the lines are pinned to its edges: the name to its top, the
+   tags to its bottom. A sized square, not `align-self: stretch` with `aspect-ratio`: Chromium keeps
+   the stretched height but not the width (a 9px tile), and a one-line card would shrink it.
+   48px = the name's line (21px) + the gap (4px) + a tag (22px), rounded up, so the lines always fit;
+   when the tags wrap, the block grows and the tile stays level with the name. */
+.cardTopTwoLine {
+  align-items: flex-start;
+}
+
+.cardTopTwoLine > .tile {
+  height: 48px;
+  width: 48px;
+}
+
+.cardTopTwoLine > .cardTitles {
+  justify-content: space-between;
+  min-height: 48px;
 }
 
 /* At-a-glance status glyph pinned top-right of the card (e.g. a blueprint's Ready condition).
@@ -405,12 +421,114 @@
   width: 100%;
 }
 
+.statTitle {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--spacing-xs);
+}
+
 .statCaption {
   display: block;
   font-size: var(--krateo-text-caption);
   margin-block-start: var(--spacing-xs);
 }
 
+/* A stats strip's numbers sit on one line across each row of tiles (portal review, Dashboard: a
+   title that wrapped to two lines pushed its number down, so reading across the numbers went up and
+   down). Each tile takes three of the strip's row tracks, title / number / caption, through
+   subgrid at every level down to the Statistic, whose box steps aside (display: contents) so its
+   title and number are tracks of their own. A row's title track is as tall as its tallest title, so
+   every number in the row starts level; when the strip reflows, each row of tiles sizes on its
+   own. `row-gap: 0` keeps the strip's 16px gap between rows of tiles, not inside a tile.
+   The one column is spelled out, full width: antd gives `.ant-list-item` `justify-content:
+   space-between`, which stops an implicit `auto` column from stretching, so each tile shrank to
+   its text and the tiles stood apart at uneven widths. */
+.statList .statItem,
+.statList .statCard,
+.statList .statCard > :global(.ant-card-body) {
+  display: grid;
+  grid-row: span 3;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: subgrid;
+  row-gap: 0;
+}
+
+.statList .statCard {
+  height: auto;
+}
+
+.statList .statCard :global(.ant-statistic) {
+  display: contents;
+}
+
 .chipRemove {
   opacity: 0.7;
+}
+
+/* M2 (approved motion set): a chip row with exactly one active chip draws the active fill as ONE pill
+   behind the row, which slides to the next chip chosen while the row stays mounted. The chips sit
+   above it; the active one is see-through (variant text) with the on-primary ink. */
+.chipFrame {
+  position: relative;
+}
+
+.chipFrame :global(.ant-list-item) {
+  position: relative;
+  z-index: 1;
+}
+
+.chipPill {
+  background: var(--krateo-color-action-primary);
+  border-radius: var(--krateo-radius-md);
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.chipPillMoving {
+  transition:
+    left var(--krateo-motion-standard) var(--krateo-motion-ease),
+    top var(--krateo-motion-standard) var(--krateo-motion-ease),
+    width var(--krateo-motion-standard) var(--krateo-motion-ease),
+    height var(--krateo-motion-standard) var(--krateo-motion-ease);
+}
+
+/* The see-through active chip (variant text, on-primary ink set inline). Kept as a hook for tests. */
+.chipOnPill {
+  position: relative;
+}
+
+/* The active chip keeps the pill as its fill under the pointer and while pressed. antd's text
+   variant paints its own light primary tint on hover (`colorPrimaryBg`) and press
+   (`colorPrimaryBorder`) OVER the pill, and the on-primary ink stays: white on rgb(249 230 255) in
+   light, about 1.2:1, so the label of the filter just chosen vanished the moment it was clicked (the
+   pointer is still on it). The pill is the fill, so the chip stays see-through in every state. It
+   re-points antd's own variables, set on `.ant-btn.ant-btn-variant-text`, hence the class chain. */
+:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-text).chipOnPill {
+  --ant-btn-bg-color-hover: transparent;
+  --ant-btn-bg-color-active: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chipPillMoving {
+    transition: none;
+  }
+}
+
+/* A bordered list of grid tiles (`bordered` + `grid`: the dashboard's Welcome block). antd's
+   bordered list pads every ITEM inline (0 16px) for row lists; in a grid that padding sits inside
+   each column, so a 354px column held a 306px card, and the list body had no top padding while each
+   item kept an 8px bottom margin: the tiles touched the header's line, with 9px under them (UX review
+   round 3: "the boxes' margins aren't uniform; at the top they overlap the header's line").
+   Here the items fill their columns, and the body pads 16px above and at the sides, matching the
+   header's 16px inset; each item keeps a 16px bottom margin, the grid gutter, which is also the space
+   under the last row, so above equals below. Measured by visual/welcomeCards.spec.ts. The doubled
+   class outranks antd's `.ant-list-bordered .ant-list-item`. */
+.borderedGrid:global(.ant-list-bordered) :global(.ant-spin-container) {
+  padding: var(--spacing-md) var(--spacing-md) 0;
+}
+
+.borderedGrid:global(.ant-list-bordered) :global(.ant-list-item) {
+  margin-block-end: var(--spacing-md);
+  padding-inline: 0;
 }

@@ -1,6 +1,6 @@
 /**
  * The Builder a draft is validated for, read from the cluster (builders.builders.templates.krateo.io
- * in BUILDERS_NAMESPACE, as the gate's ServiceAccount — the same CR the portal's composer reads),
+ * in BUILDERS_NAMESPACE, as the gate's ServiceAccount — the same CR the portal's builder reads),
  * or, for the offline CLI only, from a directory of Builder YAML files.
  */
 import { readdirSync, readFileSync } from 'node:fs'

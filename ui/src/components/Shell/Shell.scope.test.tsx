@@ -24,7 +24,9 @@ import { useShellSlots } from './ShellSlots'
 const INIT = '/call?resource=layouts&name=app-shell&namespace=krateo-system'
 
 vi.mock('../../context/ConfigContext', () => ({ useConfigContext: () => ({ config: { api: { INIT } } }) }))
-vi.mock('../../context/RoutesContext', () => ({ useRoutesContext: () => ({ routes: [] }) }))
+vi.mock('../../context/RoutesContext', () => ({
+  useRoutesContext: () => ({ menuRoutes: [{ path: '/compositions', resourceRefId: '', title: 'Compositions' }], routes: [] }),
+}))
 vi.mock('../../otel/useDocumentLoadSpan', () => ({ useDocumentLoadSpan: vi.fn() }))
 vi.mock('../../builders/clusterBuilders', () => ({ ensureBuildersLoaded: vi.fn() }))
 vi.mock('../../widgets/Drawer', () => ({ default: () => null }))
@@ -80,5 +82,11 @@ describe('the shell is chrome, the routed page is page', () => {
     renderAt('/compositions/team-alpha/webapp-orders-2?projects=team-alpha')
     expect(screen.getByRole('region', { name: INIT }).contains(screen.getByTestId('scope page-widget'))).toBe(true)
     expect(screen.getByTestId('scope page-widget').textContent).toBe('page')
+  })
+
+  // TTL-1 (UX audit, 2026-11-25): every detail page's tab read "Krateo".
+  it('names the browser tab after the object and its page', () => {
+    renderAt('/compositions/team-alpha/webapp-orders-2?projects=team-alpha')
+    expect(document.title).toBe('webapp-orders-2 · Compositions')
   })
 })

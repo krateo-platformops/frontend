@@ -204,7 +204,7 @@ export const removeChild = (parentYaml: string, child: ChildAt): StructureResult
   return { content: dump(parsed.doc, DUMP), ok: true }
 }
 
-/** The container kinds the composer can insert, with the CRD plural each publishes under. */
+/** The container kinds the builder can insert, with the CRD plural each publishes under. */
 export const LAYOUT_KINDS = {
   Card: 'cards',
   Col: 'cols',
@@ -222,9 +222,9 @@ export type LayoutKind = keyof typeof LAYOUT_KINDS
  * semantics, and the reason the field is required). `canAccept` then honours any non-empty list as
  * a statement of intent. Put together, those two correct rules produced a wrong one: the first
  * thing dropped into a fresh container permanently narrowed it to that kind, and the declaration
- * being honoured had been written by the composer a moment earlier rather than by any author.
+ * being honoured had been written by the builder a moment earlier rather than by any author.
  *
- * The list cannot say where it came from, so the container does. A container the composer created
+ * The list cannot say where it came from, so the container does. A container the builder created
  * carries this annotation and its list is read as a DESCRIPTION of what it currently holds; one
  * without it — hand-written, chart-supplied, or agent-proposed — is read as a DECLARATION and
  * honoured exactly as before. Editing the file in the Files tab is how an author converts the one
@@ -250,7 +250,7 @@ export const DERIVED_ALLOWED_ANNOTATION = 'krateo.io/allowed-resources'
  * guessed up front.
  */
 /**
- * The YAML for a widget the composer is CREATING — any kind, not just the five layout ones.
+ * The YAML for a widget the builder is CREATING — any kind, not just the five layout ones.
  *
  * `newContainerYaml` writes one shape that happens to satisfy Flex, Row, Col, Card and Tabs. It
  * cannot serve the rest: thirty-seven of the forty-four kinds have REQUIRED widgetData fields, and
@@ -296,7 +296,7 @@ export const newContainerYaml = (kind: LayoutKind, name: string, namespace: stri
 /**
  * The held key a new container is added under — `templates/<lowercase kind>.<name>.yaml`.
  *
- * Delegates to `pageDraftSlug` rather than building the string, so a container the composer
+ * Delegates to `pageDraftSlug` rather than building the string, so a container the builder
  * inserts and a widget CR the agent proposed land under the same key for the same object. They
  * were computed in two places once, and the double-prefix bug this comment used to describe came
  * from exactly that: two vocabularies for one thing.

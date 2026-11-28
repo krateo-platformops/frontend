@@ -18,7 +18,7 @@ import type { ComposeRefusalNote } from './composeRequest'
 export type AgentikoRole = 'user' | 'assistant'
 
 /**
- * How the user ASKED a turn (voice spec FR 67). `voice` means the composer draft was
+ * How the user ASKED a turn (voice spec FR 67). `voice` means the chat composer draft was
  * composed purely of dictated segments with no manual typing mixed in — see
  * composerDraftStore.ts for why that provenance is modelled explicitly rather than
  * inferred. It is the sole trigger for speaking the answer back.
@@ -57,7 +57,7 @@ export interface AgentikoMessage {
   /**
    * How the user asked the turn this message belongs to (voice spec FR 67). Stamped on the
    * assistant bubble at Send so the transcript RECORDS which turns were asked by voice —
-   * through a routerVersion remount, a thread switch and a page reload.
+   * through a remount, a thread switch and a page reload.
    *
    * It is a record, NOT the value speak-back reads. The live decision travels down the
    * provider's per-turn frame closure (`send` → `applyFrame` → `finalize`), so it cannot be
@@ -267,7 +267,7 @@ export interface PageContextEnvelope {
    */
   previewRender?: { problems: string[]; rendered: string[] }
   /**
-   * Compose proposals the composer REFUSED and the model has not yet corrected — with the
+   * Compose proposals the builder REFUSED and the model has not yet corrected — with the
    * containers that would have accepted each.
    *
    * The sibling of `previewProblems`, and present for the same reason: a chip never leaves the

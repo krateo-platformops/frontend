@@ -35,9 +35,10 @@ export type ColumnSortProps = {
 export const SNIFF_SAMPLE_ROWS = 250
 
 /**
- * kubectl-style relative age, the format this portal's jq `def rel` (and the
- * frontend's own formatRelativeTime) emits: "45s", "3m", "8h", "5d", "1w",
- * "2mo", "1y" — plus "now" for < 10s. `mo` is tried before bare `m`.
+ * kubectl-style relative age, the format this portal's jq `def rel` emits into a
+ * RESTAction-formatted cell: "45s", "3m", "8h", "5d", "1w", "2mo", "1y" — plus
+ * "now". `mo` is tried before bare `m`. (A cell with a time `format` holds the ISO
+ * time itself, which sorts as a date.)
  */
 const AGE_RE = /^(?:now|(\d+)(mo|[smhdwy]))$/
 
@@ -56,6 +57,13 @@ export const NUMERIC_RE = /^-?\d+(?:\.\d+)?$/
 
 /** ISO-8601 date or datetime, e.g. "2026-07-22" / "2026-07-22T10:15:00Z". */
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/
+
+/**
+ * The ONE mark the Table draws for a cell with no value: an em dash, the mark the rest of the portal
+ * draws (Descriptions, the Builders' derived fields). The Table drew a hyphen, so a row whose
+ * RESTAction wrote "—" for one empty column showed "-" for the next (UX audit TBL-4).
+ */
+export const EMPTY_CELL = '—'
 
 /**
  * A placeholder a RESTAction writes in place of a value: "-", "—", "null" (a jq `tostring` of null),
@@ -96,7 +104,7 @@ const conditionTypesLabel = (stringValue?: string): string | undefined => {
 /**
  * The RAW comparable value of a cell — always the dataSource value, never the
  * rendered node. A `tag` sorts by its label text (same sniffing as any other
- * value); `bar` by its percent; `conditions` by its condition types; a nested
+ * value); `bar` by its percent; `span` by its offset; `conditions` by its condition types; a nested
  * `widget` cell has no comparable value.
  */
 export const getCellSortValue = (cell: TableCell | undefined): boolean | number | string | undefined => {
@@ -113,6 +121,9 @@ export const getCellSortValue = (cell: TableCell | undefined): boolean | number 
     }
     case 'conditions':
       return conditionTypesLabel(stringValue)
+    case 'span':
+      // A waterfall bar sorts by where it starts: a trace's spans in the order they began.
+      return typeof cell.offsetPercent === 'number' && Number.isFinite(cell.offsetPercent) ? cell.offsetPercent : undefined
     case 'widget':
       return undefined
     case 'jsonSchemaType':

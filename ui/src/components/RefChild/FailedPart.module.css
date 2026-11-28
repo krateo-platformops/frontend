@@ -1,0 +1,22 @@
+/* A part snowplow could not load, in the part's own slot (FailedPart.tsx). It keeps the slot's place so
+   the layout does not jump, framed like a quiet panel rather than an alarm: exception-only colour is
+   on the icon and the one-line head, never on the whole block. */
+.failedPart {
+  align-content: start;
+  background: var(--panelbg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--spacing-xsm);
+  justify-items: start;
+  padding: var(--spacing-smd);
+}
+
+.head {
+  font-size: var(--krateo-text-body-sm);
+}
+
+.facts {
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-caption);
+}

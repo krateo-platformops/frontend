@@ -1,7 +1,25 @@
 import type { WidgetActions } from './actions.generated'
 
+/**
+ * Why snowplow could not load a referenced part (snowplow >= 1.12.75): a k8s-style Status, present ONLY
+ * on a failure entry (`allowed: false`, no `path`). A plain permission denial has `allowed: false` and
+ * no `error`. snowplow builds `message` from the ref's coordinates only, never apiserver text or
+ * identity, so it is safe to show. Classes: a type not installed (424 FailedDependency, cause
+ * TypeNotInstalled), a failed discovery (the cluster's own code, else 500), an invalid apiVersion (500).
+ */
+export interface RefFailure {
+  code?: number
+  details?: { causes?: Array<{ field?: string; message?: string; reason?: string }>; group?: string; kind?: string }
+  kind?: 'Status'
+  message?: string
+  reason?: string
+  status?: 'Failure'
+}
+
 export interface ResourceRef {
   allowed: boolean
+  /** Only on a part snowplow could not load; see RefFailure. */
+  error?: RefFailure
   id: string
   path: string
   verb: 'GET' | 'POST' | 'DELETE' | 'PATCH' | 'PUT'
@@ -65,6 +83,9 @@ type OpenModalAction = NonNullable<WidgetActions['openModal']>[number]
 
 export type WidgetAction = RestAction | NavigateAction | OpenDrawerAction | OpenModalAction
 
+/** A rest action's own words for the write confirmation (actions.schema.json `confirmation`). */
+export type RestActionConfirmation = NonNullable<RestAction['confirmation']>
+
 /**
  * Classic server-side pager controls, produced by `useWidgetQuery` for widgets
  * for which a bounded window is in play — declared by the chart as
@@ -86,6 +107,11 @@ export type WidgetProps<T = unknown> = {
    * error). Without it the two are byte-identical once the filter has run.
    */
   deniedRefIds?: string[]
+  /**
+   * Parts snowplow reported as FAILED (`allowed: false` WITH an `error`), by ref id. Not in
+   * `deniedRefIds`: a failure is shown in its slot (components/RefChild/FailedPart), a denial is not.
+   */
+  failedRefs?: Record<string, RefFailure>
   resourcesRefs: ResourcesRefs
   serverPagination?: ServerPagination
   /**

@@ -33,6 +33,8 @@ beforeAll(() => {
   installScrollShim()
 })
 beforeEach(() => {
+  // Per case: afterEach unstubs every global, antd's matchMedia with it, and the guide's Steps reads it.
+  installAntdShims()
   graphDouble.reset()
   draftHistory.clear()
   scrolled.mockClear()
@@ -55,7 +57,7 @@ const start = async (files: Record<string, string> = edgeChart()): Promise<HeldP
   const provider = mountWithProvider()
   act(() => { provider.store.set(files, 'blueprint') })
   act(() => { provider.gate.recordPreview('orders') })
-  await waitFor(() => expect(within(screen.getByRole('region', { name: 'Add' })).getByText('72 kinds · 4 groups')).toBeTruthy())
+  await waitFor(() => expect(within(screen.getByRole('region', { name: 'Add' })).getByText('72 kinds · 3 providers')).toBeTruthy())
   return provider
 }
 

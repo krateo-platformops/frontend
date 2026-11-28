@@ -23,6 +23,8 @@ beforeAll(() => {
   installScrollShim()
 })
 beforeEach(() => {
+  // Per case: afterEach unstubs every global, antd's matchMedia with it, and the guide's Steps reads it.
+  installAntdShims()
   graphDouble.reset()
   invalidateAccessTokenCache()
   localStorage.setItem('K_user', JSON.stringify({ accessToken: 'tok-admin' }))
@@ -65,16 +67,19 @@ describe('BlueprintBuilder — the palette (screen 4)', () => {
     ])
   })
 
-  it('2. custom: "N kinds · M groups", groups closed; "git" matches two groups and opens both, each labelled by its owner', async () => {
+  it('2. custom: "N kinds · M providers", providers closed, krateo.io first; "git" opens krateo.io and both git groups, each labelled by its owner', async () => {
     await open()
     const custom = section('Custom resources')
-    expect(within(custom).getByText('72 kinds · 4 groups')).toBeTruthy()
-    const github = within(custom).getByRole('button', { name: /github\.krateo\.io/ })
-    expect(github.getAttribute('aria-expanded')).toBe('false')
+    expect(within(custom).getByText('72 kinds · 3 providers')).toBeTruthy()
+    // Provider order: krateo.io pinned first, then by kinds served (kagent.dev 9, cert-manager.io 3).
+    const providers = within(custom).getAllByRole('button', { expanded: false })
+    expect(providers.map((button) => button.textContent)).toEqual(['▸krateo.io2 groups · 60', '▸kagent.dev1 group · 9', '▸cert-manager.io1 group · 3'])
     act(() => { fireEvent.change(within(palette()).getByLabelText('Filter by kind or group'), { target: { value: 'git' } }) })
     expect(within(palette()).getByText('2 groups match')).toBeTruthy()
-    const groups = within(section('Custom resources')).getAllByRole('button', { expanded: true })
-    expect(groups.map((group) => group.textContent)).toEqual(['▾git.krateo.iogit-provider-crd · 2', '▾github.krateo.iogithub-provider-kog · 58'])
+    const opened = within(section('Custom resources')).getAllByRole('button', { expanded: true })
+    // The provider, then its two groups, each shown without the provider suffix (full name on hover).
+    expect(opened.map((button) => button.textContent)).toEqual(['▾krateo.io2 groups · 60', '▾gitgit-provider-crd · 2', '▾githubgithub-provider-kog · 58'])
+    expect(opened.slice(1).map((button) => button.getAttribute('title'))).toEqual(['git.krateo.io', 'github.krateo.io'])
     expect(within(section('Custom resources')).getByText('github-provider-kog · 58')).toBeTruthy()
     expect(within(section('Custom resources')).getByText('git-provider-crd · 2')).toBeTruthy()
     expect(within(section('Custom resources')).getByText('1 cluster-scoped kind is not listed: a composition\'s resources live in its own namespace.')).toBeTruthy()
@@ -82,7 +87,8 @@ describe('BlueprintBuilder — the palette (screen 4)', () => {
 
   it('3. the Repository row says its version and the readiness field its CRD declares', async () => {
     await open()
-    act(() => { within(section('Custom resources')).getByRole('button', { name: /github\.krateo\.io/ }).click() })
+    act(() => { within(section('Custom resources')).getByRole('button', { name: /^krateo\.io/ }).click() })
+    act(() => { within(section('Custom resources')).getByRole('button', { name: /^github/ }).click() })
     const row = within(section('Custom resources')).getByRole('button', { name: 'Repository · v2022-11-28 · default_branch' })
     expect(row.querySelectorAll('span')[1].textContent).toBe('v2022-11-28 · default_branch')
   })
@@ -108,7 +114,7 @@ describe('BlueprintBuilder — the palette (screen 4)', () => {
     await open({ ...PALETTE_STATUS, compositions: { error: { code: 403, message: 'forbidden', reason: 'Forbidden' } } })
     expect(within(section('Krateo compositions')).getByText(COMPOSITIONS_DENIED)).toBeTruthy()
     expect(within(section('Krateo compositions')).queryAllByRole('button')).toEqual([])
-    expect(within(section('Custom resources')).getByText('72 kinds · 4 groups')).toBeTruthy()
+    expect(within(section('Custom resources')).getByText('72 kinds · 3 providers')).toBeTruthy()
   })
 
   it('7. the RESTAction 404s: ONE sentence for the pane — and a native kind still places', async () => {

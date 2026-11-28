@@ -61,10 +61,15 @@ import { architectureEdgeAppearance, architectureGraphSize, architectureNodeSize
 import FlowChart, { type FlowChartNodeData, type FlowChartWidgetData } from '../src/widgets/FlowChart/FlowChart'
 import { useArchitectureCardHeight } from '../src/widgets/FlowChart/useArchitectureCardHeight'
 import Layout from '../src/widgets/Layout/Layout'
+import { ListView } from '../src/widgets/List/ListView'
 import { Menu } from '../src/widgets/Menu/Menu'
 import PageHeader from '../src/widgets/PageHeader/PageHeader'
 import { getWidgetModule } from '../src/widgets/registry'
 import Table, { type TableWidgetData } from '../src/widgets/Table/Table'
+
+import { failedParts } from './failedPartsFixture'
+import { formGuideLines } from './formGuideLinesFixture'
+import { welcomeCards } from './welcomeCardsFixture'
 
 const examples = import.meta.glob<string>('../src/examples/widgets/*/*.example.yaml', { eager: true, import: 'default', query: '?raw' })
 
@@ -527,6 +532,61 @@ const tableVirtualAlignment = () => (
   </div>
 )
 
+/**
+ * `?fixture=list-card-tiles`: card-variant List rows with an icon tile, as the portal's card grids
+ * send them (compositions, blueprints, marketplace). listCardTile.spec.ts measures the tile against
+ * the title lines: beside a name and a tag line it spans both, top to bottom; with a narrow card the
+ * tag line wraps and the tile stays level with the name; beside a name alone it stays centred.
+ */
+const cardTile = (testId: string, width: number, row: Record<string, string>, withMeta: boolean) => (
+  <div data-testid={testId} style={{ width }}>
+    <ListView
+      itemTemplate={{
+        description: '{desc}',
+        icon: '{icon}',
+        iconVariant: 'tile',
+        primaryText: '{name}',
+        rowVariant: 'card',
+        ...(withMeta ? { secondaryText: '{state}', subPrimaryText: '{kind}' } : {}),
+      }}
+      items={[row]}
+      rowKey='name'
+    />
+  </div>
+)
+const tileRow = { desc: 'Ready=True · ReconcilePaused', icon: 'fa-cubes', kind: 'AcmeFeedback', name: 'acme-feedback-controller', state: 'Paused' }
+const listCardTiles = () => (
+  <Space orientation='vertical' size='large'>
+    {cardTile('two-lines', 520, tileRow, true)}
+    {cardTile('tags-wrap', 230, { ...tileRow, kind: 'AcmeFeedbackControllerConfiguration' }, true)}
+    {cardTile('one-line', 520, tileRow, false)}
+  </Space>
+)
+
+/**
+ * `?fixture=list-stat-strip`: the dashboard's stats strip (a List with `rowVariant: statistic`) as
+ * the dashboard sends it, at a width where one title wraps and at one where the strip reflows to
+ * two rows. listStatStrip.spec.ts checks every number in a row of tiles starts on one line.
+ */
+const statTiles = [
+  { caption: '12 alerts', title: 'Open incidents', value: '52' },
+  { caption: 'of 33', title: 'Alerts firing', value: '0' },
+  { caption: 'of 91', title: 'Compositions not Ready', value: '0' },
+  { caption: 'of 11 agents', title: 'Agent gateway gaps', value: '0' },
+  { caption: 'review proposals', title: 'Waiting for a decision', value: '158' },
+]
+const statStrip = (testId: string, width: number) => (
+  <div data-testid={testId} style={{ width }}>
+    <ListView itemTemplate={{ primaryText: '{title}', rowVariant: 'statistic', secondaryText: '{value}', subPrimaryText: '{caption}' }} items={statTiles} rowKey='title' />
+  </div>
+)
+const listStatStrip = () => (
+  <Space orientation='vertical' size='large'>
+    {statStrip('one-row', 860)}
+    {statStrip('reflowed', 520)}
+  </Space>
+)
+
 const fixtures: Record<string, () => React.ReactNode> = {
   'agentiko-rail': agentikoRail,
   'app-shell': appShell,
@@ -534,8 +594,12 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'architecture-cards': architectureCards,
   'architecture-graph': () => <ArchitectureGraphFixture />,
   'architecture-names': architectureNames,
+  'failed-parts': failedParts,
   'focus-ring': focusRing,
+  'form-guide-lines': formGuideLines,
   'graph-zoom': () => <GraphZoomFixture />,
+  'list-card-tiles': listCardTiles,
+  'list-stat-strip': listStatStrip,
   login,
   'nav-menu': navMenu,
   'page-header': () => pageHeader('Turn an OpenAPI document into Kubernetes kinds: which operations each kind maps, how it is identified, and the credentials it calls with.'),
@@ -546,6 +610,7 @@ const fixtures: Record<string, () => React.ReactNode> = {
   'table-cell-tooltip': () => <Table resourcesRefs={{ items: [] }} uid='fixture' widget={{} as never} widgetData={spansTable} />,
   'table-row-actions': tableRowActions,
   'table-virtual-alignment': tableVirtualAlignment,
+  'welcome-cards': welcomeCards,
 }
 
 const missing = <pre data-testid='missing'>{`no renderable example ${doc} in ${folder}`}</pre>

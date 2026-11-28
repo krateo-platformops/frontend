@@ -4,8 +4,8 @@
  * ANTD ICONS, NOT THE AGENTIKO STROKE SET, and that is a deliberate reading of two existing
  * vocabularies rather than a third. `components/Agentiko/icons.tsx` says why it exists — "not antd
  * icons — these carry the exact petrol line weight/shape" — and it is Agentiko RAIL chrome. The
- * composer's own vocabulary is already antd: ObjectTreePanel draws every one of its actions with
- * them. The palette lives in the composer, so it speaks the composer's language.
+ * builder's own vocabulary is already antd: ObjectTreePanel draws every one of its actions with
+ * them. The palette lives in the builder, so it speaks the builder's language.
  *
  * The widgets themselves mirror antd, so using antd's own glyph for the thing it mirrors is the
  * consistent choice: a Table widget gets antd's table icon because it renders antd's table.
@@ -19,6 +19,7 @@
  * glyph — which is right, since they are the same kind.
  */
 import {
+  ApartmentOutlined,
   AppstoreAddOutlined,
   BarChartOutlined,
   BgColorsOutlined,
@@ -29,8 +30,10 @@ import {
   DownOutlined,
   DownSquareOutlined,
   EditOutlined,
+  EllipsisOutlined,
   FilterOutlined,
   FormOutlined,
+  HistoryOutlined,
   LoadingOutlined,
   MenuOutlined,
   MinusOutlined,
@@ -42,7 +45,9 @@ import {
   QrcodeOutlined,
   RightOutlined,
   SlidersOutlined,
+  SplitCellsOutlined,
   SwapOutlined,
+  SwitcherOutlined,
   TagOutlined,
   UploadOutlined,
   WarningOutlined,
@@ -84,6 +89,8 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
   datepickers: CalendarOutlined,
   descriptions: ProfileOutlined,
   dividers: MinusOutlined,
+  // The overflow menu: the same ellipsis its trigger draws.
+  dropdowns: EllipsisOutlined,
   filters: FilterOutlined,
   flexes: LayoutOutlined,
   flowcharts: PartitionOutlined,
@@ -105,8 +112,10 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
   rangepickers: CalendarOutlined,
   results: CheckCircleOutlined,
   rows: ColumnWidthOutlined,
+  segmenteds: SwitcherOutlined,
   selects: DownOutlined,
   sliders: SlidersOutlined,
+  splitters: SplitCellsOutlined,
   statistics: FieldNumberOutlined,
   steps: OrderedListOutlined,
   switches: SwapOutlined,
@@ -114,6 +123,8 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
   tabs: PicCenterOutlined,
   tags: TagOutlined,
   themes: BgColorsOutlined,
+  timelines: HistoryOutlined,
+  trees: ApartmentOutlined,
   uploads: UploadOutlined,
   yamlviewers: CodeOutlined,
 }
@@ -122,7 +133,7 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
  * The glyph for a plural, or a neutral one.
  *
  * A widget kind this build has never heard of is a REAL case, not a defensive branch: the widget
- * registry grows without the composer being rebuilt, so an unknown plural means "newer than me",
+ * registry grows without the builder being rebuilt, so an unknown plural means "newer than me",
  * and drawing a generic block is better than drawing nothing and leaving a ragged row.
  *
  * THE FALLBACK MUST STAY AN EXCEPTION, which it had stopped being. The map covered eleven plurals;
@@ -135,5 +146,5 @@ const BY_PLURAL: Readonly<Record<string, ComponentType>> = {
 export const iconForResource = (resource: string | null | undefined): ComponentType =>
   (resource ? BY_PLURAL[resource] ?? AppstoreOutlined : AppstoreOutlined)
 
-/** Exported for the test that asserts every kind the composer can place has a glyph. */
+/** Exported for the test that asserts every kind the builder can place has a glyph. */
 export const KNOWN_ICON_PLURALS = Object.keys(BY_PLURAL)

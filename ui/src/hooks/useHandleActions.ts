@@ -8,7 +8,7 @@ import { useConfigContext } from '../context/ConfigContext'
 import { useRoutesContext } from '../context/RoutesContext'
 import { formSubmitInteraction, startFormSubmit, type FormSubmitInteraction, type InteractionHeld } from '../otel/interactions'
 import { SIGN_IN_TO_ACT, useWidgetTransport } from '../transport/widgetTransport'
-import type { ResourceRef, ResourcesRefs, Widget, WidgetAction } from '../types/Widget'
+import type { ResourceRef, ResourcesRefs, RestActionConfirmation, Widget, WidgetAction } from '../types/Widget'
 import { jqText, useResolveJqExpression } from '../utils/jq-expression'
 import { navigateOrExternal } from '../utils/navigation'
 import { omitSecretPaths, redactSecretValues, secretValuesOf, type SecretPath } from '../utils/secretFields'
@@ -142,9 +142,10 @@ export interface ActionContext {
    * the structured BlastRadiusConfirm — the scalar verb+gvr+cluster/ns+count+diff shape, or
    * the aggregated W0-4 SET shape (ordered op list) for an applySet; otherwise it falls
    * back to the plain "Are you sure?" prompt (read-only navigate opt-in). Resolves true only
-   * when the human clicks Confirm.
+   * when the human clicks Confirm. `confirmation` is the rest action's own words for the SAME
+   * dialog (title, message, Alert, OK label; the facts fold under "What will be sent").
    */
-  confirm: (radius?: BlastRadius | BlastRadiusSet) => Promise<boolean>
+  confirm: (radius?: BlastRadius | BlastRadiusSet, confirmation?: RestActionConfirmation) => Promise<boolean>
   resolveJq: (expression: string, values: Record<string, unknown>) => Promise<unknown>
   setLoading: (loading: boolean) => void
   invalidateQueries: () => Promise<unknown>
@@ -294,12 +295,12 @@ const runRest = async (
   let radius: BlastRadius | undefined
   if (isMutatingVerb(verb)) {
     radius = buildBlastRadius({ maskTargets: secretTargets, path: resourceRef.path, payload, verb })
-    if (!(await ctx.confirm(radius))) {
+    if (!(await ctx.confirm(radius, action.confirmation))) {
       ctx.setLoading(false)
 
       return
     }
-  } else if (action.requireConfirmation && !(await ctx.confirm())) {
+  } else if (action.requireConfirmation && !(await ctx.confirm(undefined, action.confirmation))) {
     ctx.setLoading(false)
 
     return
@@ -764,7 +765,7 @@ export const useHandleAction = () => {
     // the raised zIndex that keeps this gate ABOVE the Agentiko preview Drawer) are built by
     // the pure buildConfirmModalProps so the fix is unit-testable. The Confirm button goes
     // danger for anything irreversible (a DELETE, or a set containing one).
-    confirm: (radius?: BlastRadius | BlastRadiusSet) => new Promise<boolean>((resolve) => {
+    confirm: (radius?: BlastRadius | BlastRadiusSet, confirmation?: RestActionConfirmation) => new Promise<boolean>((resolve) => {
       // Re-entrancy guard for the ONE HITL gate. A single user gesture could dispatch the
       // action twice, stacking a second identical confirm that then lingered on screen after
       // the first write had already run (and could double-submit if confirmed). While a
@@ -782,7 +783,7 @@ export const useHandleAction = () => {
       // subsequent action into a silent no-op. confirmWithTimeout denies after the window,
       // destroys the dialog, and clears the flag through the same settle path as a click.
       void confirmWithTimeout(
-        (onOk, onCancel) => modal.confirm(buildConfirmModalProps(radius, onOk, onCancel)),
+        (onOk, onCancel) => modal.confirm(buildConfirmModalProps(radius, onOk, onCancel, confirmation)),
         CONFIRM_TIMEOUT_MS,
         () => { confirmOpenRef.current = false },
       ).then(resolve)

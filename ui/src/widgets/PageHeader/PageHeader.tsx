@@ -4,12 +4,14 @@ import { useNavigate } from 'react-router'
 
 import { CHILD_STATE_COLOR, CHILD_STATE_LABEL, describeChildHealth, usePageChildHealth } from '../../components/PageHealth'
 import StatusPill from '../../components/StatusPill'
+import { withTimeTokens } from '../../components/TimeText/withTimeTokens'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import type { WidgetProps } from '../../types/Widget'
 import { resolveLocalTokens } from '../../utils/localTokens'
 import { navigateOrExternal } from '../../utils/navigation'
 import { getEndpointUrl } from '../../utils/utils'
 
+import HeaderProgress from './HeaderProgress'
 import styles from './PageHeader.module.css'
 import type { PageHeader as WidgetType } from './PageHeader.type'
 
@@ -37,7 +39,7 @@ export type PageHeaderWidgetData = NonNullable<WidgetType['spec']>['widgetData']
  * because only the author knows which one a page is for. The layout affords exactly one.
  */
 const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWidgetData>) => {
-  const { counter, counterLabel, items, subtitle, tags, title } = widgetData
+  const { counter, counterLabel, items, note, progress, subtitle, tags, title } = widgetData
   const navigate = useNavigate()
 
   /*
@@ -115,8 +117,9 @@ const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWi
             ))}
 
             {worstChild && (
-            // The worst child, named. The `└─` is the SAME connector the Relations tree draws, so
-            // the pill says whose state this is without inventing a word for "child", and the
+            // The worst child, named. The muted word "resources" before the pill says whose state
+            // this is (portal UX review: the `└─` connector that used to sit inside the pill read as
+            // a second, unexplained icon); the pill itself stays one Kubernetes token, and the
             // tooltip says which resource and why. When the child row carried a route, the pill is
             // the way to it: the reader goes from "something under this is broken" to the broken
             // object in one click.
@@ -138,20 +141,21 @@ const PageHeader = ({ resourcesRefs, uid, widgetData }: WidgetProps<PageHeaderWi
                     }
                     : {})}
                 >
-                  <StatusPill
-                    color={CHILD_STATE_COLOR[childHealth.state]}
-                    label={(
-                      <>
-                        <span className={styles.childConnector}>└─</span>
-                        {CHILD_STATE_LABEL[childHealth.state]}
-                      </>
-                    )}
-                  />
+                  <span className={styles.childWhose}>resources</span>
+                  <StatusPill color={CHILD_STATE_COLOR[childHealth.state]} label={CHILD_STATE_LABEL[childHealth.state]} />
                 </span>
               </Tooltip>
             )}
+            {note?.text && (
+            // Quiet by design: the pills stay true and keep their colour; this only says they are
+            // about to change (e.g. a status that still describes the previous version of a spec).
+              <Tooltip title={note.tooltip}>
+                <span className={styles.note} tabIndex={note.tooltip ? 0 : undefined}>{note.text}</span>
+              </Tooltip>
+            )}
           </Flex>
-          {resolvedSubtitle && <Typography.Paragraph className={styles.subtitle}>{resolvedSubtitle}</Typography.Paragraph>}
+          {progress && <HeaderProgress progress={progress} />}
+          {resolvedSubtitle && <Typography.Paragraph className={styles.subtitle}>{withTimeTokens(resolvedSubtitle)}</Typography.Paragraph>}
         </div>
 
         {actions.length > 0 && (

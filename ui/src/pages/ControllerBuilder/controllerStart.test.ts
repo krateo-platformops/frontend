@@ -4,8 +4,8 @@
  * The Marketplace's blueprints index (krateo-blueprints/charts publish-chart.yaml) refuses a chart
  * without an https icon: its release logs "it needs an https icon in Chart.yaml" and the index job is
  * skipped, so the chart is released to GHCR and silently left out of the Marketplace — nobody can
- * Install it from there. #454 gave the BLUEPRINT composer that icon and pinned it in startChart.test.ts;
- * the controller composer wrote none, so no controller could ever be listed. This pins the controller's.
+ * Install it from there. #454 gave the BLUEPRINT builder that icon and pinned it in startChart.test.ts;
+ * the controller builder wrote none, so no controller could ever be listed. This pins the controller's.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

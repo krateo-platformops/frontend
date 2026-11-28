@@ -41,7 +41,7 @@ describe('PageBuilder — the preview surface, outside the rail', () => {
   })
 
   it('PARKS a blueprint draft instead of drawing a chart as a page', () => {
-    // With a chart held — previewed in the rail, then a navigation here — this composer used to run
+    // With a chart held — previewed in the rail, then a navigation here — this builder used to run
     // its object tree over Chart.yaml and templates and draw nonsense. The broadcast says who holds
     // the draft; a blueprint gets an honest empty state and no canvas.
     mount()
@@ -84,7 +84,7 @@ describe('PageBuilder — the preview surface, outside the rail', () => {
   })
 
   it('SHOWS a page draft held from before it mounted, instead of "No draft open" over it', () => {
-    // The draft reaches a late-mounted composer by replay — files, no payload. It used to say "No
+    // The draft reaches a late-mounted builder by replay — files, no payload. It used to say "No
     // draft open" and offer a Start the provider silently refused, with no way to discard.
     mount()
     act(() => emitDraftChanged({ files: { 'templates/flex.page-x.yaml': widgetCr('Flex', 'page-x') }, kind: 'page' }))

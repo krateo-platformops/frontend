@@ -269,7 +269,7 @@ export const summarizePreviewRender = (
   for (const state of states) {
     const { name, namespace } = endpointParams(state.endpoint)
     const identity = name && namespace === sandboxNamespace ? names.get(name) : undefined
-    // One line per widget, even when the same widget is mounted twice (drawer and composer).
+    // One line per widget, even when the same widget is mounted twice (drawer and builder).
     if (!identity || seen.has(name!)) {
       continue
     }

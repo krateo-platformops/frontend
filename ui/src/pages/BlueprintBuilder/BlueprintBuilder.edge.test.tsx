@@ -2,7 +2,7 @@
 /**
  * Screen 6 — drawing an edge: the keyboard's route (select a card, then Add dependency) and the
  * pointer's (a drag onto a card) end in the SAME pending edge, which the edge inspector asks about.
- * Nothing is written until Accept. The chart is the one the composer itself builds (__fixtures__/s4b):
+ * Nothing is written until Accept. The chart is the one the builder itself builds (__fixtures__/s4b):
  * repository, repo (when), localresource (forEach), pullrequest (waits for every localresource), mongodb.
  */
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
@@ -28,6 +28,8 @@ beforeAll(() => {
   installScrollShim()
 })
 beforeEach(() => {
+  // Per case: afterEach unstubs every global, antd's matchMedia with it, and the guide's Steps reads it.
+  installAntdShims()
   graphDouble.reset()
   draftHistory.clear()
   invalidateAccessTokenCache()
@@ -55,7 +57,7 @@ const start = async (files: Record<string, string> = edgeChart(), crds: Record<s
   const provider = mountWithProvider()
   act(() => { provider.store.set(files, 'blueprint') })
   act(() => { provider.gate.recordPreview('orders') })
-  await waitFor(() => expect(within(screen.getByRole('region', { name: 'Add' })).getByText('72 kinds · 4 groups')).toBeTruthy())
+  await waitFor(() => expect(within(screen.getByRole('region', { name: 'Add' })).getByText('72 kinds · 3 providers')).toBeTruthy())
   return provider
 }
 

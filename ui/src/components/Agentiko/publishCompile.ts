@@ -102,7 +102,7 @@ export const heldDraftIdentity = (held: BlueprintDraftHeld | null): string | nul
  * what the history is for.
  *
  * Replacing NOTHING counts as different. The history is module state and the store is the
- * provider's, so a provider remount (every nav-route registration remounts the router) empties the
+ * provider's, so a provider remount (each nav-route registration did, until frontend 1.8.75) empties the
  * store and keeps the steps — which belong to no draft at all.
  */
 const forgetOtherDraftsHistory = (replaced: string | null, held: BlueprintDraftHeld): void => {
@@ -119,7 +119,7 @@ const forgetOtherDraftsHistory = (replaced: string | null, held: BlueprintDraftH
 export const blueprintChipRendered = (chip: { rendered?: boolean }): boolean => chip.rendered === true
 
 /**
- * FE-BP1/BP2, moved out of the provider so a preview a PERSON starts from the composer arms the
+ * FE-BP1/BP2, moved out of the provider so a preview a PERSON starts from the builder arms the
  * same gate a proposed one does. Holds the previewed tree (published bytes == previewed bytes) and
  * arms the blueprint gate for its Chart.yaml name — only when the draft is lint-clean AND the
  * render succeeded. `previewFailed` is the half the lint cannot see: a chart that fails

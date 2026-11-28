@@ -5,14 +5,18 @@ import { isValidElement, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { CopyToClipboard } from 'react-copy-to-clipboard-ts'
 import { default as ReactMarkdown } from 'react-markdown'
-import { Link, useInRouterContext } from 'react-router'
 import remarkGfm from 'remark-gfm'
 
+import { AppPathLink, isAppPath } from '../../components/AppLink/AppLink'
+import TimeText from '../../components/TimeText'
 import type { WidgetProps } from '../../types/Widget'
+import { timeFormOf } from '../../utils/dateFormat'
+import { hasTimeTokens, timeTokensAsText } from '../../utils/timeTokens'
 
 import styles from './Markdown.module.css'
 import type { Markdown as WidgetType } from './Markdown.type'
 import remarkHtmlAnchors from './remarkHtmlAnchors'
+import remarkTimeTokens from './remarkTimeTokens'
 
 export type MarkdownWidgetData = WidgetType['spec']['widgetData']
 
@@ -92,18 +96,6 @@ const CodeBlock = ({ children }: { children?: ReactNode }) => {
  * A same-origin PATH: one leading slash, not followed by another slash or a backslash (`//host` and
  * `/\host` are other origins to a browser).
  */
-const isAppPath = (href: string | undefined): href is string => !!href && /^\/(?![/\\])/.test(href)
-
-/**
- * A link to a page of this app (`/login`, `/compositions/…`): same tab, through the app's router,
- * so the page changes without a reload — as every link in the portal's own chrome does. It used to
- * open in a new tab like an external link, which split a public page's "Sign in" into a second tab.
- * Rendered outside a router (a bare test, a preview), it is a plain same-tab link.
- */
-const AppPathLink = ({ children, href }: { children: ReactNode; href: string }) => (
-  useInRouterContext() ? <Link to={href}>{children}</Link> : <a href={href}>{children}</a>
-)
-
 const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
   const { align, allowCopy, allowDownload, downloadFileExtension = 'txt', markdown, tone } = widgetData
 
@@ -111,8 +103,11 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
 
   const hasActions = useMemo(() => allowCopy || allowDownload, [allowCopy, allowDownload])
 
+  // What a copy or a download carries: the source as written, every time token (code included) as its words.
+  const sourceText = hasTimeTokens(markdown) ? timeTokensAsText(markdown) : markdown
+
   const handleDownload = () => {
-    const blob = new Blob([markdown], { type: 'text/plain;charset=utf-8' })
+    const blob = new Blob([sourceText], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const file = document.createElement('a')
     file.href = url
@@ -136,7 +131,7 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
                   setIsCopied(true)
                   setTimeout(() => setIsCopied(false), 2500)
                 }}
-                text={markdown}
+                text={sourceText}
               >
                 <Button aria-label='Copy to clipboard' icon={<FontAwesomeIcon icon={['fas', 'copy'] as IconProp} />} size='large' />
               </CopyToClipboard>
@@ -194,13 +189,20 @@ const Markdown = ({ uid, widgetData }: WidgetProps<MarkdownWidgetData>) => {
           // unbreakable token (a long ref/URL) so nothing ever needs a scrollbar to be read.
           // CodeBlock adds the per-block copy button — see its own note.
           pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
+          // A time token (remarkTimeTokens): the words in the viewer's zone, full date on hover and focus.
+          time: (props) => {
+            const { dateTime } = props as { dateTime?: string }
+            const form = timeFormOf((props as { 'data-form'?: string })['data-form'])
+            return form ? <TimeText form={form} value={dateTime} /> : <time dateTime={dateTime}>{dateTime}</time>
+          },
         }}
         key={uid}
         // GitHub-flavoured markdown: pipe tables, ~~strikethrough~~, task lists, bare URLs as links.
         // Without it a `| a | b |` table — what every generated report is made of — rendered as one
         // paragraph of pipes. Then `<a href>` anchors become links (remarkHtmlAnchors: links only,
-        // no other HTML). Order matters: GFM must have split the table into cells first.
-        remarkPlugins={[remarkGfm, remarkHtmlAnchors]}
+        // no other HTML). Order matters: GFM must have split the table into cells first. Time tokens last,
+        // on the text the others leave (remarkTimeTokens).
+        remarkPlugins={[remarkGfm, remarkHtmlAnchors, remarkTimeTokens]}
       >
         {markdown}
       </ReactMarkdown>

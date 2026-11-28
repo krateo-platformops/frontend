@@ -4,16 +4,18 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Avatar, Card, List as AntdList, Button, Progress, Statistic, Tag, Tooltip, Typography } from 'antd'
 import type { ListGridType } from 'antd/es/list'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
-import { useId, useMemo, useState } from 'react'
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
 import { childHealthFromRow, useReportChildHealth } from '../../components/PageHealth'
 import type { ConditionLike } from '../../components/PageHealth'
-import { RowActionControls, useFireRowAction } from '../../components/RowActions'
+import { RowActionControls, rowActionButtonType, useFireRowAction } from '../../components/RowActions'
+import TimeText from '../../components/TimeText'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { getColorCode, inkOnFill } from '../../theme/palette'
 import type { ResourcesRefs, Widget, WidgetActions } from '../../types/Widget'
 import { navigateOrExternal } from '../../utils/navigation'
+import { pagerRange } from '../../utils/pagerRange'
 
 /**
  * The full interactive contract for a row that navigates somewhere — or nothing at all when it
@@ -52,7 +54,7 @@ const rowNavProps = (to: string | undefined, go: (path: string) => void) => {
   }
 }
 
-import { resolveAccent, resolveRow, type ItemTemplate } from './itemTemplate'
+import { resolveAccent, resolveHighlight, resolveRow, type ItemTemplate, type ResolvedRow, type RowSlot } from './itemTemplate'
 import styles from './ListView.module.css'
 
 interface ListViewProps {
@@ -102,6 +104,20 @@ const oneLine = (text: string | undefined, ellipsis: boolean | undefined, type?:
   if (!ellipsis) { return text }
   return <Typography.Text className={styles.oneLine} ellipsis={{ tooltip: text }} type={type}>{text}</Typography.Text>
 }
+
+/**
+ * A slot's text, with the full date on hover and focus when the template wrote it in a time form
+ * (`formats`, utils/dateFormat). Any other slot is its text, as before.
+ */
+const slotNode = (row: ResolvedRow, slot: RowSlot): ReactNode => {
+  const time = row.times[slot]
+  return time ? <TimeText form={time.form} value={time.value}>{row[slot]}</TimeText> : row[slot]
+}
+
+/** `oneLine` for a slot: a time is short and carries its own tooltip, so it is never ellipsized. */
+const slotLine = (row: ResolvedRow, slot: RowSlot, ellipsis: boolean | undefined, type?: 'secondary') => (
+  row.times[slot] ? slotNode(row, slot) : oneLine(row[slot], ellipsis, type)
+)
 
 /**
  * `bar.tooltip`: a default row's bar label with the reason behind it (a reconciliation-rail row's
@@ -174,6 +190,11 @@ export const ListView = ({
     listClassName = styles.chipList
   } else if (isStatStrip) {
     listClassName = styles.statList
+  } else if (bordered && grid) {
+    // A bordered list of grid tiles (the dashboard's Welcome block): antd's bordered-list item
+    // padding is for rows, and inside a grid column it narrowed every card by 32px and left the
+    // tiles touching the header line (UX review round 3). borderedGrid spaces them evenly.
+    listClassName = styles.borderedGrid
   }
 
   // COMPOSED CHILDREN → the page's health rollup.
@@ -206,13 +227,43 @@ export const ListView = ({
   }, [itemTemplate, items])
   useReportChildHealth(reportScope, childHealth)
 
+  // M2 (approved motion set): in a chip row with exactly ONE active chip, the active background is
+  // one pill behind the row that slides to the chip chosen next, instead of jumping. Measured from the
+  // active chip's box. The FIRST measurement only places it: a row that remounts (a chip that
+  // navigates and refetches the list) shows the new chip at once, and only a row that stays mounted
+  // across the change slides. A resize re-places it without motion. Rows with none or several active
+  // chips (filter bars) keep the plain primary chip. Off under reduced motion (the CSS).
+  const activeChips = isChips ? items.filter((item) => Boolean((item as { active?: unknown } | null)?.active)).length : 0
+  const slidingPill = isChips && activeChips === 1
+  const chipFrame = useRef<HTMLDivElement>(null)
+  const [pill, setPill] = useState<{ height: number; left: number; moving: boolean; top: number; width: number } | undefined>(undefined)
+  useLayoutEffect(() => {
+    const frame = chipFrame.current
+    if (!slidingPill || !frame) {
+      setPill(undefined)
+      return undefined
+    }
+    const place = (moving: boolean) => {
+      const chip = frame.querySelector<HTMLElement>('[data-chip-active="true"]')
+      if (!chip) { return }
+      const frameBox = frame.getBoundingClientRect()
+      const box = chip.getBoundingClientRect()
+      setPill((previous) => ({ height: box.height, left: box.left - frameBox.left, moving: moving && previous !== undefined, top: box.top - frameBox.top, width: box.width }))
+    }
+    place(true)
+    if (typeof ResizeObserver === 'undefined') { return undefined }
+    const observer = new ResizeObserver(() => { place(false) })
+    observer.observe(frame)
+    return () => { observer.disconnect() }
+  }, [items, slidingPill])
+
   if (!loading && !items.length) {
     // Conditional-section gate: when the RA emits no items (the condition is false —
     // e.g. the user already owns compositions), render nothing instead of a "No data" box.
     return hideWhenEmpty ? null : <WidgetEmpty />
   }
 
-  return (
+  const list = (
     <AntdList
       bordered={bordered}
       className={listClassName}
@@ -227,9 +278,10 @@ export const ListView = ({
       itemLayout={itemLayout}
       loading={loading}
       // hideOnSinglePage: when a facet/search filter shrinks the result under one page, a lone
-      // "1" pager is pure noise — chrome is exception-only. undefined keeps the antd default
-      // (no pagination), so existing lists are untouched.
-      pagination={pagination ? { hideOnSinglePage: true, pageSize: pagination.pageSize, position: pagination.position } : undefined}
+      // "1" pager is pure noise — chrome is exception-only. showTotal: the pager says how much there
+      // is, "1–8 of 79" (PAG-1). undefined keeps the antd default (no pagination), so existing lists
+      // are untouched.
+      pagination={pagination ? { hideOnSinglePage: true, pageSize: pagination.pageSize, position: pagination.position, showTotal: pagerRange } : undefined}
       renderItem={(item, index) => {
         const child = renderChild?.(item, index)
         if (child) {
@@ -265,6 +317,10 @@ export const ListView = ({
           avatar = <Avatar icon={<FontAwesomeIcon icon={row.icon as IconProp} />} style={{ backgroundColor: colorCode, color: inkOnFill(colorCode) }} />
         }
 
+        // A card's icon tile beside two title lines (name, then tags) spans both, top to bottom. An
+        // Avatar or a dot keeps its size and stays centred.
+        const tileSpansTitles = itemTemplate.iconVariant === 'tile' && Boolean(row.icon) && Boolean(row.secondaryText || row.subPrimaryText)
+
         // Compact navigable filter pill (Marketplace facet chips): `primaryText` label +
         // optional `count`; solid/amber when the item's `active` flag is set. One chip per
         // element of the catalog RA's data-driven `categories` / `sources` array.
@@ -282,14 +338,19 @@ export const ListView = ({
             <AntdList.Item className={styles.chipItem} key={`${rowKey}-${index}`}>
               <Button
                 aria-label={removable ? `Remove filter: ${row.primaryText}` : undefined}
-                className={styles.chip}
+                className={active && slidingPill ? `${styles.chip} ${styles.chipOnPill}` : styles.chip}
+                data-chip-active={active ? 'true' : undefined}
                 // antd's own close glyph, the one a closable antd Tag draws.
                 icon={removable ? <CloseOutlined className={styles.chipRemove} /> : undefined}
                 iconPlacement={removable ? 'end' : undefined}
                 onClick={row.navigateTo ? () => navigateOrExternal(navigate, row.navigateTo) : undefined}
                 size='small'
-                type={active ? 'primary' : 'default'}
-                variant={active ? 'filled' : 'outlined'}
+                // On the sliding pill (M2) the active chip is see-through, the pill behind it being its
+                // fill: antd's text variant in the primary colour, with the on-primary ink. `type` is left
+                // out there, because antd lets `type` override `variant`. Every other chip is unchanged.
+                {...(active && slidingPill
+                  ? { color: 'primary' as const, style: { color: 'var(--krateo-color-action-on-primary)' }, variant: 'text' as const }
+                  : { type: active ? 'primary' as const : 'default' as const, variant: active ? 'filled' as const : 'outlined' as const })}
               >
                 {row.primaryText}
                 {showCount && <span className={styles.chipCount}>{count}</span>}
@@ -301,9 +362,9 @@ export const ListView = ({
         // Stats-strip tile: an antd Card holding an antd Statistic (title = primaryText, value =
         // secondaryText) and a secondary caption (subPrimaryText). The strip is ONE widget fed by
         // one dataSource, so a page's numbers are one /call and one cache cell, not four CRs per
-        // card. COLOUR IS EXCEPTION-ONLY: the value and the frame are tinted only when the
-        // template's `color` resolves (the RESTAction's template sets it when a bad count is > 0),
-        // and a healthy tile is the neutral ink. The caption carries the meaning too, so colour is
+        // card. COLOUR IS EXCEPTION-ONLY: the value is tinted only when the template's `color`
+        // resolves and the frame only when its `highlight` does. Both are the RESTAction's to say:
+        // the tile never reads its value, and a healthy tile is the neutral ink. The caption carries the meaning too, so colour is
         // never the only signal (WCAG 1.4.1).
         if (itemTemplate.rowVariant === 'statistic') {
           const accent = resolveAccent(itemTemplate.color, item)
@@ -317,6 +378,12 @@ export const ListView = ({
           } else if (accentCode) {
             valueStyle = { color: accentCode }
           }
+          // The icon is the title's, in the tile's own colour: decoration beside a word that says the same.
+          const title = row.icon
+            ? <span className={styles.statTitle}><FontAwesomeIcon aria-hidden icon={row.icon as IconProp} style={accentCode ? { color: accentCode } : undefined} />{row.primaryText}</span>
+            : row.primaryText
+          const borderless = itemTemplate.tileVariant === 'borderless'
+          const framed = !borderless && resolveHighlight(itemTemplate, item)
           return (
             <AntdList.Item className={styles.statItem} key={`${rowKey}-${index}`}>
               <Card
@@ -324,17 +391,26 @@ export const ListView = ({
                 hoverable={Boolean(row.navigateTo)}
                 {...rowNavProps(row.navigateTo, (path) => navigateOrExternal(navigate, path))}
                 size='small'
-                style={accentCode ? { borderColor: `color-mix(in srgb, ${accentCode} 45%, var(--border-color))` } : undefined}
+                style={framed ? { borderColor: `color-mix(in srgb, ${accentCode ?? 'var(--text-color)'} 45%, var(--border-color))` } : undefined}
+                {...(borderless ? { variant: 'borderless' as const } : {})}
               >
-                <Statistic styles={{ content: valueStyle }} title={row.primaryText} value={missing ? '—' : row.secondaryText} />
-                {row.subPrimaryText && <Typography.Text className={styles.statCaption} type='secondary'>{row.subPrimaryText}</Typography.Text>}
+                <Statistic
+                  styles={{ content: valueStyle }}
+                  title={title}
+                  value={missing ? '—' : row.secondaryText}
+                  {...(row.times.secondaryText ? { formatter: () => slotNode(row, 'secondaryText') } : {})}
+                />
+                {row.subPrimaryText && <Typography.Text className={styles.statCaption} type='secondary'>{slotNode(row, 'subPrimaryText')}</Typography.Text>}
               </Card>
             </AntdList.Item>
           )
         }
 
-        // Tree row (detail Relations): a tight single-line mono row — `└─` connector
-        // + status dot + Kind + muted inline name + right-aligned colored state.
+        // Tree row (detail Relations): a tight single-line mono row — status dot + Kind + muted
+        // inline name + right-aligned colored state. NO `└─` connector: every row is a direct child
+        // of the composition the page header already names, so a branch with no drawn parent read
+        // as a broken tree (UX review round 3; Diego chose removing it over adding a root row). The
+        // variant still reports each child's health upward (childHealth above).
         if (itemTemplate.rowVariant === 'tree') {
           return (
             <AntdList.Item
@@ -342,11 +418,10 @@ export const ListView = ({
               key={`${rowKey}-${index}`}
               {...rowNavProps(row.navigateTo, (path) => navigateOrExternal(navigate, path))}
             >
-              <span className={styles.treeConnector}>└─</span>
               <span className={styles.treeDot} style={{ backgroundColor: colorCode, boxShadow: `0 0 5px 1px ${colorCode}` }} />
-              <span className={styles.treeKind}>{row.primaryText}</span>
-              {row.subPrimaryText && <span className={styles.treeName}>{row.subPrimaryText}</span>}
-              {row.secondaryText && <span className={styles.treeState} style={{ color: colorCode }}>{row.secondaryText}</span>}
+              <span className={styles.treeKind}>{slotNode(row, 'primaryText')}</span>
+              {row.subPrimaryText && <span className={styles.treeName}>{slotNode(row, 'subPrimaryText')}</span>}
+              {row.secondaryText && <span className={styles.treeState} style={{ color: colorCode }}>{slotNode(row, 'secondaryText')}</span>}
             </AntdList.Item>
           )
         }
@@ -366,7 +441,7 @@ export const ListView = ({
               // #81 §0.1: card-row action (e.g. the Blueprints grid "Create") was `small` and read
               // undersized in the card footer; `middle` matches the detail-page action buttons.
               size='middle'
-              type={actionIndex === 0 ? 'primary' : 'default'}
+              type={rowActionButtonType(rowAction, actionIndex)}
             >
               {rowAction.label}
             </Button>
@@ -375,7 +450,7 @@ export const ListView = ({
           const ctaCue = row.cardCta && row.navigateTo
             ? <span className={styles.cardCta}>{row.cardCta}<span className={styles.cardCtaArrow}>→</span></span>
             : null
-          const provider = row.subSecondaryText ? <span className={styles.cardProvider}>{row.subSecondaryText}</span> : null
+          const provider = row.subSecondaryText ? <span className={styles.cardProvider}>{slotNode(row, 'subSecondaryText')}</span> : null
           return (
             <AntdList.Item key={`${rowKey}-${index}`}>
               <Card
@@ -384,17 +459,17 @@ export const ListView = ({
                 {...rowNavProps(row.navigateTo, (path) => navigateOrExternal(navigate, path))}
                 size='small'
               >
-                <div className={styles.cardTop}>
+                <div className={tileSpansTitles ? `${styles.cardTop} ${styles.cardTopTwoLine}` : styles.cardTop}>
                   {avatar}
                   <div className={styles.cardTitles}>
                     {/* Name alone on the first line; version badge + category tag share the meta line below it. */}
-                    <span className={styles.cardName}>{row.primaryText}</span>
+                    <span className={styles.cardName}>{slotNode(row, 'primaryText')}</span>
                     {(row.secondaryText || row.subPrimaryText) && (
                       <div className={styles.cardMeta}>
                         {row.secondaryText && (
-                          <Tag className={`${styles.tag} ${styles.cardCatTag}`} style={{ backgroundColor: soft, color: colorCode }}>{row.secondaryText}</Tag>
+                          <Tag className={`${styles.tag} ${styles.cardCatTag}`} style={{ backgroundColor: soft, color: colorCode }}>{slotNode(row, 'secondaryText')}</Tag>
                         )}
-                        {row.subPrimaryText && <span className={styles.verBadge}>{row.subPrimaryText}</span>}
+                        {row.subPrimaryText && <span className={styles.verBadge}>{slotNode(row, 'subPrimaryText')}</span>}
                       </div>
                     )}
                   </div>
@@ -476,11 +551,11 @@ export const ListView = ({
               (row.secondaryText || row.subSecondaryText)
                 ? (
                   <div className={styles.extra}>
-                    {row.subSecondaryText && <Typography.Text type='secondary'>{row.subSecondaryText}</Typography.Text>}
+                    {row.subSecondaryText && <Typography.Text type='secondary'>{slotNode(row, 'subSecondaryText')}</Typography.Text>}
                     {row.secondaryText && (
                       itemTemplate.secondaryTextAsTag
-                        ? <Tag className={styles.tag} style={{ backgroundColor: soft, color: colorCode }}>{row.secondaryText}</Tag>
-                        : <span className={styles.stateText} style={{ color: colorCode }}>{row.secondaryText}</span>
+                        ? <Tag className={styles.tag} style={{ backgroundColor: soft, color: colorCode }}>{slotNode(row, 'secondaryText')}</Tag>
+                        : <span className={styles.stateText} style={{ color: colorCode }}>{slotNode(row, 'secondaryText')}</span>
                     )}
                   </div>
                 )
@@ -496,8 +571,8 @@ export const ListView = ({
                 avatar={avatar}
                 description={row.subPrimaryText && itemTemplate.subPrimaryTextMono
                   ? <span className={styles.refPill}>{row.subPrimaryText}</span>
-                  : oneLine(row.subPrimaryText, itemTemplate.ellipsis, 'secondary')}
-                title={oneLine(row.primaryText, itemTemplate.ellipsis)}
+                  : slotLine(row, 'subPrimaryText', itemTemplate.ellipsis, 'secondary')}
+                title={slotLine(row, 'primaryText', itemTemplate.ellipsis)}
               />
             )}
             {barEl}
@@ -507,5 +582,18 @@ export const ListView = ({
       size={size}
       split={isChips ? false : split}
     />
+  )
+  if (!slidingPill) { return list }
+  return (
+    <div className={styles.chipFrame} ref={chipFrame}>
+      {pill ? (
+        <span
+          aria-hidden='true'
+          className={pill.moving ? `${styles.chipPill} ${styles.chipPillMoving}` : styles.chipPill}
+          style={{ height: pill.height, left: pill.left, top: pill.top, width: pill.width }}
+        />
+      ) : null}
+      {list}
+    </div>
   )
 }

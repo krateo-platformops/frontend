@@ -173,7 +173,7 @@ const kindNamed = (model: ControllerModel, raw: unknown): ControllerKind | strin
   return found ?? `${name} is not a placed Kind (the Kinds placed: ${listed(placed)}) — place its resource group with controllerPlace first`
 }
 
-/** Write a plan as one files batch of the controller draft — the composer's own write. */
+/** Write a plan as one files batch of the controller draft — the builder's own write. */
 const writePlan = (verb: string, tried: string, plan: ControllerPlan, label: string): AgentikoActionChip => {
   if (!plan.ok) {
     return refuse(verb, tried, plan.reason)
@@ -547,9 +547,9 @@ const requestRender = (timeoutMs = RENDER_TIMEOUT_MS): Promise<DraftRenderResult
 })
 
 /**
- * `previewRestDef` of the HELD controller — the composer's Preview, exactly: the provider lints it,
+ * `previewRestDef` of the HELD controller — the builder's Preview, exactly: the provider lints it,
  * renders it through the Builder's controller-render-draft over /call as the person, and arms Publish
- * only for a render with CRDs and zero problems. A mounted composer shows the render (useChartRequests
+ * only for a render with CRDs and zero problems. A mounted builder shows the render (useChartRequests
  * adopts an agent render's payload); the chip and the envelope tell the model how it went.
  */
 export const previewHeldController = async (held: DraftChangedDetail | null = readHeldDraft()): Promise<AgentikoActionChip> => {

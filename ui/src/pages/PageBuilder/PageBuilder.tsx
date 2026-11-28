@@ -1,7 +1,7 @@
 /**
- * Page Composer — the Portal Builder's authoring surface: its Builder
+ * The Portal Builder's authoring surface: its Builder
  * CR (read from the cluster; authored as builders/fixtures/portal-builder.builder.yaml), mounted by
- * the composer host.
+ * the builder host.
  *
  * WHAT IT IS NOW (T4, frontend#410). The page, its header, the split and the files pane are
  * BuilderHost's; the page editor is the page workbench (usePageWorkbench) drawn by the `widgets`
@@ -17,7 +17,7 @@
 import { builderRegistry } from '../../builders/builderRegistry'
 import BuilderHost from '../../builders/host/BuilderHost'
 
-/** The Builder this composer hosts, by name. */
+/** The Builder this page hosts, by name. */
 const BUILDER = 'portal-builder'
 
 const PageBuilder = () => <BuilderHost builder={builderRegistry.get({ name: BUILDER })} name={BUILDER} />

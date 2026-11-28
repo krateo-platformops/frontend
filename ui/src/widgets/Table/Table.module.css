@@ -189,3 +189,79 @@
 .actionsCell :global(.ant-space-item) {
   display: flex;
 }
+
+/* `span` cell — a waterfall bar (the trace page's spans, approved charts mockup 2026-11-25): a track with
+   quarter rules, the bar placed inline from the cell's offset and width, and the duration after it in a
+   fixed-width slot so every row's track starts and ends in the same place. */
+.span {
+  --span-value-width: calc(4.5 * var(--krateo-text-caption));
+
+  align-items: center;
+  display: flex;
+  gap: var(--spacing-xsm);
+  min-width: 0;
+}
+
+.spanTrack {
+  background: repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), var(--line-color) calc(25% - 1px) 25%);
+  flex: 1 1 auto;
+  height: 18px;
+  min-width: 60px;
+  position: relative;
+}
+
+.spanBar {
+  border-radius: 2px;
+  height: 10px;
+  min-width: 2px;
+  position: absolute;
+  top: 4px;
+}
+
+.spanValue {
+  flex: none;
+  font-size: var(--krateo-text-caption);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: var(--span-value-width);
+}
+
+/* A waterfall column's ruler (`rulerStart`/`rulerEnd` on the column): one label at each end of the bars'
+   track, which stops short of the duration slot after it (.spanValue and the gap before it). The header's
+   face, but as written, not upper-cased. */
+.ruler {
+  color: var(--gray-color);
+  display: flex;
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-sm);
+  font-weight: var(--font-weight-medium);
+  gap: var(--spacing-xsm);
+  justify-content: space-between;
+  letter-spacing: 0;
+  margin-inline-end: calc(4.5 * var(--krateo-text-caption) + var(--spacing-xsm));
+  text-transform: none;
+  white-space: nowrap;
+}
+
+/* A string cell with `secondaryText`: the value, and under it a muted, smaller line. Each line wraps, or
+   ellipsizes in a truncating table, as the cell's text does (it inherits the cell's white-space). */
+.twoLines {
+  display: grid;
+  gap: var(--spacing-xxs);
+  min-width: 0;
+}
+
+.lineMain,
+.lineSecondary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lineSecondary {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-sm);
+}

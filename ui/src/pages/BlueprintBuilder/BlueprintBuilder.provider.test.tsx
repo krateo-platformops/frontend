@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 /**
- * The composer against the provider's REAL hooks — the store, the gate, the file buses and the
+ * The builder against the provider's REAL hooks — the store, the gate, the file buses and the
  * chart render — rather than a harness speaking for them. Two defects lived exactly in the seam the
  * bare suites stand in for, so these two are held to the real thing:
  *
  *   - an edit the provider REFUSES (over the byte cap) used to be shown as applied: Chart files kept
  *     the refused text while the held bytes — the ones Publish commits — stayed the old ones;
- *   - a drawer already open on the held chart stayed open when the composer claimed the surface,
- *     and its one-shot Files tab wrote stale bytes over the composer's edit;
+ *   - a drawer already open on the held chart stayed open when the builder claimed the surface,
+ *     and its one-shot Files tab wrote stale bytes over the builder's edit;
  *   - a resource added the way the canvas says — templates/architecture.yaml edited in Chart files —
  *     left the graph block behind its descriptor, and the lint refused Preview, and so Publish, for
  *     good: nothing regenerated the block.
@@ -76,13 +76,13 @@ const Provider = () => {
   return null
 }
 
-const Page = ({ composer, drawer = false }: { composer: boolean; drawer?: boolean }) => (
+const Page = ({ builder, drawer = false }: { builder: boolean; drawer?: boolean }) => (
   <AntdApp>
     <MemoryRouter>
       <ThemeModeProvider>
         <Provider />
         {drawer ? <AgentikoPreviewDrawer /> : null}
-        {composer ? <div data-testid='builder'><BlueprintBuilder /></div> : null}
+        {builder ? <div data-testid='builder'><BlueprintBuilder /></div> : null}
       </ThemeModeProvider>
     </MemoryRouter>
   </AntdApp>
@@ -110,31 +110,31 @@ const editFile = (block: HTMLElement, path: string, text: string): void => {
 
 describe('BlueprintBuilder + the provider — an edit the provider refuses', () => {
   it('is said where it was made, and Chart files keeps showing the bytes that will publish', async () => {
-    render(<Page composer />)
+    render(<Page builder />)
     const files = seededChart()
     await startAndRender(files)
     const publish = screen.getByRole<HTMLButtonElement>('button', { name: /Publish/ })
     expect(publish.disabled).toBe(false)
 
     // Over the 512 KiB tree cap: the store refuses it.
-    const composer = screen.getByTestId('builder')
-    editFile(fileBlock(composer, 'values.yaml'), 'values.yaml', `# ${'x'.repeat(600 * 1024)}\n{}\n`)
+    const builder = screen.getByTestId('builder')
+    editFile(fileBlock(builder, 'values.yaml'), 'values.yaml', `# ${'x'.repeat(600 * 1024)}\n{}\n`)
 
     expect(held?.get()?.files['values.yaml']).toBe(files['values.yaml'])
     expect(screen.getByText('This edit was not applied')).toBeTruthy()
     expect(screen.getByText(/over the 512 KiB cap/)).toBeTruthy()
     // The editor stays open on the person's text, so they can trim it rather than retype it…
-    expect(within(fileBlock(composer, 'values.yaml')).getByLabelText<HTMLTextAreaElement>('Edit values.yaml').value.length).toBeGreaterThan(600 * 1024)
+    expect(within(fileBlock(builder, 'values.yaml')).getByLabelText<HTMLTextAreaElement>('Edit values.yaml').value.length).toBeGreaterThan(600 * 1024)
     // …and cancelling it shows the held bytes — what Publish (still on, for those bytes) commits.
-    act(() => { within(fileBlock(composer, 'values.yaml')).getByRole('button', { name: 'Cancel' }).click() })
-    expect(fileBlock(composer, 'values.yaml').textContent?.length).toBeLessThan(1024)
+    act(() => { within(fileBlock(builder, 'values.yaml')).getByRole('button', { name: 'Cancel' }).click() })
+    expect(fileBlock(builder, 'values.yaml').textContent?.length).toBeLessThan(1024)
     expect(publish.disabled).toBe(false)
   })
 })
 
 describe('BlueprintBuilder + the provider — a drawer already open when the builder claims the surface', () => {
   it('closes: one surface per draft, so a stale Files tab cannot write over the builder', async () => {
-    const view = render(<Page composer={false} drawer />)
+    const view = render(<Page builder={false} drawer />)
     const files = seededChart()
     await startAndRender(files)
     // The agent's previewBlueprint of the held chart, on another route — nothing claims it, so the drawer opens.
@@ -145,19 +145,19 @@ describe('BlueprintBuilder + the provider — a drawer already open when the bui
     })
     expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
 
-    // The person navigates to the composer.
-    view.rerender(<Page composer drawer />)
+    // The person navigates to the builder.
+    view.rerender(<Page builder drawer />)
     expect(screen.getByTestId('builder').textContent).toContain('builder-publish')
     expect(document.querySelector('.ant-drawer-open')).toBeNull()
   })
 
   it('leaves a drawer showing something the builder does not own — an inspection — open', () => {
-    const view = render(<Page composer={false} drawer />)
+    const view = render(<Page builder={false} drawer />)
     act(() => {
       window.dispatchEvent(new CustomEvent(AGENTIKO_PREVIEW_EVENT, { detail: { builder: 'inspect', summary: ['repos'], title: 'Describe — repos' } }))
     })
     expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
-    view.rerender(<Page composer drawer />)
+    view.rerender(<Page builder drawer />)
     expect(document.querySelector('.ant-drawer-open')).not.toBeNull()
   })
 })
@@ -178,15 +178,15 @@ describe('BlueprintBuilder + the provider — a resource added the way the canva
   }
 
   it('the edit in Chart files previews — the block is regenerated as it is held — and Publish arms after the render', async () => {
-    render(<Page composer />)
+    render(<Page builder />)
     const files = seededChart('probe-chart')
     await startAndRender(files)
     const publish = screen.getByRole<HTMLButtonElement>('button', { name: /Publish/ })
     expect(vi.mocked(callBlueprintRenderRA)).toHaveBeenCalledTimes(1)
 
     act(() => { emitFileAdd({ content: SETTINGS, path: 'templates/settings.yaml' }) })
-    const composer = screen.getByTestId('builder')
-    editFile(fileBlock(composer, ARCHITECTURE_TEMPLATE_PATH), ARCHITECTURE_TEMPLATE_PATH, withSettingsNode(files[ARCHITECTURE_TEMPLATE_PATH]))
+    const builder = screen.getByTestId('builder')
+    editFile(fileBlock(builder, ARCHITECTURE_TEMPLATE_PATH), ARCHITECTURE_TEMPLATE_PATH, withSettingsNode(files[ARCHITECTURE_TEMPLATE_PATH]))
 
     const heldFiles = held?.get()?.files ?? {}
     expect(graphBlockIn(heldFiles[ARCHITECTURE_TEMPLATE_PATH])).toContain('"id" "settings"')
@@ -201,7 +201,7 @@ describe('BlueprintBuilder + the provider — a resource added the way the canva
   })
 
   it('the drawer\'s Chart files shows the bytes held after the edit — the regenerated block — not the ones typed', async () => {
-    render(<Page composer={false} drawer />)
+    render(<Page builder={false} drawer />)
     const files = seededChart('probe-chart')
     await startAndRender(files)
     act(() => {

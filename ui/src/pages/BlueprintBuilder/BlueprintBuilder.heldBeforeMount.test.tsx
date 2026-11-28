@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 /**
- * A chart HELD BEFORE the composer mounts — a navigation away and back, or a chart Agentiko started
+ * A chart HELD BEFORE the builder mounts — a navigation away and back, or a chart Agentiko started
  * on another page — must be as editable as one started here (review of #427).
  *
  * The provider answers a replay synchronously. The host once asked for it in the same effect that put
  * its own listener on, BEFORE the blueprint workbench's listener existed; the workbench, which plans a
  * placement from the last broadcast it heard, then planned against an empty draft and refused every
  * row with "Add templates/architecture.yaml first". Here the provider's REAL hooks hold and arm the
- * chart first, and only then is the composer mounted.
+ * chart first, and only then is the builder mounted.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { App as AntdApp } from 'antd'
@@ -55,16 +55,16 @@ const CRD_URL = 'resource=customresourcedefinitions'
 
 type Held = { store: ReturnType<typeof createBroadcastingDraftStore>; gate: ReturnType<typeof createBlueprintGate>; showBuilder: () => void }
 
-/** The provider's draft half, mounted alone; the composer only when asked. */
+/** The provider's draft half, mounted alone; the builder only when asked. */
 const mountProviderFirst = (): Held => {
   const held: { current: Held | null } = { current: null }
   const Page = () => {
     const [gate] = useState(() => createBlueprintGate())
     const [store] = useState(() => createBroadcastingDraftStore(gate))
-    const [composer, setBuilder] = useState(false)
+    const [builder, setBuilder] = useState(false)
     useDraftFileBuses(store, gate, heldDraftIdentity)
     held.current = { gate, showBuilder: () => setBuilder(true), store }
-    return composer ? <BlueprintBuilder /> : null
+    return builder ? <BlueprintBuilder /> : null
   }
   render(
     <AntdApp>
@@ -86,14 +86,14 @@ describe('BlueprintBuilder — a chart held before it mounted', () => {
       ...Object.fromEntries(Object.entries(CRDS).map(([name, crd]) => [`${CRD_URL}&apiVersion=apiextensions.k8s.io%2Fv1&name=${name}`, { body: crd, status: 200 }])),
     })
     const provider = mountProviderFirst()
-    // Held and armed while no composer is on the page.
+    // Held and armed while no builder is on the page.
     act(() => { provider.store.set(seededChart('orders'), 'blueprint') })
     act(() => { provider.gate.recordPreview('orders') })
 
-    // Now the composer mounts, and hears the held chart only through the replay it asks for.
+    // Now the builder mounts, and hears the held chart only through the replay it asks for.
     act(() => { provider.showBuilder() })
     const palette = () => screen.getByRole('region', { name: 'Add' })
-    await waitFor(() => expect(within(palette()).getByText('72 kinds · 4 groups')).toBeTruthy())
+    await waitFor(() => expect(within(palette()).getByText('72 kinds · 3 providers')).toBeTruthy())
 
     const batches = listen<FilesBatchDetail>(AGENTIKO_PREVIEW_FILES_BATCH_EVENT)
     act(() => { fireEvent.change(within(palette()).getByLabelText('Filter by kind or group'), { target: { value: 'Repository' } }) })

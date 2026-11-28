@@ -48,9 +48,10 @@ import type { ThreadSummary } from './sessionHistoryStore'
 import { createEchoTransport, createKagentTransport } from './transport'
 import type { AgentikoActionChip, AgentikoFrame, AgentikoMessage, AgentikoTransport, EvidenceEntry, PageContextEnvelope, TurnModality } from './types'
 import { buildContextDelta, useAgentikoContext } from './useAgentikoContext'
+import { useApprovalLink } from './useApprovalLink'
 import { useBlueprintAuthoringBuses } from './useBlueprintAuthoringBuses'
 import { type ClaimRetryApi, useClaimCheck } from './useClaimCheck'
-import { createDraftAutosave, useDraftAutosave } from './useDraftAutosave'
+import { createDraftAutosave, useSandboxDrafts } from './useDraftAutosave'
 import { createBroadcastingDraftStore, useDraftFileBuses } from './useDraftFileBuses'
 import { useDraftResumeBus } from './useDraftResumeBus'
 import { usePreviewDataLoop } from './usePreviewDataLoop'
@@ -158,11 +159,11 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
 
   const [open, setOpen] = useState(false)
   // The DURABLE conversation (transcript + thread identity) is held in a module-level
-  // store, NOT component state, so it survives a provider remount. AgentikoProvider is
-  // mounted under `<RouterProvider key={routerVersion}>`; a routerVersion bump (the
-  // routes-as-data reload) remounts this subtree and would reset any useState to its
-  // initial value — silently wiping the chat when navigating onto a freshly-registered
-  // route (e.g. a composition-detail page). Reading via useSyncExternalStore re-hydrates
+  // store, NOT component state, so it survives a provider remount. Until frontend 1.8.75 every
+  // route registration remounted this subtree (`<RouterProvider key={routerVersion}>`) and
+  // reset any useState, silently wiping the chat on a freshly-registered route (e.g. a
+  // composition-detail page). The router is now built once (descendant routes,
+  // RoutesProvider.tsx), so that remount is gone; the store covers any that remains. Reading via useSyncExternalStore re-hydrates
   // from the SURVIVING store on remount. The transcript is folded through the store's
   // `setMessages` (same value-or-updater setState contract), called directly as a stable
   // module member below — so it is NOT a hook dependency and the fold code is unchanged.
@@ -192,7 +193,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // Both reset on newThread.
   const [blueprintGate] = useState(createBlueprintGate)
   // The held draft + its broadcast: a surface that EDITS it lives outside this provider's tree (the
-  // composer is a route), so it re-reads from the broadcast rather than computing against stale bytes.
+  // builder is a route), so it re-reads from the broadcast rather than computing against stale bytes.
   // The broadcast says WHO holds the draft and, for a blueprint, what the lint thinks of it — built
   // by the same helper the replay uses, so the two emitters cannot disagree.
   const [blueprintStore] = useState(() => createBroadcastingDraftStore(blueprintGate, draftAutosave.onHeldChange))
@@ -247,13 +248,15 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     approvalRef.current?.governor.dispose()
     // Provider unmount closes the microphone AND stops speech (voice spec FR 44).
     //
-    // READ THIS BEFORE "FIXING" IT TO SATISFY FR 42. A routerVersion remount runs this
-    // cleanup too — React cannot tell a remount from a real unmount — so capture does NOT
-    // in fact survive a routes-as-data reload, and FR 42's "keeps capture running" clause
-    // is unmet in the app (the store-level test passes because it drives the store
-    // directly). Deleting this line does not fix that: `open` is still `useState(false)`
+    // READ THIS BEFORE "FIXING" IT TO SATISFY FR 42. Any remount runs this cleanup too —
+    // React cannot tell a remount from a real unmount. Until frontend 1.8.75 every route
+    // registration remounted the provider, so capture did not survive a routes-as-data
+    // reload; the router is now built once and route registration no longer remounts it.
+    // FR 42's "keeps capture running" clause has not been re-measured in the app since (the
+    // store-level test drives the store directly). For any remount that remains, deleting
+    // this line does not help: `open` is still `useState(false)`
     // below, so the rail comes back COLLAPSED, and `useVoiceWiring`'s collapse teardown
-    // cancels capture on the way in regardless. Surviving the remount for real means
+    // cancels capture on the way in regardless. Surviving a remount for real means
     // moving `open` into a module-level store as well, so the rail returns open with its
     // meter, timer and Cancel visible. Until then this line is the honest backstop: better
     // a dictation cut short than a microphone left live behind a rail that came back shut.
@@ -271,7 +274,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   // non-read-only verb, so this never mutates.
   // `modality` is THIS turn's own provenance (voice spec FR 67), handed down the same
   // per-turn closure that carries `assistantId` — never read from shared state. That is not
-  // fastidiousness: finalize is async and sets streaming:false (re-enabling the composer)
+  // fastidiousness: finalize is async and sets streaming:false (re-enabling the chat composer)
   // BEFORE it awaits `apply`, so a second turn can legitimately start while this one is
   // suspended in a blast-radius confirm or a destination form. Any "how was the last turn
   // asked" value read after that await belongs to the OTHER turn — which would read a typed
@@ -377,7 +380,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
         chips.push({ label: proposal.label ?? 'drafted the create form', readOnly: true, verb: 'prefillForm' })
       } else if (route === 'publish') {
         // Every builder's publish verb (the Builder that allows it names its publisher) takes
-        // publishDraft, the same path as a composer's Publish button — one destination form, one gate,
+        // publishDraft, the same path as a builder's Publish button — one destination form, one gate,
         // one claim — and publishes the HELD draft, whose record is marked when the claim lands (`held`).
         const { compiled, deepLink, held: heldAtPublish } = await publishDraft(
           { blueprintGate, blueprintStore, builderTargets, config, origin },
@@ -433,7 +436,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
             // FE-BP1/BP2: an APPLIED, lint-clean, SUCCESSFULLY RENDERED inline-draft previewBlueprint
             // HOLDS the previewed tree and arms the blueprint gate for its Chart.yaml name. The rule
             // lives in `recordBlueprintPreview` beside its page twin, so a preview a person starts
-            // from the composer arms the same gate this proposal does.
+            // from the builder arms the same gate this proposal does.
             // A chart held because it rendered: its record carries the hash of the tree that did.
             if (recordBlueprintPreview(proposal.rawTemplates, !blueprintChipRendered(chip), blueprintStore, blueprintGate)) {
               void draftAutosave.markRendered(blueprintStore.get())
@@ -678,7 +681,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
       resetPreviewDataLoop()
       // A NEW USER TURN STOPS SPEECH (FR 75). Not just the ones the keyboard produced: a
       // suggestion chip, a starter prompt and a purely-dictated draft all reach this line
-      // without a keystroke, and the composer's own onChange cancel never fires for them. The
+      // without a keystroke, and the chat composer's own onChange cancel never fires for them. The
       // next turn's finalize also cancels, but that is a stream later — far too late to be the
       // barge-in that the answer-still-talking user just asked for by asking something else.
       agentikoSpeakBackStore.cancel()
@@ -723,7 +726,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     setStreaming(false)
     // Stop means stop: a pending preview-data check sends no follow-up after it.
     resetPreviewDataLoop()
-    // Settle any still-streaming bubble so the UI drops the caret and re-enables the composer.
+    // Settle any still-streaming bubble so the UI drops the caret and re-enables the chat composer.
     setMessages((prev) => prev.map((message) => (message.streaming ? { ...message, streaming: false } : message)))
   }, [resetPreviewDataLoop, setMessages])
 
@@ -735,13 +738,14 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     abortRef.current = null
     // FR 44: newThread() and switchToThread() abort any capture or upload in flight as
     // well as any speech. A transcript arriving into a thread the user has already left
-    // would land in a composer that belongs to a different conversation.
+    // would land in a chat composer that belongs to a different conversation.
     stopVoice()
     // DENY-BY-DEFAULT on thread reset: a pending approval is rejected (fire-and-forget,
     // no-op handlers — the new thread does not render the released task's stream) so
     // the paused kagent task is never left dangling toward an approve.
+    // A pause opened from an approval LINK is explicit-only (Diego): leaving it here leaves it paused.
     const active = approvalRef.current
-    if (active && active.governor.settle()) {
+    if (active && active.pause.origin !== 'link' && active.governor.settle()) {
       transport.respondToApproval(
         { reason: 'Denied: the user started/switched threads (deny-by-default).', type: 'reject' },
         active.pause,
@@ -771,7 +775,7 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
     setOasHeld(null)
     // THE DRAFT ITSELF SURVIVES. This used to call `blueprintStore.clear()`, on the grounds that
     // the held draft was "dropped with the conversation that produced them". That was true when
-    // every draft came from a conversation. It stopped being true when the composer shipped: a
+    // every draft came from a conversation. It stopped being true when the builder shipped: a
     // person starts a page, drags widgets into it and binds data without Agentiko involved at
     // all — and then starting a fresh thread silently destroyed the page they were building, with
     // no warning and no undo. Worse, starting a fresh thread is exactly what you are told to do
@@ -826,13 +830,14 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   const previewStartedDraft = useCallback((widgets: Record<string, unknown>[], title: string) =>
     apply({ label: `Page preview — ${title}`, verb: 'previewPage', widgets }), [apply])
 
-  // Both held-draft write paths — the Files-tab edit and the composer's add — live in one hook.
+  // Both held-draft write paths — the Files-tab edit and the builder's add — live in one hook.
   // See useDraftFileBuses for why they are two buses and why `addFile` is separate from updateFile.
   useDraftFileBuses(blueprintStore, blueprintGate, heldDraftIdentity, previewStartedDraft, discardSandbox)
-  // A person starting and rendering a chart (the Blueprint Composer) — see useBlueprintAuthoringBuses.
+  // A person starting and rendering a chart (the Blueprint Builder) — see useBlueprintAuthoringBuses.
   useBlueprintAuthoringBuses(blueprintStore, blueprintGate, config, sandboxWriter, draftAutosave)
   // The draft record's writer (absent without a sandbox: autosave off) and the thread it came from.
-  useDraftAutosave(draftAutosave, sandboxWriter, sessionId)
+  // And the author's own previews from a tab that died, a day old or more, are removed (previewSweep.ts).
+  useSandboxDrafts(blueprintStore, config, draftAutosave, sandboxWriter, sessionId)
   // A person resuming a stored draft or adopting a legacy page set, and the legacy Discard — see useDraftResumeBus.
   useDraftResumeBus(blueprintStore, blueprintGate, { autosave: draftAutosave, sandboxWriter, switchToThread })
 
@@ -877,6 +882,10 @@ export const AgentikoProvider = ({ children }: { children: React.ReactNode }) =>
   const toggle = useCallback(() => setOpen((prev) => !prev), [])
   const closeTour = useCallback(() => setTourOpen(false), [])
   useAgentikoShortcut(reachable, toggle)
+
+  // The `?agentiko=<contextId>` approval link: a decision a task started by the person's own agent is
+  // waiting on, brought here (useApprovalLink.ts). Explicit only: see the thread teardown above.
+  useApprovalLink({ access: askAccessOf({ checking, licensed, reachable }), agent, approvalRef, endpoint, newThread, setMessages, setOpen, setPendingApproval })
 
   // The `?ask=` deep-link (Diagnose / Troubleshoot buttons): licensed and reachable → open the rail
   // and seed one turn; unlicensed or unreachable → open the rail, which says why, and leave the

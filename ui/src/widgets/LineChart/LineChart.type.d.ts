@@ -68,7 +68,7 @@ export interface LineChart {
        */
       point?: boolean
       /**
-       * G2 per-channel scale config (G2 `scale`), e.g. {"y":{"zero":true,"nice":true,"domainMin":0,"domainMax":3,"tickCount":4}}. domainMax is a floor — data larger than it still wins, so dense data is never clipped.
+       * G2 per-channel scale config (G2 `scale`), e.g. {"y":{"zero":true,"nice":true,"domainMin":0,"domainMax":3,"tickCount":4}}. domainMax is the top of the axis as written: a value above it is drawn past the top of the plot, so set it from the data (at or above the largest value), e.g. in the widgetDataTemplate.
        */
       scale?: {
         [k: string]: unknown
@@ -80,9 +80,13 @@ export interface LineChart {
         [k: string]: unknown
       }
       /**
-       * When set, `xField` values are treated as UNIX epoch SECONDS and formatted to a label in the BROWSER's local timezone at render: 'hour' -> 'HH:00', 'day' -> 'Mon D'. Use this instead of server-side strftime so a 21:00-Rome bucket reads 21:00 (not the server's UTC 19:00). Annotations sharing `xField` are localized identically so peak/now marks stay aligned.
+       * When set, `xField` values are UNIX epoch SECONDS and the x axis is TIME: points are placed by their moment, and ticks are labelled in the VIEWER's time zone, as all text is: 'hour' -> 'HH:MM', with the day ('24 Nov'; '31 Dec 2025' in another year) where it changes; 'day' -> the day. The tooltip gives the point's full date with the zone ('Tue 24 November 2026, 08:00:00 (UTC+1)'). Use this instead of server-side strftime, which is UTC and repeats across days. Annotations sharing `xField` are placed identically, so peak/now marks stay aligned.
        */
       xTimeUnit?: 'hour' | 'day'
+      /**
+       * The row field that says a slot is not a whole measurement: `partial` for the slot still filling (the one that holds now), `missing` for a slot where nothing was recorded (send its value as null, never 0). Any other value, or none, is a whole slot. A slot with no data breaks the line over a hatched band labelled 'No data', whose hover reads 'No data · 25 Nov, 09:50 to 10:20'; the slot still filling ends the line with a dashed segment and a hollow point labelled 'so far', and its hover value ends 'so far'. A legend entry 'so far' or 'no data' is added under the chart only when such a slot is drawn. With several series a band is drawn only where every series has no data; one series without a value breaks only its own line. Meant for a time axis (`xTimeUnit`), where the band's hover names its times in the viewer's zone.
+       */
+      slotField?: string
       /**
        * map each colorField category to a Krateo palette colour name (e.g. {"Created":"cyan"}); sets the G2 color scale domain/range so the line + points render in the brand colour, not G2's default blue palette
        */

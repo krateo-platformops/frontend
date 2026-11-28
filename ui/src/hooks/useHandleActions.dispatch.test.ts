@@ -528,3 +528,56 @@ describe('dispatchAction — W3-1 fanOutPath (one submit → N ordered writes vi
     expect(ctx.navigate).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * A rest action's `confirmation` reaches the ONE gate with its radius — the dialog that opens
+ * anyway — on every path: a scalar write, a read-only opt-in, and a set (fan-out). Without the
+ * field the gate gets no words, so it renders as it always has.
+ */
+describe('dispatchAction — the action\'s confirmation reaches the one gate', () => {
+  const confirmation = { message: 'This removes the blueprint my-blueprint from the Platform.', okLabel: 'Uninstall', title: 'Uninstall my-blueprint?' }
+  const deleteRef = { allowed: true, id: 'ref', path: '/call?resource=compositiondefinitions&apiVersion=core.krateo.io/v1alpha1&name=my-blueprint&namespace=krateo-system', payload: {}, verb: 'DELETE' as const }
+  const getRef = { allowed: true, id: 'ref', path: '/api/x', payload: {}, verb: 'GET' as const }
+  const confirmCalls = (ctx: ActionContext) => (ctx.confirm as unknown as Mock).mock.calls as unknown[][]
+
+  it('a scalar write: ONE confirm, carrying the radius and the action\'s words', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{}'))))
+    const ctx = makeCtx()
+    await dispatchAction(restAction({ confirmation }), { resourcesRefs: refs([deleteRef]) }, ctx)
+    expect(ctx.confirm).toHaveBeenCalledTimes(1)
+    const [[radius, words]] = confirmCalls(ctx)
+    expect((radius as { verb: string }).verb).toBe('DELETE')
+    expect(words).toEqual(confirmation)
+  })
+
+  it('without the field the gate gets no words', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{}'))))
+    const ctx = makeCtx()
+    await dispatchAction(restAction(), { resourcesRefs: refs([deleteRef]) }, ctx)
+    expect(ctx.confirm).toHaveBeenCalledTimes(1)
+    const [[, words]] = confirmCalls(ctx)
+    expect(words).toBeUndefined()
+  })
+
+  it('a read-only opt-in (requireConfirmation) carries the words with no radius', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{}'))))
+    const ctx = makeCtx()
+    await dispatchAction(restAction({ confirmation, requireConfirmation: true }), { resourcesRefs: refs([getRef]) }, ctx)
+    expect(ctx.confirm).toHaveBeenCalledTimes(1)
+    expect(confirmCalls(ctx)[0]).toEqual([undefined, confirmation])
+  })
+
+  it('a fan-out set: its ONE aggregated confirm carries the words', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(fakeResponse(true, '{}'))))
+    const ctx = makeCtx({ resolveJq: vi.fn((_expr: string, vals: Record<string, unknown>) => Promise.resolve((vals.json as { items: string }).items)) })
+    await dispatchAction(
+      restAction({ confirmation, fanOutPath: 'items', payloadToOverride: [{ name: 'metadata.name', value: '${ .json.items }' }] }),
+      { customPayload: { items: ['a', 'b'] }, resourcesRefs: refs([postRef]) },
+      ctx
+    )
+    expect(ctx.confirm).toHaveBeenCalledTimes(1)
+    const [[radius, words]] = confirmCalls(ctx)
+    expect((radius as { kind: string }).kind).toBe('set')
+    expect(words).toEqual(confirmation)
+  })
+})

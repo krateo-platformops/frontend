@@ -145,7 +145,7 @@ describe('the trigger, through the real composer', () => {
     expect(send).toHaveBeenCalledWith('scale payments?', { modality: 'text' })
   })
 
-  it('the draft (and its provenance) survives a remount — the routerVersion bump', () => {
+  it('the draft (and its provenance) survives a remount', () => {
     const send = vi.fn()
     setValue({ send })
     const { unmount } = render(<AgentikoRail />)

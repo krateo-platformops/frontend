@@ -8,6 +8,7 @@ import type { CSSProperties } from 'react'
 import { BrandBandFromConfig, BrandFrameContext } from '../../components/BrandFrame'
 import RefChild from '../../components/RefChild'
 import StatusPill from '../../components/StatusPill'
+import { withTimeTokens } from '../../components/TimeText/withTimeTokens'
 import WidgetRenderer from '../../components/WidgetRenderer'
 import { useHandleAction } from '../../hooks/useHandleActions'
 import { getColorCode } from '../../theme/palette'
@@ -57,7 +58,7 @@ const BADGE_STATUS_COLOR: Record<string, string> = {
   warning: 'warning',
 }
 
-const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetProps<CardWidgetData>) => {
+const Card = ({ deniedRefIds, failedRefs, resourcesRefs, uid, widget, widgetData }: WidgetProps<CardWidgetData>) => {
   const { notification } = useApp()
   const { handleAction, isActionLoading } = useHandleAction()
 
@@ -170,12 +171,15 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
   // mono-uppercase glowing chip and `tag` a bare antd Tag with the palette tint, so a composition's
   // "NotSynced" in its rail read NOTSYNCED, inches from the "NotReady" pill in its header. Same
   // vocabulary, same object. `badge` keeps antd's Badge status names as its input.
+  //
+  // `extra` may carry time tokens ({ago:<ISO>}…, components/TimeText/withTimeTokens), written in the browser;
+  // an extra without one is the same string.
   const renderExtraValue = () => {
     if (extraVariant === 'badge' || extraVariant === 'tag') {
       const status = extraStatus ?? (extraVariant === 'badge' ? 'processing' : undefined)
-      return <StatusPill color={status ? (BADGE_STATUS_COLOR[status] ?? status) : undefined} label={extra} />
+      return <StatusPill color={status ? (BADGE_STATUS_COLOR[status] ?? status) : undefined} label={withTimeTokens(extra)} />
     }
-    return extra
+    return withTimeTokens(extra)
   }
 
   const card = (
@@ -252,7 +256,7 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
           <div className={`${styles.body} ${icon && !headerLeft ? styles.clearsIcon : ''}`}>
             {bodyItems.map(({ index, item: { resourceRefId } }) => (
               <RefChild
-                deniedRefIds={deniedRefIds}
+                deniedRefIds={deniedRefIds} failedRefs={failedRefs}
                 key={`${uid}-${index}`}
                 label='card item'
                 resourceRefId={resourceRefId}
@@ -274,7 +278,7 @@ const Card = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetPr
       <div className={styles.afterCard}>
         {slotItems.map(({ index, item: { resourceRefId } }) => (
           <RefChild
-            deniedRefIds={deniedRefIds}
+            deniedRefIds={deniedRefIds} failedRefs={failedRefs}
             key={`${uid}-${index}`}
             label='card item'
             resourceRefId={resourceRefId}

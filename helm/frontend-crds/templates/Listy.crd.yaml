@@ -269,6 +269,57 @@ spec:
                           description: rest api call actions triggered by the widget
                           items:
                             properties:
+                              confirmation:
+                                description: 'the words of the confirmation this action opens before it runs, written for the person deciding. It does not add a dialog: it changes the words of the one write confirmation that opens anyway (every POST, PUT, PATCH and DELETE, and a read-only action with requireConfirmation). When set, that dialog shows this title, message, optional alert and OK label, and folds its own technical facts (verb, resource, cluster, namespace and the YAML it will send) under a collapsed "What will be sent" disclosure. Without it, the dialog shows those facts as its body. Like any widgetData field it can be filled from widgetDataTemplate (forPath: actions.rest[0].confirmation).'
+                                properties:
+                                  alert:
+                                    description: an antd Alert under the message, for what the person should know before confirming (e.g. the compositions created from a blueprint). Leave it out when there is nothing to say.
+                                    properties:
+                                      items:
+                                        description: the objects the Alert is about, one line each under its text
+                                        items:
+                                          properties:
+                                            href:
+                                              description: where the label links to; it opens in a new tab, so the confirmation stays open
+                                              type: string
+                                            label:
+                                              description: the object's name
+                                              type: string
+                                            tag:
+                                              description: a short neutral tag after the label, e.g. the object's own state word (Ready, Paused)
+                                              type: string
+                                          required:
+                                            - label
+                                          type: object
+                                        type: array
+                                      message:
+                                        description: the Alert's text, e.g. "1 composition was created from it."
+                                        type: string
+                                      type:
+                                        description: 'the Alert''s type: warning (amber), info or error'
+                                        enum:
+                                          - warning
+                                          - info
+                                          - error
+                                        type: string
+                                    required:
+                                      - message
+                                      - type
+                                    type: object
+                                  message:
+                                    description: one or two sentences under the title saying what the action does, e.g. "This removes the blueprint my-blueprint from the Platform."
+                                    type: string
+                                  okLabel:
+                                    description: 'the OK button''s label: the verb the action performs, e.g. "Uninstall". The button is danger-styled when the write deletes, as without a confirmation'
+                                    type: string
+                                  title:
+                                    description: 'the dialog title: a question naming what will happen, e.g. "Uninstall my-blueprint?"'
+                                    type: string
+                                required:
+                                  - message
+                                  - okLabel
+                                  - title
+                                type: object
                               errorMessage:
                                 description: a message that will be displayed inside a toast in case of error
                                 type: string
@@ -510,36 +561,55 @@ spec:
                           description: Per-field rendering applied after each {dot.path} resolves.
                           properties:
                             primaryText:
-                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
+                              description: 'How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer''s time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.'
                               enum:
                                 - text
+                                - age
+                                - ago
+                                - moment
+                                - date
                                 - datetime
                                 - relative
                               type: string
                             secondaryText:
-                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
+                              description: 'How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer''s time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.'
                               enum:
                                 - text
+                                - age
+                                - ago
+                                - moment
+                                - date
                                 - datetime
                                 - relative
                               type: string
                             subPrimaryText:
-                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
+                              description: 'How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer''s time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.'
                               enum:
                                 - text
+                                - age
+                                - ago
+                                - moment
+                                - date
                                 - datetime
                                 - relative
                               type: string
                             subSecondaryText:
-                              description: 'How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.'
+                              description: 'How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer''s time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.'
                               enum:
                                 - text
+                                - age
+                                - ago
+                                - moment
+                                - date
                                 - datetime
                                 - relative
                               type: string
                           type: object
                         health:
                           description: 'tree rowVariant only: {dot.path} template to the child''s health as the page header''s worst-child pill counts it: ready | pending | unknown | notSynced | notReady, or excluded (not judged at all, e.g. a managed Secret the chart deliberately does not read). A row that resolves to one of these is counted as exactly that; any other value, or no health, falls back to the row''s raw conditions, then its colour'
+                          type: string
+                        highlight:
+                          description: 'statistic rowVariant: {dot.path} to a boolean the RESTAction computes. true draws the tile''s border in its `color` (in the text colour when it has none), anything else leaves the neutral border. The tile never reads its own value to decide. Absent: the border follows `color`. A borderless tile has no border to highlight'
                           type: string
                         icon:
                           description: '{dot.path} to an icon name, or a literal name, shown at the row leading edge.'
@@ -573,6 +643,12 @@ spec:
                               label:
                                 description: menu item label
                                 type: string
+                              type:
+                                description: 'the button''s emphasis where row actions show as buttons (a List card footer, or rowActionsDisplay: buttons). Unset: the first action is primary and the rest default. Set default on the first to have no primary. Ignored in the kebab menu.'
+                                enum:
+                                  - primary
+                                  - default
+                                type: string
                             required:
                               - actionId
                               - label
@@ -585,7 +661,7 @@ spec:
                             - buttons
                           type: string
                         rowVariant:
-                          description: 'row layout: default (antd List.Item.Meta — avatar + stacked title/description) | tree (tight single-line mono Relations row: connector + status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile — icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons — the Marketplace catalog grid) | chip (compact navigable filter pill — primaryText label + optional count, solid/amber when the item''s active flag is set — the data-driven Marketplace facet chips; a chip whose data element carries `removable: true` is an applied filter: a trailing remove mark, the accessible name "Remove filter: <primaryText>", and its navigateTo is the URL without that value) | statistic (one tile of a stats strip: an antd Card holding an antd Statistic, primaryText the title, secondaryText the value, subPrimaryText a secondary caption; `color` tints the value and frame ONLY when it resolves, so the healthy majority stays neutral; without `grid` the tiles fill the row and reflow as it narrows)'
+                          description: 'row layout: default (antd List.Item.Meta — avatar + stacked title/description) | tree (tight single-line mono Relations row: status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile — icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons — the Marketplace catalog grid) | chip (compact navigable filter pill — primaryText label + optional count, solid/amber when the item''s active flag is set — the data-driven Marketplace facet chips; a chip whose data element carries `removable: true` is an applied filter: a trailing remove mark, the accessible name "Remove filter: <primaryText>", and its navigateTo is the URL without that value) | statistic (one tile of a stats strip: an antd Card holding an antd Statistic, primaryText the title, secondaryText the value, subPrimaryText a secondary caption; `color` tints the value and frame ONLY when it resolves, so the healthy majority stays neutral; without `grid` the tiles fill the row and reflow as it narrows)'
                           enum:
                             - default
                             - tree
@@ -620,6 +696,12 @@ spec:
                           type: boolean
                         subSecondaryText:
                           description: '{dot.path} to the line beneath the secondary text.'
+                          type: string
+                        tileVariant:
+                          description: 'statistic rowVariant: the tile''s antd Card `variant`. outlined (default) frames each tile; borderless draws none, for a strip that already sits in a Card'
+                          enum:
+                            - outlined
+                            - borderless
                           type: string
                       type: object
                     loading:

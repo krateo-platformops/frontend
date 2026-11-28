@@ -1,11 +1,11 @@
 /**
- * What a person's Publish ANSWERS — the one payload that makes a composer say "Published".
+ * What a person's Publish ANSWERS — the one payload that makes a builder say "Published".
  *
- * The composer reads `denial === null` as success and shows the change-request link. So the
+ * The builder reads `denial === null` as success and shows the change-request link. So the
  * answer may carry no denial only when the claim was actually written: not when the person
  * declined the blast-radius confirm (apply → null, nothing dispatched), and not when the apiserver
  * refused the claim (a chip with a `failure`). Both used to answer `denial: null` with the deep
- * link — computed before apply ran — and the composer congratulated a publish that never happened.
+ * link — computed before apply ran — and the builder congratulated a publish that never happened.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

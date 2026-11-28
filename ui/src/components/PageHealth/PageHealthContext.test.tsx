@@ -95,6 +95,12 @@ describe('composition detail — the header answers for its children', () => {
     ]))
     const pill = childPill()!
     expect(pill.textContent).toContain('NotReady')
+    // Whose state, in a word OUTSIDE the pill; the pill itself is the bare token with its glyph
+    // (portal UX review: the `└─` connector inside it read as a second, unexplained icon).
+    expect(pill.textContent).toBe('resourcesNotReady')
+    expect(pill.textContent).not.toContain('└')
+    expect(pill.querySelector('.ant-tag')?.textContent).toBe('NotReady')
+    expect(pill.querySelector('.ant-tag [data-state-family="failed"]')).not.toBeNull()
     // WHICH child, and how many: the reader is not left knowing only that something is wrong.
     expect(pill.getAttribute('aria-label')).toBe('1 of 3 children not Ready — NotReady: Deployment/payments-api')
     // And the way to it — the child's own route, so the exception is one click from the header.

@@ -1,0 +1,43 @@
+/* The navigation-unavailable page state: centred like the WidgetStates, its text left to the Result. */
+.frame {
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--krateo-space-4);
+  justify-content: center;
+}
+
+.detail {
+  background: var(--krateo-color-background-hover);
+  border-radius: var(--krateo-radius-md);
+  box-sizing: border-box;
+  color: var(--krateo-color-text-default);
+  font-size: var(--krateo-text-body-sm);
+  margin: 0 auto var(--krateo-space-3);
+  max-width: 520px;
+  padding: var(--krateo-space-3) var(--krateo-space-4);
+  text-align: left;
+}
+
+.detailError {
+  background: var(--krateo-color-status-error-subtle);
+  color: var(--krateo-color-status-error-text);
+}
+
+.reference {
+  color: var(--krateo-color-text-muted);
+  display: block;
+  font-family: var(--krateo-font-mono);
+  font-size: var(--krateo-text-label-sm);
+  letter-spacing: 0.04em;
+  text-align: center;
+}

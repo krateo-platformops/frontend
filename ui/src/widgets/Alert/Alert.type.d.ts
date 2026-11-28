@@ -25,11 +25,11 @@ export interface Alert {
      */
     widgetData: {
       /**
-       * the alert title
+       * the alert title. A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:2026-11-04T10:10:27Z}` ("3 weeks ago"), `{age:…}` ("3 weeks"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"). Never a time formatted in jq: it is in UTC, and an age is frozen in snowplow's cache.
        */
       title: string
       /**
-       * the alert detail text
+       * the alert detail text. A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:2026-11-04T10:10:27Z}` ("3 weeks ago"), `{age:…}` ("3 weeks"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"). Never a time formatted in jq: it is in UTC, and an age is frozen in snowplow's cache.
        */
       description?: string
       /**
@@ -48,6 +48,14 @@ export interface Alert {
        * whether the alert can be dismissed
        */
       closable?: boolean
+      /**
+       * a short reason drawn beside the title as a tag in the alert's own type colour, for example `CrashLoopBackOff`. Omit it for no tag.
+       */
+      tag?: string
+      /**
+       * the full message, folded inside the alert under a collapsed "Details" disclosure; plain text, line breaks kept. Omit it for no disclosure.
+       */
+      details?: string
     }
     /**
      * Per-field overrides evaluated against the apiRef response, so one authored widget can render live cluster data. Each entry replaces one value inside widgetData.

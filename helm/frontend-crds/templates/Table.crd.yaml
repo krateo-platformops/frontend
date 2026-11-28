@@ -269,6 +269,57 @@ spec:
                           description: rest api call actions triggered by the widget
                           items:
                             properties:
+                              confirmation:
+                                description: 'the words of the confirmation this action opens before it runs, written for the person deciding. It does not add a dialog: it changes the words of the one write confirmation that opens anyway (every POST, PUT, PATCH and DELETE, and a read-only action with requireConfirmation). When set, that dialog shows this title, message, optional alert and OK label, and folds its own technical facts (verb, resource, cluster, namespace and the YAML it will send) under a collapsed "What will be sent" disclosure. Without it, the dialog shows those facts as its body. Like any widgetData field it can be filled from widgetDataTemplate (forPath: actions.rest[0].confirmation).'
+                                properties:
+                                  alert:
+                                    description: an antd Alert under the message, for what the person should know before confirming (e.g. the compositions created from a blueprint). Leave it out when there is nothing to say.
+                                    properties:
+                                      items:
+                                        description: the objects the Alert is about, one line each under its text
+                                        items:
+                                          properties:
+                                            href:
+                                              description: where the label links to; it opens in a new tab, so the confirmation stays open
+                                              type: string
+                                            label:
+                                              description: the object's name
+                                              type: string
+                                            tag:
+                                              description: a short neutral tag after the label, e.g. the object's own state word (Ready, Paused)
+                                              type: string
+                                          required:
+                                            - label
+                                          type: object
+                                        type: array
+                                      message:
+                                        description: the Alert's text, e.g. "1 composition was created from it."
+                                        type: string
+                                      type:
+                                        description: 'the Alert''s type: warning (amber), info or error'
+                                        enum:
+                                          - warning
+                                          - info
+                                          - error
+                                        type: string
+                                    required:
+                                      - message
+                                      - type
+                                    type: object
+                                  message:
+                                    description: one or two sentences under the title saying what the action does, e.g. "This removes the blueprint my-blueprint from the Platform."
+                                    type: string
+                                  okLabel:
+                                    description: 'the OK button''s label: the verb the action performs, e.g. "Uninstall". The button is danger-styled when the write deletes, as without a confirmation'
+                                    type: string
+                                  title:
+                                    description: 'the dialog title: a question naming what will happen, e.g. "Uninstall my-blueprint?"'
+                                    type: string
+                                required:
+                                  - message
+                                  - okLabel
+                                  - title
+                                type: object
                               errorMessage:
                                 description: a message that will be displayed inside a toast in case of error
                                 type: string
@@ -428,6 +479,12 @@ spec:
                           minWidth:
                             description: 'antd Table column minWidth in px. Mirrors antd ColumnType.minWidth. Usually the better lever under fitContent: a fixed width re-creates the overflow it was meant to fix, while a floor keeps a column readable and lets the others flex.'
                             type: integer
+                          rulerEnd:
+                            description: 'optional, for a column of `span` cells (a waterfall): the label at the end of the bars'' scale, the length that 100% stands for, e.g. "5.81 s". See `rulerStart`.'
+                            type: string
+                          rulerStart:
+                            description: 'optional, for a column of `span` cells (a waterfall): the label at the start of the bars'' scale, e.g. "0". With `rulerEnd`, the header shows the two labels at the ends of the bars'' track, as written (not upper-cased), instead of the title; the title stays the column''s name for assistive tech. A column with a ruler has no sorter.'
+                            type: string
                           title:
                             description: column header label
                             type: string
@@ -463,14 +520,21 @@ spec:
                               description: value if type = number or decimal
                               type: string
                             format:
-                              description: optional display format for a string value — `relative` (e.g. "14d ago"), `date`, or `datetime`. The raw value stays in the data; only the rendering changes.
+                              description: 'optional time form for a string value that is an ISO (RFC3339) time, written in the viewer''s time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old, for an age column ("7 weeks"); `ago` how long ago, in a sentence ("52 minutes ago"); `moment` a point in time ("4 Nov, 11:10", with the year when it is another year: "10 Sep 2025, 09:30"); `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came. The raw value stays in the data (and sorts as a date); only the rendering changes.'
                               enum:
+                                - age
+                                - ago
+                                - moment
                                 - relative
                                 - date
                                 - datetime
                               type: string
+                            indent:
+                              description: 'optional, any cell kind: the cell''s content starts this many levels in (16px each), e.g. a span''s depth under the span that called it in a trace waterfall. Omitted or 0, the cell is laid out exactly as without it.'
+                              minimum: 0
+                              type: integer
                             kind:
-                              description: type of cell value. `tag` renders the stringValue as a colored antd Tag (use the cell `color`). `bar` renders a reconciliation-rail Progress gauge (stringValue = percent 0-100, `color` = bar/state color, amber target-tick at 100%). `conditions` renders `arrayValue` (an array of {type,status}) as small status pills, each coloured cyan (True) / crimson (False).
+                              description: 'type of cell value. `tag` renders the stringValue as a colored antd Tag (use the cell `color`). `bar` renders a reconciliation-rail Progress gauge (stringValue = percent 0-100, `color` = bar/state color, amber target-tick at 100%). `conditions` renders `stringValue` (a JSON array of {type,status,color}) as small pills, one per entry: `type` is the text, `color` is painted as sent (gray when absent) and `status` is never mapped to a colour. Send green (health), red (failure), orange (transitional) or gray (unknown); cyan is for brand and interaction, never a status. `span` renders a waterfall bar, as the trace page draws a trace''s spans: it starts `offsetPercent` of the way along the cell and is `widthPercent` long (both 0-100, of the column''s whole scale; never thinner than 2px), in the cell `color` (else the column''s, else the neutral gray), with `stringValue` (e.g. the duration, "2.10 s") written after it and `tooltip` on hover. It sorts by `offsetPercent`. Put the scale in the column title ("0 … 5.81 s"). Not `bar`, which is a progress gauge from 0 with a target mark at 100%.'
                               enum:
                                 - jsonSchemaType
                                 - icon
@@ -478,12 +542,21 @@ spec:
                                 - tag
                                 - bar
                                 - conditions
+                                - span
                               type: string
                             numberValue:
                               description: value if type = number or integer
                               type: integer
+                            offsetPercent:
+                              description: 'used if kind = span: where the bar starts, as a percentage (0-100) of the cell''s width, e.g. (span start - trace start) / trace length * 100. A value outside 0-100 is clamped.'
+                              maximum: 100
+                              minimum: 0
+                              type: number
                             resourceRefId:
                               description: used if kind = widget
+                              type: string
+                            secondaryText:
+                              description: 'optional, on a jsonSchemaType string cell: a second line under the value, muted and small (e.g. the service under a span''s name in a trace waterfall). It wraps, or ellipsizes in a truncating table, as the value does. Omitted or empty, the cell renders exactly as without it.'
                               type: string
                             stringValue:
                               description: value if type = string
@@ -505,6 +578,11 @@ spec:
                             valueKey:
                               description: the key of the column this cell belongs to
                               type: string
+                            widthPercent:
+                              description: 'used if kind = span: how long the bar is, as a percentage (0-100) of the cell''s width, e.g. span duration / trace length * 100; cut at the cell''s end, and never drawn thinner than 2px.'
+                              maximum: 100
+                              minimum: 0
+                              type: number
                           required:
                             - kind
                             - valueKey
@@ -569,6 +647,12 @@ spec:
                             type: string
                           label:
                             description: menu item label
+                            type: string
+                          type:
+                            description: 'the button''s emphasis where row actions show as buttons (a List card footer, or rowActionsDisplay: buttons). Unset: the first action is primary and the rest default. Set default on the first to have no primary. Ignored in the kebab menu.'
+                            enum:
+                              - primary
+                              - default
                             type: string
                         required:
                           - actionId

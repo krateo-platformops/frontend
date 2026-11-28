@@ -1,15 +1,35 @@
 import { Line } from '@ant-design/plots'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
+import ChartSlotLegend from '../../components/ChartSlotLegend'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useAutoFitChart } from '../../hooks/useAutoFitChart'
-import { getChartCatPalette } from '../../theme/chart-utils'
+import { axisWithInk, chartScale, getChartCatPalette } from '../../theme/chart-utils'
 import { getColorCode } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
+import { hasTooltipValue } from '../../utils/chartSlots'
+import { formatClock, formatDate, formatFull, formatFullDay } from '../../utils/dateFormat'
 
 import styles from './LineChart.module.css'
 import type { LineChart as WidgetType } from './LineChart.type'
+import { lineSlotLayers } from './lineSlots'
 
 export type LineChartWidgetData = WidgetType['spec']['widgetData']
+
+/**
+ * M4 (approved motion set): the line draws in, left to right, on the chart's FIRST paint, only when
+ * the chart is on screen at that moment and the reader has not asked for reduced motion. A chart
+ * reached by scrolling appears already drawn, so nothing moves under someone who is reading, and a
+ * refresh or a range change never replays it (`update: false`): the decision is made once.
+ */
+export const DRAW_IN = { enter: { duration: 400, easing: 'ease-out', type: 'pathIn' as const }, exit: false, update: false }
+
+export const shouldDrawIn = (element: Element | null): boolean => {
+  if (!element || typeof window === 'undefined') { return false }
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { return false }
+  const box = element.getBoundingClientRect()
+  return box.bottom > 0 && box.top < window.innerHeight && box.right > 0 && box.left < window.innerWidth
+}
 
 /**
  * Gradient area fill beneath the line when `widgetData.area` is true: the first categorical
@@ -34,63 +54,54 @@ const brandAreaFill = (): { style: { fill: string } } => {
  */
 const centeredLegend = () => ({ color: { itemLabelFill: getColorCode('text'), layout: { justifyContent: 'center' }, position: 'bottom' } })
 
+type TimeUnit = NonNullable<LineChartWidgetData['xTimeUnit']>
+
+const isMidnight = (date: Date): boolean => formatClock(date) === '00:00'
+
 /**
- * Default axis tick/title fill = theme ink (G2's near-black default is invisible on the
- * Petrol void). Merged UNDER the CR's own `axis.x`/`axis.y`, so any explicit per-axis
- * config still wins; preserves any other axis keys the CR set.
+ * A tick on a time axis, in the VIEWER's time zone, as all text is (utils/dateFormat; a server-side strftime is
+ * UTC: a 21:00-Rome bucket read 19:00). An hourly axis names the day where it changes ("4 Nov", with the year
+ * when it is another year), so a week reads as days and a day as hours ("11:00"); a daily axis labels days only.
  */
-const axisWithInk = (axis: LineChartWidgetData['axis']) => {
-  const ink = getColorCode('gray')
-  const axisObj = (axis ?? {}) as Record<string, unknown>
-  const merge = (key: 'x' | 'y') => ({ labelFill: ink, titleFill: ink, ...((axisObj[key] as Record<string, unknown> | undefined) ?? {}) })
-  return { ...axisObj, x: merge('x'), y: merge('y') }
+export const timeTick = (value: unknown, unit: TimeUnit): unknown => {
+  if (!(value instanceof Date)) { return value }
+  if (unit === 'day') { return isMidnight(value) ? formatDate(value) : '' }
+  return isMidnight(value) ? formatDate(value) : formatClock(value)
 }
 
 /**
- * Format a UNIX epoch (seconds) to an x-axis label in the BROWSER's local timezone — the fix
- * for server-side `gmtime|strftime` rendering UTC (a 21:00-Rome bucket showed 19:00). `Date`
- * accessors (`getHours`) and `toLocaleDateString` both resolve to the local zone (full IANA
- * rules incl. DST), so this is correct even across a DST boundary inside a 30-day window.
- * Non-numbers pass through unchanged (already-formatted labels / non-epoch xFields).
+ * A point's own time, whole, as every time's hover is: "Tue 24 November 2026, 08:00:00 (UTC+1)", the zone named
+ * so a chart and the text beside it can be told to agree; a daily bucket is its day, "Tue 24 November 2026".
  */
-const formatEpochLabel = (value: unknown, unit: 'hour' | 'day'): unknown => {
-  if (typeof value !== 'number') {
-    return value
-  }
-  const date = new Date(value * 1000)
-  if (unit === 'hour') {
-    return `${String(date.getHours()).padStart(2, '0')}:00`
-  }
-  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+export const timeTitle = (value: unknown, unit: TimeUnit): unknown => {
+  if (!(value instanceof Date)) { return value }
+  return unit === 'day' ? formatFullDay(value) : formatFull(value)
 }
 
 /**
- * Localize every `xField` value (epoch → local label) in the data AND in any annotations that
- * carry the same field, so the peak `point` (objects with `xField`) and the `lineX` "now" mark
- * (bare x values) stay aligned to their categorical band after the data is relabelled.
+ * Every `xField` epoch (seconds) becomes its moment, in the data AND in the annotations that carry the field (the
+ * peak `point`, the `lineX` "now" mark), so the axis places points by TIME. They used to become their label
+ * ("11:00") on a categorical axis: a day apart was the same place, so a 24 h line ran back across the plot and a
+ * week was folded onto a few hours.
  */
-const localizeXField = (
+const placeInTime = (
   data: LineChartWidgetData['data'],
   annotations: LineChartWidgetData['annotations'],
   xField: string,
-  unit: 'hour' | 'day',
 ) => {
-  const fmt = (value: unknown) => formatEpochLabel(value, unit)
-  const localData = data.map((row) => ({ ...row, [xField]: fmt(row[xField]) }))
-  const localAnnotations = annotations?.map((mark) => {
+  const moment = (value: unknown) => (typeof value === 'number' ? new Date(value * 1000) : value)
+  const timedData = data.map((row) => ({ ...row, [xField]: moment(row[xField]) }))
+  const timedAnnotations = annotations?.map((mark) => {
     const markData = (mark as { data?: unknown }).data
     if (!Array.isArray(markData)) {
       return mark
     }
-    const relabeled = markData.map((item) => {
-      if (item && typeof item === 'object') {
-        return { ...(item as object), [xField]: fmt((item as Record<string, unknown>)[xField]) }
-      }
-      return fmt(item)
-    })
-    return { ...mark, data: relabeled }
+    const moved = markData.map((item) => (item && typeof item === 'object'
+      ? { ...(item as object), [xField]: moment((item as Record<string, unknown>)[xField]) }
+      : moment(item)))
+    return { ...mark, data: moved }
   })
-  return { localAnnotations, localData }
+  return { timedAnnotations, timedData }
 }
 
 /**
@@ -109,48 +120,79 @@ const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
   // chart on every non-zero measurement of the container — see that hook.
   const { onReady, ref, width } = useAutoFitChart<HTMLDivElement>()
   const height = widgetData.height ?? 300
+  // Decided once, when the container first has a width (the chart's first paint), before the browser
+  // paints: undefined until then, so the Line never mounts with a guess.
+  const [drawIn, setDrawIn] = useState<boolean | undefined>(undefined)
+  const box = useRef<HTMLDivElement | null>(null)
+  const boxRef = useCallback((element: HTMLDivElement | null) => {
+    box.current = element
+    ref(element)
+  }, [ref])
+  useLayoutEffect(() => {
+    if (width > 0 && drawIn === undefined) { setDrawIn(shouldDrawIn(box.current)) }
+  }, [drawIn, width])
 
   if (!widgetData.data?.length) {
     return <WidgetEmpty description='No data to chart' />
   }
 
-  // When the CR marks xField as epochs (`xTimeUnit`), relabel data + annotations to the browser's
-  // local timezone here — otherwise pass both through verbatim (server already supplied labels).
-  const { localAnnotations, localData } = widgetData.xTimeUnit
-    ? localizeXField(widgetData.data, widgetData.annotations, widgetData.xField, widgetData.xTimeUnit)
-    : { localAnnotations: widgetData.annotations, localData: widgetData.data }
+  // When the CR marks xField as epochs (`xTimeUnit`), the x axis is time — otherwise data and annotations
+  // pass through verbatim (the server already supplied labels).
+  const { xField, xTimeUnit } = widgetData
+  const { timedAnnotations, timedData } = xTimeUnit
+    ? placeInTime(widgetData.data, widgetData.annotations, xField)
+    : { timedAnnotations: widgetData.annotations, timedData: widgetData.data }
 
-  // SERIES colours: map each colorField category → a palette hex (mirrors PieChart.colorMap),
-  // merged into the CR's scale. Without an operator colorMap, auto-assigned series (and a single
-  // line) take the v2 categorical chart palette — cat-01 is brand blue, matching the area fill —
-  // instead of G2's default palette. A CR-supplied scale.color still wins.
-  const { colorMap } = widgetData
-  const scale = colorMap
-    ? { ...widgetData.scale, color: { domain: Object.keys(colorMap), range: Object.keys(colorMap).map((key) => getColorCode(colorMap[key])) } }
-    : { color: { range: getChartCatPalette() }, ...widgetData.scale }
+  // SERIES colours from `colorMap`, else the v2 categorical chart palette, merged into the CR's scale
+  // (chartScale, shared with BarChart).
+  const scale = chartScale(widgetData.colorMap, widgetData.scale)
+  // A CR's own scale.x or axis.x still wins, as everywhere in this widget.
+  const timeScale = xTimeUnit ? { ...scale, x: { type: 'time', ...(scale as { x?: object }).x } } : scale
+  const axis = axisWithInk(widgetData.axis)
+  const timeAxis = xTimeUnit ? { ...axis, x: { labelFormatter: (value: unknown) => timeTick(value, xTimeUnit), ...axis.x } } : axis
+  const timeTooltip = xTimeUnit ? { title: (row: Record<string, unknown>) => timeTitle(row[xField], xTimeUnit) } : undefined
+  // `slotField`: the slots still filling and the slots with no data, drawn as such (lineSlots). Without it the
+  // chart is handed exactly what it was before.
+  const { slotField } = widgetData
+  const slots = slotField
+    ? lineSlotLayers(timedData, { colorField: widgetData.colorField, slotField, titleOf: (x) => (xTimeUnit ? timeTitle(x, xTimeUnit) : x), xField, xTimeUnit, yField: widgetData.yField })
+    : undefined
+  const tooltip = slots?.tooltip ?? timeTooltip
+  const annotations = slots ? [...(timedAnnotations ?? []), ...slots.marks] : timedAnnotations
 
-  return (
-    <div className={styles.lineChart} ref={ref} style={{ height }}>
-      {width > 0 ? (
+  const chart = (
+    <div className={styles.lineChart} ref={boxRef} style={{ height }}>
+      {width > 0 && drawIn !== undefined ? (
         <Line
-          annotations={localAnnotations}
+          animate={drawIn ? DRAW_IN : false}
+          annotations={annotations}
           area={widgetData.area ? brandAreaFill() : undefined}
           autoFit
-          axis={axisWithInk(widgetData.axis)}
+          axis={timeAxis}
           colorField={widgetData.colorField}
-          data={localData}
+          data={slots?.data ?? timedData}
+          {...(slots ? { interaction: { tooltip: { filter: hasTooltipValue } } } : {})}
           key={uid}
           legend={widgetData.legend === false ? false : centeredLegend()}
           onReady={onReady}
           point={widgetData.point}
-          scale={scale}
+          scale={timeScale}
           shapeField={widgetData.shapeField}
           stack={widgetData.stack}
           title={widgetData.title}
+          {...(tooltip ? { tooltip } : {})}
           xField={widgetData.xField}
           yField={widgetData.yField}
         />
       ) : null}
+    </div>
+  )
+  // The legend for the slot marks, under the chart, only when one is drawn: the chart keeps its height.
+  if (!slots || (!slots.legend.partial && !slots.legend.missing)) { return chart }
+  return (
+    <div className={styles.withSlotLegend}>
+      {chart}
+      <ChartSlotLegend keys={slots.legend} />
     </div>
   )
 }

@@ -36,6 +36,53 @@ export interface Form {
            */
           requireConfirmation?: boolean
           /**
+           * the words of the confirmation this action opens before it runs, written for the person deciding. It does not add a dialog: it changes the words of the one write confirmation that opens anyway (every POST, PUT, PATCH and DELETE, and a read-only action with requireConfirmation). When set, that dialog shows this title, message, optional alert and OK label, and folds its own technical facts (verb, resource, cluster, namespace and the YAML it will send) under a collapsed "What will be sent" disclosure. Without it, the dialog shows those facts as its body. Like any widgetData field it can be filled from widgetDataTemplate (forPath: actions.rest[0].confirmation).
+           */
+          confirmation?: {
+            /**
+             * the dialog title: a question naming what will happen, e.g. "Uninstall my-blueprint?"
+             */
+            title: string
+            /**
+             * one or two sentences under the title saying what the action does, e.g. "This removes the blueprint my-blueprint from the Platform."
+             */
+            message: string
+            /**
+             * an antd Alert under the message, for what the person should know before confirming (e.g. the compositions created from a blueprint). Leave it out when there is nothing to say.
+             */
+            alert?: {
+              /**
+               * the Alert's type: warning (amber), info or error
+               */
+              type: 'warning' | 'info' | 'error'
+              /**
+               * the Alert's text, e.g. "1 composition was created from it."
+               */
+              message: string
+              /**
+               * the objects the Alert is about, one line each under its text
+               */
+              items?: {
+                /**
+                 * the object's name
+                 */
+                label: string
+                /**
+                 * where the label links to; it opens in a new tab, so the confirmation stays open
+                 */
+                href?: string
+                /**
+                 * a short neutral tag after the label, e.g. the object's own state word (Ready, Paused)
+                 */
+                tag?: string
+              }[]
+            }
+            /**
+             * the OK button's label: the verb the action performs, e.g. "Uninstall". The button is danger-styled when the write deletes, as without a confirmation
+             */
+            okLabel: string
+          }
+          /**
            * a message that will be displayed inside a toast in case of error
            */
           errorMessage?: string
@@ -824,6 +871,28 @@ export interface Form {
        * how `notice` is drawn: `alert` (absent), an info Alert; `text`, a line of secondary text. Either goes with the form when a Result replaces it
        */
       noticeVariant?: 'alert' | 'text'
+      /**
+       * notices shown above the fields of a schema form, after `notice`: each an Alert with a title, optional paragraphs, and optional details text in a collapsed Details section (e.g. the blueprint form's note that its inputs were inferred from the chart's default values, with the provider's condition message as the details)
+       */
+      notices?: {
+        /**
+         * paragraphs under the title, in order
+         */
+        description?: string[]
+        /**
+         * text shown verbatim, in monospace, when the reader opens Details (e.g. a controller's condition message)
+         */
+        details?: string
+        /**
+         * the notice's one-line title
+         */
+        title: string
+        /**
+         * the notice's tone: `info` (absent), or `warning` for something that will stop the person (e.g. a value the blueprint's served version refuses)
+         */
+        type?: 'info' | 'warning'
+        [k: string]: unknown
+      }[]
       /**
        * configuration for object fields in the form
        */

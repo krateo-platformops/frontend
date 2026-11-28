@@ -160,6 +160,12 @@ spec:
                           label:
                             description: menu entry label; omit for a route-only (hidden) item
                             type: string
+                          linkOnly:
+                            description: 'the entry is a link to a path another entry''s route serves (a page''s krateo.io/nav-link-only): it shows in the sidebar and registers no route. It has no page of its own, so no resourceRefId'
+                            type: boolean
+                          namespace:
+                            description: the namespace the page lives in, used when its address comes from the flexes/page-<slug> convention; omit for the portal's own namespace. A resourceRefId that resolved wins over it
+                            type: string
                           order:
                             default: 100
                             description: sort weight for the entry

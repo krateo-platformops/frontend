@@ -56,7 +56,7 @@ export const DISCARD_LEGACY_PARAM = 'discard-legacy'
 
 /**
  * The namespace an adopted page's objects are authored in. The sandbox rewrite overwrote the
- * original, so there is nothing to restore it from; this is the page composer's NEW_DRAFT_NAMESPACE,
+ * original, so there is nothing to restore it from; this is the portal builder's NEW_DRAFT_NAMESPACE,
  * and `pageDraftFiles` templates it away before anything publishes.
  */
 export const ADOPTED_NAMESPACE = 'krateo-system'

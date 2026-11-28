@@ -3,7 +3,7 @@ type: Decision
 title: ADR 0001 — builders are declared as Builder CRs that name code plugins
 description: Why a builder (Portal, Blueprint, Controller) is a Builder custom resource referencing named plugins the frontend ships, what stays code, and how a plugin or a builder is promoted.
 resource: builders.templates.krateo.io
-tags: [adr, builders, crds, composer]
+tags: [adr, builders, crds]
 timestamp: 2026-09-30T00:00:00Z
 ---
 
@@ -20,7 +20,7 @@ builders that *author* that content are not. `PageBuilder` and `BlueprintBuilder
 (#404). A third builder, the Controller Builder, written the same way would add another
 ~8–10k lines.
 
-The composers can't be widgets. They need drag-and-drop, a live graph, a multi-file draft
+The builders can't be widgets. They need drag-and-drop, a live graph, a multi-file draft
 with undo, preview drawers and a multi-step publish, all sharing one editor state across
 the palette, canvas and inspector. The widget model (a CR renders, an action fires) has no
 place for that state (#404, rejected option 3).
@@ -35,7 +35,7 @@ Most of what distinguishes one builder from another is still configuration:
 - where it publishes, and which Agentiko verbs it accepts.
 
 Today each of these is a constant scattered across `RoutesContext.tsx`, `publishDraft.ts`,
-`builderTargets.ts`, `chartVerbs.ts` and the two composers.
+`builderTargets.ts`, `chartVerbs.ts` and the two builders.
 
 ## Decision
 
@@ -103,7 +103,7 @@ globs match. Helm renders subdirectories of `templates/` like any other template
 Plugin lookup is deny-by-default: only an own key of the slot's table resolves. Prototype keys,
 near matches and other slots' names don't. An unknown name comes back as a sentence naming the
 slot and the name, never an exception, because a Builder is data from the cluster. A CR written
-for a newer frontend is content to show where the plugin would have been, not a blank composer.
+for a newer frontend is content to show where the plugin would have been, not a blank builder.
 Lint and gate names follow the same rule: a check silently skipped would let through a draft its
 builder meant to stop.
 
@@ -113,7 +113,7 @@ builder meant to stop.
   - Registered today: palette `widgets`, `kinds` and `openapi`; canvas `page-grid`,
     `architecture-graph` and `restdef-graph`; inspector `object-tree`, `node` and
     `restdef-mapping`; summarizer `page-tree`, `chart-files` and `controller-model`. The three
-    controller slot plugins shipped with the Controller Builder's composer (T8, frontend#412);
+    controller slot plugins shipped with the Controller Builder's page (T8, frontend#412);
     `controller-model` with Agentiko's controller verbs (frontend#429).
 - **Agent verbs:** a Builder's `verbs.allowed` names which verbs Agentiko may use on its drafts;
   what each verb does is code, routed through the same kernels a person's gestures use. The
@@ -143,7 +143,7 @@ builder meant to stop.
   - preview dispatch and the render-hash gate;
   - the BuilderPublish claim;
   - verb gating;
-  - the composer host.
+  - the builder host.
 
   These are one generic editor that every Builder configures.
 - **Anything whose shape depends on a runtime value.** A page draft's root is
@@ -176,7 +176,7 @@ builder meant to stop.
 - **Builder changes are reviewed as data.** A builder's route, RESTActions, verbs and
   destination keys show in a CR diff, not across five TypeScript files.
 - **Two schemas to keep in step:** the CRD and `builderSpec.ts`. The test holds them together.
-  The fixtures test also holds today's descriptors to the constants the composers still
+  The fixtures test also holds today's descriptors to the constants the builders still
   hardcode: the byte cap, the registration path, the config keys, the routes, the preview
   RESTAction and the verbs.
 - **Reading Builders needs RBAC.** The engine lists Builders as the signed-in person, so the
@@ -188,7 +188,7 @@ builder meant to stop.
   once per signed-in user (keyed on the username, so a token refresh does not read again), with a
   15 s timeout. Until the answer arrives, paths no route serves show a loading state; then each
   Builder is routed. The router is rebuilt only when the set of (name, route) changes, and a
-  re-read's spec reaches each composer without a remount.
+  re-read's spec reaches each builder without a remount.
 - **A failed read leaves no Builder running.** Snowplow down, a timeout, a 403, the CRD or its CRs
   missing: a builder's address (a hub prefix, or a route a Builder declared earlier in the tab)
   then says "Builders could not be read from the cluster: <reason>", and any other unknown address

@@ -7,14 +7,14 @@
  * the selected state is drawn by the card's border and opacity, not by more text.
  *
  * ITS STATES ARE G6's. The card is rendered in its own React root by G6 (no context reaches it —
- * only the props of this call), and it re-renders when the composer calls `setElementState` on the
+ * only the props of this call), and it re-renders when the builder calls `setElementState` on the
  * live graph: stepping the machine redraws the cards where they stand, with no layout pass. So
  * `node.states` is the one input for how the card looks in a state, and the styles for each state
  * live in the stylesheet keyed on `data-states`.
  *
  * A REAL BUTTON. G6's `node:click` answers a pointer; a keyboard has no pointer, and G6 hit-tests a
  * forwarded click at its coordinates. So the card is a <button> that selects through the closure
- * the composer passes in, and Enter or Space on a focused card does exactly what a click does.
+ * the builder passes in, and Enter or Space on a focused card does exactly what a click does.
  *
  * THE WHOLE CARD IS THE DRAG HANDLE for drawing an edge (S4 decision D9): an interactive port cannot
  * live inside a <button>. The two port dots — dependencies come in on the left, dependents go out on

@@ -6,7 +6,11 @@
  * names, so what matters is that the shape it guarantees actually holds: one baseline row carrying
  * the title, its counter and its tags, with the page's actions right-aligned beside them.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { cleanup, render, screen } from '@testing-library/react'
+import { load } from 'js-yaml'
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -91,6 +95,24 @@ describe('PageHeader', () => {
     expect(screen.queryByText(/\{displayName\}/)).toBeNull()
   })
 
+  it('draws a note after the pills, muted, with its tooltip text on hover', () => {
+    const { container } = renderHeader({ note: { text: 'about the previous version · updating', tooltip: 'version 4 not processed yet' }, tags: [{ color: 'green', label: 'Ready' }] })
+    const line = container.querySelector('[class*="titleLine"]')!
+    const note = screen.getByText('about the previous version · updating')
+    expect(line.contains(note)).toBe(true)
+    // After the pill, in reading order.
+    expect(line.textContent?.indexOf('Ready')).toBeLessThan(line.textContent?.indexOf('about the previous') ?? -1)
+    expect(note.getAttribute('tabindex')).toBe('0')
+  })
+
+  it('draws no note for none, or for an empty text', () => {
+    renderHeader({ note: { text: '' } })
+    expect(screen.queryByText(/previous version/)).toBeNull()
+    cleanup()
+    const { container } = renderHeader({})
+    expect(container.querySelector('[class*="note"]')).toBeNull()
+  })
+
   it('places tags on the title line', () => {
     renderHeader({ tags: [{ color: 'green', label: 'Healthy' }] })
     expect(screen.getByText('Healthy')).toBeTruthy()
@@ -108,10 +130,17 @@ describe('PageHeader', () => {
    * onto, so all four would have lost their dot on the way in.
    */
   it('draws the leading status dot on a coloured, labelled tag — the same pill the Tag widget draws', () => {
-    const { container } = renderHeader({ tags: [{ color: 'green', label: 'Healthy' }] })
+    // A label that is not a Kubernetes state token keeps the dot (stateFamily.ts).
+    const { container } = renderHeader({ tags: [{ color: 'blue', label: 'Open' }] })
     const dot = container.querySelector('.ant-tag span[style*="border-radius: 50%"]')
     expect(dot).toBeTruthy()
     expect((dot as HTMLElement).style.height).toBe('6px')
+  })
+
+  it('a Kubernetes state token carries its family glyph in the dot\'s place', () => {
+    const { container } = renderHeader({ tags: [{ color: 'green', label: 'Healthy' }] })
+    expect(container.querySelector('.ant-tag [data-state-family="healthy"]')).toBeTruthy()
+    expect(container.querySelector('.ant-tag span[style*="border-radius: 50%"]')).toBeNull()
   })
 
   it('draws NO dot when the tag has no label — colour alone is not a status', () => {
@@ -149,5 +178,20 @@ describe('PageHeader', () => {
     renderHeader({ items: [] })
     expect(screen.queryAllByTestId('action')).toHaveLength(0)
     expect(screen.getByRole('heading', { level: 1 })).toBeTruthy()
+  })
+})
+
+describe('progress: null is "no progress line" (snowplow validates the resolved header against the CRD)', () => {
+  it('renders no progress line for null, as for absent', () => {
+    const { container } = renderHeader({ progress: null })
+    expect(container.querySelector('[data-page-header="progress"]')).toBeNull()
+  })
+
+  it('the shipped CRD admits null, or snowplow refuses the whole header (057, portal 1.8.154: 80 walk failures a day)', () => {
+    // vitest runs from ui/; the chart sits beside it.
+    const crd = load(readFileSync(join(process.cwd(), '..', 'helm', 'frontend-crds', 'templates', 'PageHeader.crd.yaml'), 'utf8')) as {
+      spec: { versions: Array<{ schema: { openAPIV3Schema: { properties: { spec: { properties: { widgetData: { properties: { progress: { nullable?: boolean } } } } } } } } }> }
+    }
+    expect(crd.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.widgetData.properties.progress.nullable).toBe(true)
   })
 })

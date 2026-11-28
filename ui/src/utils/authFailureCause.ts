@@ -46,6 +46,13 @@ export const AUTH_FAILURE_REASONS = {
   stepUpNotEnabled: 'StepUpNotEnabled',
   /** snowplow: a loa:2 token was required and the step-up credential is missing. */
   stepUpRequired: 'StepUpRequired',
+  /**
+   * snowplow: the credential names other services in its audience (snowplow#1596, after plumbing
+   * v1.109.0). A person's sign-in token has no audience, so this is a token sent to the wrong service:
+   * a Krateo configuration fault. Signing in again gives the same audience. Checked before
+   * `TokenInvalid`, which jwtutil also reports for it.
+   */
+  tokenAudienceMismatch: 'TokenAudienceMismatch',
   /** snowplow: the credential presented was past its expiry (snowplow#1096). */
   tokenExpired: 'TokenExpired',
   /** snowplow: the credential presented did not validate (snowplow#1096). */
@@ -114,6 +121,9 @@ const BY_REASON: Record<string, AuthFailureAction> = {
   [AUTH_FAILURE_REASONS.stepUpMisconfigured]: 'configuration-fault',
   [AUTH_FAILURE_REASONS.stepUpNotEnabled]: 'configuration-fault',
   [AUTH_FAILURE_REASONS.stepUpRequired]: 'step-up',
+  // ABSOLUTE, unlike the token-state reasons: whichever token carried it, a new one has the same
+  // audience, so neither a sign-in nor a step-up can resolve it.
+  [AUTH_FAILURE_REASONS.tokenAudienceMismatch]: 'configuration-fault',
 }
 
 /** The 401 body shape this reads. Only the fields it needs; everything else is ignored. */

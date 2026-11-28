@@ -566,6 +566,11 @@
           "title": "Init route",
           "default": "/call?resource=layouts&apiVersion=widgets.templates.krateo.io/v1beta1&name=app-shell&namespace=krateo-system"
         },
+        "NAV": {
+          "type": "string",
+          "title": "Navigation menu read at startup",
+          "default": "/call?resource=menus&apiVersion=widgets.templates.krateo.io/v1beta1&name=sidebar-nav&namespace=krateo-system"
+        },
         "OTEL_COLLECTOR_URL": {
           "type": "string",
           "title": "Otel Collector URL",
@@ -747,6 +752,7 @@
         "EVENTS_API_BASE_URL": "http://localhost:8083",
         "AUTOPILOT_AVAILABLE": "",
         "INIT": "/call?resource=layouts&apiVersion=widgets.templates.krateo.io/v1beta1&name=app-shell&namespace=krateo-system",
+        "NAV": "/call?resource=menus&apiVersion=widgets.templates.krateo.io/v1beta1&name=sidebar-nav&namespace=krateo-system",
         "OTEL_COLLECTOR_URL": "",
         "SNOWPLOW_IDENTITY_INJECTION": "",
         "PROVENANCE_ENABLED": "true",

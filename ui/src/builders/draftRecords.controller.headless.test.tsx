@@ -2,7 +2,7 @@
 /**
  * GENERIC DRAFT RECORDS, HEADLESS: a CONTROLLER draft through the engine (T3, frontend#409).
  *
- * No composer is mounted — the Controller Builder's composer is T8's. The controller Builder is loaded
+ * No page is mounted — the Controller Builder's page is T8's. The controller Builder is loaded
  * from its fixture like the other two, and a controller draft goes through the same engine code a
  * page or a blueprint does: the store, the autosave, the record, Resume. Every assertion is one of the
  * issue's acceptance lines:

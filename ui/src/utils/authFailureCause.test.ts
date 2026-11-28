@@ -43,6 +43,15 @@ describe('the reasons NO prompt can fix', () => {
     }
   })
 
+  it('TokenAudienceMismatch is a configuration fault on either token, never a sign-in', () => {
+    // snowplow sends it beside TokenInvalid; a new token has the same audience, so no prompt can fix it.
+    const reason = AUTH_FAILURE_REASONS.tokenAudienceMismatch
+    expect(authFailureCauseOf(body(reason))).toEqual({ action: 'configuration-fault', reason })
+    expect(authFailureCauseOf(body(reason), { tokenKind: 'step-up' }).action).toBe('configuration-fault')
+    expect(authFailureCauseOf(body(reason), 'step-up-exchange').action).toBe('configuration-fault')
+    expect(authFailureCauseOf(body('TokenInvalid')).action).toBe('reauthenticate')
+  })
+
   it('every other reason IS user-actionable', () => {
     for (const reason of [
       AUTH_FAILURE_REASONS.stepUpRequired,

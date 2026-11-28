@@ -1,0 +1,28 @@
+kind: Dropdown
+apiVersion: widgets.templates.krateo.io/v1beta1
+metadata:
+  name: test-overflow-menu
+  namespace: test-namespace
+spec:
+  widgetData:
+    allowedResources:
+      - buttons
+    ariaLabel: More actions
+    placement: bottomRight
+    items:
+      - resourceRefId: button-pause
+      - resourceRefId: button-delete
+  resourcesRefs:
+    items:
+      - id: button-pause
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: button-pause
+        namespace: test-namespace
+        resource: buttons
+        verb: GET
+      - id: button-delete
+        apiVersion: widgets.templates.krateo.io/v1beta1
+        name: button-delete
+        namespace: test-namespace
+        resource: buttons
+        verb: GET

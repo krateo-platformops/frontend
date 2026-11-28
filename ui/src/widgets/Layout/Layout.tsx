@@ -3,10 +3,11 @@ import { Layout as AntdLayout, Drawer, Grid } from 'antd'
 import { useRef, useState } from 'react'
 
 import HeaderIconButton from '../../components/HeaderIconButton'
+import FailedPart from '../../components/RefChild/FailedPart'
 import { ShellSlotsProvider, useShellSlots } from '../../components/Shell/ShellSlots'
 import type { ShellSlots } from '../../components/Shell/ShellSlots'
 import WidgetRenderer from '../../components/WidgetRenderer'
-import type { ResourcesRefs, WidgetProps } from '../../types/Widget'
+import type { RefFailure, ResourcesRefs, WidgetProps } from '../../types/Widget'
 import { getEndpointUrl } from '../../utils/utils'
 
 import styles from './Layout.module.css'
@@ -36,10 +37,14 @@ const ANTD_SIDER_WIDTH = 200
 // (see render), so a nested Layout inherits none of the app-shell chrome.
 const EMPTY_SHELL_SLOTS: ShellSlots = {}
 
-const slot = (resourceRefId: string | undefined, resourcesRefs: ResourcesRefs) => {
+const slot = (resourceRefId: string | undefined, resourcesRefs: ResourcesRefs, failedRefs?: Record<string, RefFailure>, failureNotice?: 'navigation') => {
   if (!resourceRefId) { return null }
   const endpoint = getEndpointUrl(resourceRefId, resourcesRefs)
-  return endpoint ? <WidgetRenderer widgetEndpoint={endpoint} /> : null
+  if (endpoint) { return <WidgetRenderer failureNotice={failureNotice} widgetEndpoint={endpoint} /> }
+  // snowplow reported the region's widget as failed (>= 1.12.75): say so where it would be, instead
+  // of an empty region. The sider reads as the navigation (approved mockup, section 2).
+  const failure = failedRefs?.[resourceRefId]
+  return failure ? <FailedPart failure={failure} title={failureNotice === 'navigation' ? 'Navigation unavailable' : undefined} /> : null
 }
 
 /**
@@ -48,7 +53,7 @@ const slot = (resourceRefId: string | undefined, resourcesRefs: ResourcesRefs) =
  * present it sits full-height on the left with Header/Content/Footer stacked
  * beside it (antd's canonical sidebar layout).
  */
-const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) => {
+const Layout = ({ failedRefs, resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) => {
   const { content, effects, footer, hasSider, header, sider } = widgetData
   // The app shell (loaded via INIT) is the one Layout that reads real slots: regions
   // the CR leaves unset fall back to engine chrome (header → interactive controls,
@@ -56,8 +61,8 @@ const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) =>
   // resets these to empty for its subtree (see the wrapped return), so a NESTED Layout
   // reads none of them and renders purely from its own resourceRefIds.
   const shell = useShellSlots()
-  const headerContent = header ? slot(header, resourcesRefs) : shell.header
-  const contentBody = content ? slot(content, resourcesRefs) : shell.content
+  const headerContent = header ? slot(header, resourcesRefs, failedRefs) : shell.header
+  const contentBody = content ? slot(content, resourcesRefs, failedRefs) : shell.content
 
   // Side-effect widgets (e.g. Theme): always-mounted, produce no UI. Rendered inside a
   // display:none host so an effect widget that accidentally emits markup can't disturb the
@@ -96,7 +101,7 @@ const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) =>
     <>
       {headerContent ? <Header className={styles.header}>{menuButton}{headerContent}</Header> : null}
       <Content className={styles.content}>{contentBody}</Content>
-      {footer ? <Footer>{slot(footer, resourcesRefs)}</Footer> : null}
+      {footer ? <Footer>{slot(footer, resourcesRefs, failedRefs)}</Footer> : null}
     </>
   )
 
@@ -109,9 +114,10 @@ const Layout = ({ resourcesRefs, widgetData }: WidgetProps<LayoutWidgetData>) =>
     const headerRef = collapsed ? (sider.collapsedHeader ?? sider.header) : sider.header
     return (
       <div className={styles.sider}>
-        {headerRef ? <div className={collapsed ? `${styles.siderHeader} ${styles.siderHeaderCollapsed}` : styles.siderHeader} key={headerRef}>{slot(headerRef, resourcesRefs)}</div> : null}
+        {headerRef ? <div className={collapsed ? `${styles.siderHeader} ${styles.siderHeaderCollapsed}` : styles.siderHeader} key={headerRef}>{slot(headerRef, resourcesRefs, failedRefs)}</div> : null}
         {shell.siderHeader}
-        <div className={styles.siderBody}>{slot(sider.resourceRefId, resourcesRefs)}</div>
+        {/* The navigation: a failed read is one line here, and the page area says why (WidgetPage). */}
+        <div className={styles.siderBody}>{slot(sider.resourceRefId, resourcesRefs, failedRefs, 'navigation')}</div>
         {shell.siderFooter}
       </div>
     )

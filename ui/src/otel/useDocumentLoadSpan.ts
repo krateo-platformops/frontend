@@ -14,9 +14,9 @@
  * table exist. A document loaded at `/login` therefore reports no page load — stated here because
  * it is a real gap in coverage, not an accident.
  *
- * ONCE PER DOCUMENT, and the guard is module-level on purpose: `RouterProvider` is keyed on
- * `routerVersion`, so registering a new route set REMOUNTS the whole tree, and a ref or state would
- * report a second document load for a document that never reloaded.
+ * ONCE PER DOCUMENT, and the guard is module-level on purpose: a remount of the shell would make a
+ * ref or state report a second document load for a document that never reloaded. (Until frontend
+ * 1.8.75 every route registration remounted the whole tree; the router is now built once.)
  */
 import { useEffect } from 'react'
 import type { RouteObject } from 'react-router'

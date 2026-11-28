@@ -1,4 +1,4 @@
-/* The Controller Composer's own rules (T8, frontend#412): the Resources canvas and its 156×72 Kind
+/* The Controller Builder's own rules (T8, frontend#412): the Resources canvas and its 156×72 Kind
    cards, the Configuration node and the edges to it, and the inspector's verbs table. Everything
    else — the panes, their heads, the palette rows, the derived list — is the panes frame's
    (BlueprintBuilder.module.css), shared on purpose. Tokens only. */

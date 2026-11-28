@@ -7,7 +7,7 @@ import { fixtureBuilders } from '../builders/fixtures/fixtureBuilders'
  * THE BUILDERS EVERY TEST RUNS AGAINST, injected — never fetched.
  *
  * The product reads the Builder CRs from the cluster after sign-in (builders/clusterBuilders.ts), so
- * the registry starts empty. Engine and composer suites drive the three Builders this repository
+ * the registry starts empty. Engine and builder suites drive the three Builders this repository
  * authors, so they are installed here from the fixtures the portal chart's CRs are copied from. A
  * test of the cluster read itself stubs `fetch` and installs its own answer; one driving a stub
  * Builder swaps it in (swapBuildersForTest).
@@ -31,6 +31,15 @@ installBuilders(fixtureBuilders())
  * still caught by the test budget rather than sitting here.
  */
 configure({ asyncUtilTimeout: 5000 })
+
+/**
+ * jsdom implements no `scrollIntoView` (it lays nothing out), and the sidebar Menu calls it whenever
+ * its selection changes. A no-op here, where a document exists, so every suite that renders the Menu
+ * does not need its own; a test that asserts the call replaces it with a spy.
+ */
+if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
+  Element.prototype.scrollIntoView = () => undefined
+}
 
 /**
  * A TIMER THAT OUTLIVED ITS DOCUMENT DOES NOTHING, instead of reddening the run.

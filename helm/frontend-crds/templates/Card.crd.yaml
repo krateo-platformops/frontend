@@ -169,6 +169,7 @@ spec:
                           - datepickers
                           - descriptions
                           - dividers
+                          - dropdowns
                           - eventlists
                           - filters
                           - flexes
@@ -196,8 +197,10 @@ spec:
                           - routes
                           - routesloaders
                           - rows
+                          - segmenteds
                           - selects
                           - sliders
+                          - splitters
                           - statistics
                           - steps
                           - switches
@@ -205,6 +208,8 @@ spec:
                           - tablists
                           - tabs
                           - tags
+                          - timelines
+                          - trees
                           - uploads
                           - yamlviewers
                       type: array
@@ -224,7 +229,7 @@ spec:
                       description: resourceRefId of a widget rendered as the antd Card cover
                       type: string
                     extra:
-                      description: antd Card extra — content shown top-right of the card header (renamed from `headerRight`)
+                      description: 'antd Card extra — content shown top-right of the card header (renamed from `headerRight`). A time in it is a token the browser writes, in the viewer''s time zone with the full date on hover: `{ago:2026-11-04T10:10:27Z}` ("3 weeks ago"), `{age:…}` ("3 weeks"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"). Never a time formatted in jq: it is in UTC, and an age is frozen in snowplow''s cache.'
                       type: string
                     extraRefId:
                       description: resourceRefId of a widget (e.g. a Button) rendered top-right of the card header — a real, independently-actioned slot with its own icon/size/navigation, distinct from the plain-text `extra`. Mirrors the `cover`/`footer` widget slots; renders a nested WidgetRenderer, so it does NOT make the whole card the click target the way `extra` + `clickActionId` does.
@@ -490,6 +495,57 @@ spec:
                           description: rest api call actions triggered by the widget
                           items:
                             properties:
+                              confirmation:
+                                description: 'the words of the confirmation this action opens before it runs, written for the person deciding. It does not add a dialog: it changes the words of the one write confirmation that opens anyway (every POST, PUT, PATCH and DELETE, and a read-only action with requireConfirmation). When set, that dialog shows this title, message, optional alert and OK label, and folds its own technical facts (verb, resource, cluster, namespace and the YAML it will send) under a collapsed "What will be sent" disclosure. Without it, the dialog shows those facts as its body. Like any widgetData field it can be filled from widgetDataTemplate (forPath: actions.rest[0].confirmation).'
+                                properties:
+                                  alert:
+                                    description: an antd Alert under the message, for what the person should know before confirming (e.g. the compositions created from a blueprint). Leave it out when there is nothing to say.
+                                    properties:
+                                      items:
+                                        description: the objects the Alert is about, one line each under its text
+                                        items:
+                                          properties:
+                                            href:
+                                              description: where the label links to; it opens in a new tab, so the confirmation stays open
+                                              type: string
+                                            label:
+                                              description: the object's name
+                                              type: string
+                                            tag:
+                                              description: a short neutral tag after the label, e.g. the object's own state word (Ready, Paused)
+                                              type: string
+                                          required:
+                                            - label
+                                          type: object
+                                        type: array
+                                      message:
+                                        description: the Alert's text, e.g. "1 composition was created from it."
+                                        type: string
+                                      type:
+                                        description: 'the Alert''s type: warning (amber), info or error'
+                                        enum:
+                                          - warning
+                                          - info
+                                          - error
+                                        type: string
+                                    required:
+                                      - message
+                                      - type
+                                    type: object
+                                  message:
+                                    description: one or two sentences under the title saying what the action does, e.g. "This removes the blueprint my-blueprint from the Platform."
+                                    type: string
+                                  okLabel:
+                                    description: 'the OK button''s label: the verb the action performs, e.g. "Uninstall". The button is danger-styled when the write deletes, as without a confirmation'
+                                    type: string
+                                  title:
+                                    description: 'the dialog title: a question naming what will happen, e.g. "Uninstall my-blueprint?"'
+                                    type: string
+                                required:
+                                  - message
+                                  - okLabel
+                                  - title
+                                type: object
                               errorMessage:
                                 description: a message that will be displayed inside a toast in case of error
                                 type: string

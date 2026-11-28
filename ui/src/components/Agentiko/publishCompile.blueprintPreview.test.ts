@@ -1,6 +1,6 @@
 /**
  * recordBlueprintPreview — the FE-BP1/BP2 arming rule, moved out of the provider so a preview a
- * PERSON starts from the composer arms exactly what a proposed one does. It holds the tree and arms
+ * PERSON starts from the builder arms exactly what a proposed one does. It holds the tree and arms
  * the gate ONLY for a lint-clean draft whose render succeeded; every other case holds nothing.
  */
 import { afterEach, describe, expect, it } from 'vitest'
@@ -114,8 +114,7 @@ describe('the page twin, and a store that holds nothing', () => {
   })
 
   it('steps left over with NOTHING held belong to no draft — the first proposal drops them', () => {
-    // The history is module state and the store is the provider's: a provider remount (every
-    // nav-route registration remounts the router) empties the store and keeps the steps.
+    // The history is module state and the store is the provider's: a provider remount empties the store and keeps the steps.
     draftHistory.push({ files: { 'templates/flex.page-old.yaml': 'kind: Flex' }, kind: 'page' })
     recordPagePreview(flex('page-new'), createBlueprintDraftStore(), createBlueprintGate())
     expect(draftHistory.depth()).toBe(0)

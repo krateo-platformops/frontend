@@ -4,7 +4,7 @@
  * WHY IT MOVED. This was ~50 lines inline inside `AgentikoProvider.finalize`, reachable only when
  * the MODEL emitted a `publishPage`/`publishBlueprint` directive. So the one way to publish a draft
  * a person had authored was to ask the agent to do it — there is even a host-side trampoline that
- * re-prompts the model when a user says "publish" and it fails to emit the fence. A composer that
+ * re-prompts the model when a user says "publish" and it fails to emit the fence. A builder that
  * lets someone start, compose and edit a page, and then sends them to the chat to ship it, is not
  * the parity rule applied to the builder; it is the rail wearing a different hat.
  *
@@ -367,13 +367,13 @@ export interface PersonPublishDeps extends PublishDraftDeps {
 }
 
 /**
- * A PERSON'S Publish, end to end — the composer's button, answered on the publish-result bus.
+ * A PERSON'S Publish, end to end — the builder's button, answered on the publish-result bus.
  *
  * The same `publishDraft` the agent's verb takes, then the same `apply`, which raises the
  * blast-radius confirm: this proposes a write, a person answers it. Lifted out of the provider so
- * the ANSWER can be tested, because the answer is what the composer believes.
+ * the ANSWER can be tested, because the answer is what the builder believes.
  *
- * NO DENIAL MEANS WRITTEN. A composer reads `denial: null` as "published" and links the change
+ * NO DENIAL MEANS WRITTEN. A builder reads `denial: null` as "published" and links the change
  * request. The deep link is computed before anything is written, so it proves nothing; only the
  * apply's own result does. A declined confirm (apply → null: nothing dispatched) and a refused
  * claim (a chip carrying the apiserver's failure) are each a denial, with no link and no status

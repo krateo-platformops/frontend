@@ -1,120 +1,37 @@
 /* eslint-disable sort-keys/sort-keys-fix */
 /* this rules conflicts with react-query ordering required for correct type inference */
 
-import { useInfiniteQuery, useIsFetching } from '@tanstack/react-query'
+import { useInfiniteQuery, useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 
 import { isTimeoutError } from '../components/WidgetStates'
 import { useConfigContext } from '../context/ConfigContext'
-import { EMPTY_FRAGMENT_EXTRAS } from '../context/pageFragment'
-import { useFragmentExtras } from '../context/PageRootContext'
+import { EMPTY_FRAGMENT_EXTRAS, fragmentKeysOf, pickFragment } from '../context/pageFragment'
+import { usePageParams } from '../context/PageParamsContext'
+import { useFragmentExtras, usePageRoot } from '../context/PageRootContext'
 import { useWidgetScope } from '../context/WidgetScopeContext'
-import { type TransportFetch, useWidgetTransport } from '../transport/widgetTransport'
-import type { Widget } from '../types/Widget'
+import { useWidgetTransport } from '../transport/widgetTransport'
 import { getUserInfo } from '../utils/getUserInfo'
 import { getCallReadQuery, getExportEndpoint } from '../utils/utils'
 
 import type { WatchMatcher } from './liveRefresh'
-import { getRefreshEntry, isWidgetLiveRefreshEnabled, recordRefreshHeaders, wasRefetchEventTriggered } from './refreshSse'
+import { prefetchChildren } from './prefetchChildren'
+import { getRefreshEntry, isWidgetLiveRefreshEnabled, wasRefetchEventTriggered } from './refreshSse'
 import { useLiveWatch } from './useLiveRefresh'
 import { useWidgetLiveRefresh } from './useWidgetLiveRefresh'
+import { fetchWidgetPage, type WidgetRead, widgetQueryKey } from './widgetRequest'
+import { shouldRetryWidgetFetch, widgetFetchRetryDelay } from './widgetRetry'
+
+// Moved to ./widgetRequest (one read, shared with the children prefetch); re-exported for importers.
+export { readWithBodyExtras, WidgetFetchError } from './widgetRequest'
+// The retry policy moved to ./widgetRetry, which the children's prefetch uses too; re-exported for its importers.
+export { MAX_WIDGET_FETCH_RETRIES, shouldRetryWidgetFetch, widgetFetchRetryDelay } from './widgetRetry'
 
 function parseNumberParam(param: string | null) {
   const parsed = param ? parseInt(param) : undefined
   return isNaN(parsed!) ? undefined : parsed
 }
-
-/** Error carrying the HTTP status so retry logic can tell transient from permanent failures. */
-export class WidgetFetchError extends Error {
-  status?: number
-  /** The backend's OWN explanation, when the failure response carried one. */
-  detail?: string
-  constructor(message: string, status?: number, detail?: string) {
-    super(message)
-    this.name = 'WidgetFetchError'
-    this.status = status
-    this.detail = detail
-  }
-}
-
-/**
- * Best-effort read of a failure response's body for the backend's own message.
- *
- * Previously only `res.status` + `res.statusText` reached the UI — a generic HTTP phrase like
- * "Forbidden" — and the body was dropped on the floor, so whatever snowplow said about WHY was
- * never seen by anyone. The body is read once here (the response is being discarded anyway) and
- * the message hoisted onto the error.
- *
- * Deliberately total: a non-JSON body, an empty body, or a body that cannot be read must never
- * turn a failed fetch into a DIFFERENT failure — we are already on the error path.
- */
-/**
- * The error body, read ONCE.
- *
- * It returns the parsed object as well as the display message because a 401's step-up
- * discriminator lives in `details.causes[0].reason` (snowplow#1029) and a Response body cannot be
- * read twice — the previous version parsed the JSON, kept only the message and threw the object
- * away, so classifying a 401 would have needed a second read that is guaranteed to fail.
- */
-const readErrorBody = async (res: Response): Promise<{ body: unknown; detail: string | undefined }> => {
-  try {
-    const text = await res.text()
-    if (!text) { return { body: null, detail: undefined } }
-    try {
-      const parsed = JSON.parse(text) as Record<string, unknown>
-      const message = parsed.message ?? parsed.error ?? parsed.reason
-      if (typeof message === 'string' && message) { return { body: parsed, detail: message.slice(0, 300) } }
-      return { body: parsed, detail: text.slice(0, 300) }
-    } catch { /* not JSON — fall through to the raw text */ }
-    return { body: null, detail: text.slice(0, 300) }
-  } catch {
-    return { body: null, detail: undefined }
-  }
-}
-
-export const MAX_WIDGET_FETCH_RETRIES = 3
-
-/**
- * Whether a failed widget fetch should be retried. The global QueryClient sets
- * `retry: false`, so without this a backend that has not answered yet (network
- * error / 5xx during startup) lands immediately in the error state — the
- * "red cross on initial render". We retry transient failures and never permanent
- * client errors.
- *
- * 404 is treated as TRANSIENT here: right after a page load/refresh snowplow can
- * answer 404 for a widget endpoint while its informer cache is still cold (the CR
- * exists but isn't listed yet) — that produced an "Error while rendering widget"
- * flash on first paint that recovered on the next fetch. Retrying 404 a few times
- * keeps the skeleton up until the cache warms; a genuinely-missing widget still
- * surfaces the error once the retries are exhausted. The other 4xx (400 bad
- * request, 401 auth, 403 forbidden) stay permanent — retrying them never helps.
- *
- * `eventTriggered` (#256) is the ONE exception, and it inverts only the 404 case. When the
- * refetch was triggered by a `refresh` frame, snowplow has just told us this object changed —
- * and from snowplow 1.12.6 a DELETE-semantics eviction publishes such a frame. A 404 answering
- * THAT is a confirmed delete, not a cold informer: the retries cannot discover anything new, and
- * at MAX_WIDGET_FETCH_RETRIES=3 with 700/1400/2800 ms backoff they cost 4 requests and ~4.9 s per
- * widget. On a bulk delete across a dense page that is a fourfold amplification of the very burst
- * the server's token bucket exists to pace. The render state for it already exists
- * (WidgetRenderer's WidgetNotFound), so failing fast shows the right thing sooner AND cheaper.
- *
- * The flag is read from the refresh transport through a single exported boolean
- * (`wasRefetchEventTriggered`) so this predicate stays pure and knows nothing about the stream.
- */
-export const shouldRetryWidgetFetch = (failureCount: number, error: unknown, eventTriggered = false): boolean => {
-  const status = (error as { status?: number } | null)?.status
-  if (typeof status === 'number' && status >= 400 && status < 500 && status !== 404) {
-    return false
-  }
-  if (status === 404 && eventTriggered) {
-    return false
-  }
-  return failureCount < MAX_WIDGET_FETCH_RETRIES
-}
-
-/** Exponential backoff (capped) between widget-fetch retries. */
-export const widgetFetchRetryDelay = (attemptIndex: number): number => Math.min(700 * 2 ** attemptIndex, 5000)
 
 /**
  * Build the `?extras=` JSON envelope snowplow forwards into the RESTAction jq dict
@@ -170,8 +87,12 @@ export const buildExtrasParam = (
   for (const [key, value] of Object.entries(fragmentExtras)) {
     extras[key] = value
   }
+  // A page's route inputs are its NAMED params. `*` is react-router's splat, and it is how the shell
+  // serves its pages (RoutesProvider: descendant routes under one `*`), not something a page declared:
+  // in the envelope it is an undeclared key, so snowplow declines to cache the read and gives it no
+  // live-refresh key (1.8.75 to 1.8.82 sent it on every page read).
   for (const [key, value] of Object.entries(routeParams)) {
-    if (value !== undefined) { extras[key] = value }
+    if (value !== undefined && key !== '*') { extras[key] = value }
   }
   // Volunteer identity only when snowplow does NOT inject it server-side (capability flag).
   //
@@ -261,36 +182,16 @@ export const boundedWindow = (
   defaultPageSize: number | undefined,
 ): number | undefined => endpointPerPage ?? defaultPageSize
 
-/**
- * A widget read with its extras in the BODY: POST /call/read, every other parameter left on the
- * query. Used only when the extras carry the page's fragment values, which must reach no URL.
- *
- * Refuses an endpoint that is not a `/call` — there is no body-carrying form of anything else, and
- * falling back to the query would put the values in the very URL this exists to keep them out of.
- */
-export const readWithBodyExtras = (read: TransportFetch, requestUrl: URL, extrasParam: string): Promise<Response> => {
-  const url = new URL(requestUrl.toString())
-  if (!url.pathname.endsWith('/call')) {
-    throw new WidgetFetchError(`A widget with fragment extras must read through /call, not ${url.pathname}`)
-  }
-  url.pathname = `${url.pathname}/read`
-  url.searchParams.delete('extras')
-  return read(url.toString(), {
-    body: JSON.stringify({ extras: extrasParam ? JSON.parse(extrasParam) as unknown : {} }),
-    headers: { 'Content-Type': 'application/json' },
-    method: 'POST',
-  })
-}
-
 export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOptions = {}) => {
   const { config } = useConfigContext()
   // The credential, if any, is the transport's (transport/widgetTransport.ts): signed in inside the
   // shell, anonymous everywhere else. This hook never reads a token itself.
   const transport = useWidgetTransport()
   const [searchParams] = useSearchParams()
-  const matchedParams = useParams()
-  // snowplow#777. react-router shares ONE params object across the matched branch, so a widget
-  // mounted ABOVE the outlet (the Shell's header chrome) sees the child route's params and the
+  // The OPEN PAGE's params, the same for the page and for a drawer or dialog over it (PageParamsContext).
+  const matchedParams = usePageParams()
+  // snowplow#777. Every widget in the shell can see the open page's params, so a widget mounted ABOVE
+  // the outlet (the Shell's header chrome) would carry the page's params and the
   // page's query string, reads neither, and has snowplow decline them — 74 declines in 7 days,
   // 33% of all logged /call declines, for a byte-identical body. A widget gets the route inputs
   // owned at or above its OWN level; chrome sits at the root layout and owns none.
@@ -319,6 +220,13 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // its reads either — it would also tell the RESTActions who is looking.
   const injectIdentity = !config?.api.SNOWPLOW_IDENTITY_INJECTION && transport.identity === 'signed-in'
   const extrasParam = buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, callerExtras, fragmentExtras)
+  const queryClient = useQueryClient()
+  // The PAGE ROOT hands its children the fragment extras its own answer declares (WidgetRenderer:
+  // FragmentExtrasProvider value=pickFragment(pageRoot.fragment, fragmentKeysOf(root))), so the
+  // children prefetch must read them with those, not with the root's (none: the root is read before
+  // its declaration is known). Every other widget hands its own on unchanged.
+  const pageRoot = usePageRoot()
+  const isPageRoot = !!pageRoot && pageRoot.endpoint === widgetEndpoint
 
   const widgetFullUrl = `${config!.api.SNOWPLOW_API_BASE_URL}${widgetEndpoint}`
   // The widget's `/call` query, for its export (`exportRequestFor`); null when it is not a /call read.
@@ -386,53 +294,29 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   const initialPerPage = usesClassicPager ? boundedPerPage : endpointPerPage
   const initialPage = usesClassicPager ? serverPage : endpointPage
 
-  async function fetchWidget({ page, perPage }: { page?: number; perPage?: number }) {
-    /* set new page and perPage to the original requestUrl with updated values */
-    if (typeof page === 'number') {
-      requestUrl.searchParams.set('page', page.toString())
-    }
-    if (typeof perPage === 'number') {
-      requestUrl.searchParams.set('perPage', perPage.toString())
-    }
-    if (extrasParam && !extrasInBody) {
-      requestUrl.searchParams.set('extras', extrasParam)
-    }
-
-    const urlString = requestUrl.toString()
-
-    // console.log({
-    //   kind: url.searchParams.get('resource'),
-    //   page: url.searchParams.get('page'),
-    //   perPage: url.searchParams.get('perPage'),
-    //   urlString,
-    // })
-
-    const res = extrasInBody ? await readWithBodyExtras(transport.fetch, requestUrl, extrasParam) : await transport.fetch(urlString)
-
-    if (!res.ok) {
-      // ONE read of the body, shared by the 401 classification and the thrown detail.
-      const { body, detail } = await readErrorBody(res)
-      if (res.status === 401) {
-        // The transport decides what a 401 means. Signed in: an expired/invalid token, so the
-        // IN-PLACE session-resume modal (components/SessionResume), with the cause snowplow named
-        // in the body (snowplow#1029) — concurrent 401s coalesce into one resume, and a successful
-        // re-auth invalidates every query so this widget refetches with the fresh token.
-        // Anonymous: public serving is off on this install, which the public page reports once for
-        // the whole page — never a sign-in prompt, and never a redirect.
-        transport.onUnauthorized(body)
-      }
-      throw new WidgetFetchError(`Widget fetch failed: ${res.status} ${res.statusText}`, res.status, detail)
-    }
-
-    // Capture the live-refresh coordination headers from THIS response (so coords +
-    // key always match the request that produced them). No-op / cleared when the
-    // headers are absent (cache-off, RBAC-skipped, or a snowplow without the class
-    // header). `requestUrl.searchParams` already carries the page/perPage/extras used.
-    if (refreshEnabled) {
-      recordRefreshHeaders(widgetId, requestUrl.searchParams, res.headers)
-    }
-
-    const widget = (await res.json()) as Widget
+  // The read this widget's query makes (./widgetRequest), the same one a parent's prefetch makes. The
+  // key is (endpoint, extras[, page]); the read is a function of those plus the install's base URL
+  // and the transport in context, exactly as the inline fetch it replaces was.
+  // On the answer, the reads of the children it draws on first render start at once, under the keys
+  // their own queries use, instead of after this widget renders and they mount (./prefetchChildren).
+  async function fetchPage(pageParam: { page?: number; perPage?: number }) {
+    const read: WidgetRead = { extrasInBody, extrasParam, refreshWidgetId: refreshEnabled ? widgetId : undefined, transport, url: widgetFullUrl }
+    const widget = await fetchWidgetPage(read, pageParam)
+    // What a child rendered by RefChild sends: this widget's envelope without its caller extras (a
+    // child carries none), with the fragment extras the child will be handed.
+    const childFragment = isPageRoot && pageRoot && typeof widget.status === 'object' ? pickFragment(pageRoot.fragment, fragmentKeysOf(widget)) : fragmentExtras
+    const childExtrasInBody = Object.keys(childFragment).length > 0
+    // This widget's own query: still observed means still displayed (see ChildReadContext.isWanted).
+    const ownKey = widgetQueryKey(widgetEndpoint, extrasParam, usesClassicPager ? serverPage : undefined)
+    prefetchChildren(queryClient, widget, {
+      isWanted: () => (queryClient.getQueryCache().find({ exact: true, queryKey: ownKey })?.getObserversCount() ?? 0) > 0,
+      baseUrl: config!.api.SNOWPLOW_API_BASE_URL,
+      childExtrasParam: buildExtrasParam(widgetSearchParams, routeParams, displayName, username, injectIdentity, EMPTY_CALLER_EXTRAS, childFragment),
+      extrasInBody: childExtrasInBody,
+      liveRefresh: isWidgetLiveRefreshEnabled(config) && transport.live && !childExtrasInBody,
+      search: widgetSearchParams,
+      transport,
+    })
     return widget
   }
 
@@ -441,10 +325,8 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     // distinct, independently-cached query (jumping pages re-inits the infinite
     // query with the new page as its only page). Non-paged widgets keep the
     // stable 3-tuple key so their cache identity is unchanged.
-    queryKey: usesClassicPager
-      ? ['widgets', widgetEndpoint, extrasParam, serverPage]
-      : ['widgets', widgetEndpoint, extrasParam],
-    queryFn: ({ pageParam }) => fetchWidget(pageParam),
+    queryKey: widgetQueryKey(widgetEndpoint, extrasParam, usesClassicPager ? serverPage : undefined),
+    queryFn: ({ pageParam }) => fetchPage(pageParam),
     // Override the global `retry: false` for widget data: a backend that is not
     // ready yet should keep showing a loading state and retry, not flash the
     // error "red cross" on first paint. See shouldRetryWidgetFetch.
@@ -600,7 +482,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
         // The PATH is snowplow's /export, not the widget's /call: a POST to /call is snowplow's write
         // passthrough (a create on the widget's resource, answered 400 by the apiserver). Everything
         // else stays on the query: the widget's own identifying params, verbatim from its endpoint
-        // (NOT from `requestUrl`, which fetchWidget mutates with page/perPage/extras) less any
+        // (NOT from a request URL, which fetchWidgetPage sets page/perPage/extras on) less any
         // page/perPage window the endpoint itself carries (getExportEndpoint), plus the export's
         // (`format`, `path`, `fields`, repeated `header`, `title`).
         url: `${config!.api.SNOWPLOW_API_BASE_URL}${getExportEndpoint(exportReadQuery, exportQuery)}`,

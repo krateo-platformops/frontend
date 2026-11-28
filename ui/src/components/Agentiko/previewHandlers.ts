@@ -37,7 +37,7 @@
  */
 import { DRAFT_REJECTED_CAPTION, draftDisplayName, lintBlueprintDraft } from './blueprintDraft'
 import { buildBlueprintPreviewPayload } from './blueprintPreviewPayload'
-import { renderBlueprint } from './blueprintRenderSandbox'
+import { judgeRender, renderBlueprint } from './blueprintRenderSandbox'
 import { readHeldDraft } from './chartVerbs'
 import { holdsController, previewHeldController } from './controllerVerbs'
 import { buildDescribeResourcePayload, crdNameFromArgs, extractCrdSpecFields, parseDescribeResourceArgs } from './describeResource'
@@ -109,7 +109,7 @@ export const previewBlueprintSpec: VerbSpec = {
     // PREFER the RA (server-side render); DIRECT fetch is the config-absent fallback.
     const rendered = canUseRA
       ? await renderBlueprint(deps.snowplowBaseUrl!, deps.frontendNamespace!, args, deps.sandboxWriter)
-      : await callHelmRender(deps.renderBaseUrl!, args)
+      : judgeRender(await callHelmRender(deps.renderBaseUrl!, args), args)
     // HELD only when an inline draft rendered — the same rule recordBlueprintPreview applies. A
     // published chart's dry run, or a draft that failed to render, is looked at, not held.
     openAgentikoPreview(buildBlueprintPreviewPayload({ held: Boolean(args.rawTemplates && !rendered.error), name, rawTemplates: args.rawTemplates, rendered }))
@@ -159,7 +159,7 @@ export const previewPageSpec: VerbSpec = {
 
 /**
  * previewRestDef — with a CONTROLLER DRAFT HELD (frontend#429), the Controller Builder's Preview of it,
- * exactly as the composer's button runs it (previewHeldController: lint, then controller-render-draft
+ * exactly as the builder's button runs it (previewHeldController: lint, then controller-render-draft
  * over /call as the person; only a clean render arms publishRestDef). Any RestDefinition the proposal
  * carries is ignored then: the held draft is what publishes, so it is what is previewed.
  *

@@ -25,10 +25,9 @@
  *      a production page ("Rendered (live)" + the source view, previewSurface.tsx).
  *   5. TEARDOWN (A.2.5): drawer close → best-effort silent DELETE set of THIS
  *      preview's drafts (epoch-guarded: a stale close never deletes a newer preview).
- *      THERE IS NO BACKSTOP. This line used to name "the sandbox TTL janitor (CHART-SBX)";
- *      no janitor has ever existed (frontend#364), and by decision none will. Teardown here
- *      and the sweep the NEXT preview performs are the only reclaim, so a session that dies
- *      without a drawer close leaves its drafts until someone previews again.
+ *      THERE IS NO JANITOR. This line used to name "the sandbox TTL janitor (CHART-SBX)"; none
+ *      has ever existed (frontend#364). What a session that dies without a drawer close leaves,
+ *      the author's next visit to a builder removes once it is a day old (previewSweep.ts).
  */
 
 import type { SetDispatchOptions, WriteOp, WriteOpResult } from '../../hooks/runRestSet'
@@ -40,6 +39,7 @@ import { type ApplyResourceSetOp, buildSetOpPath, isApplySetAllowed, MAX_APPLY_S
 import { draftOwner } from './draftRecord'
 import { buildPagePreviewPayload, parsePagePreviewArgs } from './previewBridge'
 import { openAgentikoPreview, setPreviewProblems, setPreviewRender } from './previewBus'
+import { ownPreviewObjects, recordOf } from './previewOwner'
 import {
   buildSandboxTeardownOps,
   buildSandboxWidgetEndpoint,
@@ -52,6 +52,7 @@ import {
   rootDraftTargetOf,
   validatePageDrafts,
 } from './previewSandbox'
+import { pageOfRoot, previewSweepSettled } from './previewSweep'
 import type { AgentikoActionChip } from './types'
 
 /** What the v2 flow needs from the bridge: the sandbox, the thread id, the session,
@@ -126,9 +127,9 @@ export const LIVE_PREVIEW_CAPTION
   = 'Live preview — the drafts are applied to the quarantined preview sandbox and rendered by the real server, with your identity and permissions. Closing this drawer removes them.'
 
 /**
- * The same explanation for the COMPOSER, which embeds the preview inline and has no drawer.
+ * The same explanation for the BUILDER, which embeds the preview inline and has no drawer.
  *
- * The sentence above ends "Closing this drawer removes them", and the composer was showing it
+ * The sentence above ends "Closing this drawer removes them", and the builder was showing it
  * verbatim in the lower half of its split — describing a control that is not on the reader's
  * screen. Theirs is "Close draft", and saying so is the difference between an explanation and a
  * puzzle.
@@ -156,8 +157,8 @@ const compileWriteOps = (ops: readonly ApplyResourceSetOp[]): WriteOp[] =>
  * Still best-effort in the sense that a failed delete does not abort the preview. What changes is
  * that the caller can now SEE it and act, which is what `applyWithReclaim` below does — and that
  * matters more than this line used to admit, because there is no backstop behind it. The sentence
- * here once read "the TTL janitor remains the backstop"; no janitor exists (frontend#364), so an
- * object a failed delete leaves behind stays until the next preview sweeps it.
+ * here once read "the TTL janitor remains the backstop"; none existed (frontend#364). Now the author's
+ * next visit to a builder removes what they abandoned a day ago (previewSweep.ts, frontend#496).
  */
 const dispatchSilent = async (
   ops: readonly ApplyResourceSetOp[],
@@ -185,7 +186,7 @@ const dispatchBestEffort = async (ops: readonly ApplyResourceSetOp[], deps: Prev
 /**
  * WHAT THIS TAB LAST APPLIED, per sandbox object: the base an in-place update diffs against.
  *
- * WHY, from the recordings. Every composer edit (a drop, a bind) re-applies the whole page. The
+ * WHY, from the recordings. Every builder edit (a drop, a bind) re-applies the whole page. The
  * apply used to DELETE every name it was about to write and then POST it again, and the rendered
  * page, still mounted on the same root endpoint and invalidated by the sweep's own write, refetched
  * in between: for seconds the Rendered tab showed `pageheaders … "page-…-header-…" not found` for a
@@ -209,6 +210,41 @@ const appliedOf = (session: PreviewPageSession): Map<string, Record<string, unkn
   }
 
   return applied
+}
+
+/** Which record each applied object was last made to belong to, by uid; and what is applied now. */
+const ownedBySession = new WeakMap<PreviewPageSession, Map<string, string>>()
+const pageBySession = new WeakMap<PreviewPageSession, { page: string; targets: readonly DraftTarget[] }>()
+
+const ownedOf = (session: PreviewPageSession): Map<string, string> => {
+  let owned = ownedBySession.get(session)
+  if (!owned) {
+    owned = new Map()
+    ownedBySession.set(session, owned)
+  }
+
+  return owned
+}
+
+/** A created object has no owner yet, whatever an earlier one under its name had. */
+const noteCreated = (session: PreviewPageSession, created: readonly { target: DraftTarget }[]): void => {
+  created.forEach(({ target }) => { ownedOf(session).delete(targetKey(target)) })
+}
+
+/**
+ * The applied preview's objects belong to their page's draft record (previewOwner.ts), once there is one:
+ * after an apply, and again when the record is first stored (an agent's page is held, and so saved, only
+ * after it was applied).
+ */
+export const ownAppliedPreview = async (deps: Pick<PreviewPageV2Deps, 'handleActionSet' | 'sandboxNamespace' | 'session'>): Promise<void> => {
+  const current = pageBySession.get(deps.session)
+  const page = current && pageOfRoot(current.page, draftOwner(getUserInfo().username))
+  const owner = page ? recordOf(page) : undefined
+  if (!current || !owner) { return }
+  const owned = ownedOf(deps.session)
+  const missing = current.targets.filter((target) => owned.get(targetKey(target)) !== owner.uid)
+  const landed = await ownPreviewObjects(missing, owner, deps)
+  landed.forEach((target) => { owned.set(targetKey(target), owner.uid) })
 }
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -297,7 +333,9 @@ const dispatchEntries = async (
       if (results === null) {
         return { applied, failure: 'the write set was not dispatched' }
       }
-      applied.push(...results.filter(({ ok }) => ok).map(({ index }) => chunk[index].target))
+      const landed = results.filter(({ ok }) => ok).map(({ index }) => chunk[index])
+      applied.push(...landed.map(({ target }) => target))
+      noteCreated(deps.session, landed.filter(({ op }) => op.verb === 'POST'))
       const refused = results.find(({ ok }) => !ok)
       if (!refused) {
         break
@@ -315,6 +353,7 @@ const dispatchEntries = async (
         return { applied, failure: `${label}: ${refused.message}${retried ? ` (retry: ${retried.message})` : ''}` }
       }
       applied.push(entry.target)
+      noteCreated(deps.session, retry.verb === 'POST' ? [entry] : [])
       pending = chunk.slice(refused.index + 1)
     }
   }
@@ -325,10 +364,11 @@ const dispatchEntries = async (
 /**
  * A DISCARD, not a drawer close: delete whatever live preview is applied, whichever surface's
  * payload rendered it. The payload's own close is epoch-guarded and reaches only the render that
- * payload came with — a composer that mounted after the render was applied never had it.
+ * payload came with — a builder that mounted after the render was applied never had it.
  */
 export const discardPreviewSandbox = async (deps: PreviewPageV2Deps): Promise<void> => {
   appliedOf(deps.session).clear()
+  pageBySession.delete(deps.session)
   await dispatchBestEffort(deps.session.take(), deps)
 }
 
@@ -350,6 +390,9 @@ export const applyPreviewPageV2 = async (
   }
   // Whatever the last preview rendered is no longer what will be on screen.
   setPreviewRender(null)
+  // An abandoned-preview sweep in flight finishes first (previewSweep.ts): the two may name the same
+  // objects, and a preview must not write what a sweep is about to remove.
+  await previewSweepSettled()
 
   // 1. VALIDATE — any failure: source drawer with the verdicts, NOTHING applied.
   const problems = await validatePageDrafts(widgets, deps.snowplowBaseUrl)
@@ -386,7 +429,7 @@ export const applyPreviewPageV2 = async (
   //
   // An EDIT NEVER DELETES WHAT IT KEEPS. The apply used to sweep (DELETE) every name it was about
   // to write and then POST them all again; the rendered page refetched in the gap and showed "Not
-  // found" cards for widgets the edit never touched (the composer re-applies on every drop and
+  // found" cards for widgets the edit never touched (the builder re-applies on every drop and
   // bind). Now each name this tab wrote last time is PATCHed in place, and each new name is POSTed,
   // before any PATCH, so a container never points at a child that is not there yet.
   //
@@ -441,6 +484,8 @@ export const applyPreviewPageV2 = async (
   for (const { cr, target } of entries) {
     previous.set(targetKey(target), cr)
   }
+  pageBySession.set(deps.session, { page: root.name, targets: applied })
+  await ownAppliedPreview(deps)
   // The SWEEP: only names that left the set, and only after the container that listed them was
   // updated, so nothing still on the page ever points at a deleted object.
   await dispatchBestEffort(held.filter(({ gvr, name }) => !previous.has(targetKey({ gvr, name: name ?? '' }))), deps)
@@ -469,6 +514,7 @@ export const applyPreviewPageV2 = async (
     liveEndpoint: buildSandboxWidgetEndpoint(root, deps.sandboxNamespace),
     onClose: () => {
       const teardown = deps.session.takeIf(epoch)
+      if (teardown.length) { pageBySession.delete(deps.session) }
       if (teardown.length) {
         // Torn down: the next preview creates, it has nothing left to update in place.
         previous.clear()

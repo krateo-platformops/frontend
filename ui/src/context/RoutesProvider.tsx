@@ -5,7 +5,7 @@
  */
 import { useQueryClient } from '@tanstack/react-query'
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import type { NonIndexRouteObject, RouteObject } from 'react-router'
+import { type NonIndexRouteObject, type RouteObject, useRoutes } from 'react-router'
 
 import { currentBuilderRegistry, subscribeBuilders } from '../builders/builderRegistry'
 import { builderRoutes, builderRoutesSignature, mergeShellChildren, replaceBuilderRoutes } from '../builders/host/builderRoutes'
@@ -17,7 +17,8 @@ import Logout from '../pages/Logout'
 import Profile from '../pages/Profile'
 import PublicRoute, { isPublicPath, PUBLIC_ROUTE_PATHS } from '../public/PublicPage'
 
-import { type AppRoute, RoutesContext } from './RoutesContext'
+import { PageParamsProvider } from './PageParamsContext'
+import { type AppRoute, RoutesContext, useRoutesContext } from './RoutesContext'
 
 // The authenticated area is a single persistent shell (the `Layout` widget from
 // config INIT) rendered as a pathless layout route; every content route is a
@@ -25,6 +26,15 @@ import { type AppRoute, RoutesContext } from './RoutesContext'
 // (no chrome). Logout is a static route on purpose: it's the recovery escape hatch,
 // so it must resolve even when the snowplow-driven shell pages fail to render.
 // Dynamic routes are inserted into the shell's children by registerRoutes.
+//
+// ONE ROUTER FOR THE APP'S LIFE. The router is built once from ROUTER_ROUTES, where the shell has a
+// single `*` child: ShellRoutes, which serves the shell's children from this table through
+// react-router's `useRoutes` (descendant routes). A route registered later changes only what that
+// element matches; the shell, the Menu and Agentiko stay mounted. Before frontend 1.8.75 the router
+// was rebuilt and `<RouterProvider key={routerVersion}>` remounted the whole tree on every
+// registration, which put the landing's page request behind a full re-render.
+// `routes` (the context) stays the whole logical table: the X5 spans match the TEMPLATED route
+// against it (otel/route.ts), and it is what ShellRoutes serves.
 //
 // The PUBLIC pages (public/PublicPage.tsx) sit outside the shell too, for a stronger reason than
 // chrome: the shell is what provides the signed-in transport, so a page rendered outside it reads
@@ -44,6 +54,21 @@ const outsidePublicSpace = (routes: RouteObject[], source: string): RouteObject[
   return false
 })
 
+const NO_ROUTES: RouteObject[] = []
+
+/** The pages' routes: the shell's children in the live table. */
+const usePageRoutes = (): RouteObject[] => {
+  const { routes } = useRoutesContext()
+  const shell = routes.find((route) => route.id === SHELL_ROUTE_ID) as NonIndexRouteObject | undefined
+  return shell?.children ?? NO_ROUTES
+}
+
+/** The shell's children, served as descendant routes: re-matched whenever the table changes. */
+const ShellRoutes = () => useRoutes(usePageRoutes())
+
+/** The shell, which knows the open page's params: its drawers and dialogs sit above the routes that match them. */
+const ShellElement = () => <PageParamsProvider routes={usePageRoutes()}><ShellRoute /></PageParamsProvider>
+
 const defaultRoutes: RouteObject[] = [
   { element: <Login />, path: '/login' },
   { element: <Auth />, path: '/auth' },
@@ -54,23 +79,29 @@ const defaultRoutes: RouteObject[] = [
       { element: <Profile />, path: '/profile' },
       // The builders' authoring surfaces are inserted HERE once the Builder CRs are read from the
       // cluster (builders/clusterBuilders.ts → the RoutesProvider effect below): one route per
-      // Builder, at its `spec.route`, each the composer host (builders/host/builderRoutes.tsx) —
+      // Builder, at its `spec.route`, each the builder host (builders/host/builderRoutes.tsx) —
       // /portal-builder/compose, /blueprint-builder/compose, /controller-builder/compose. Shell
-      // children like /profile rather than CR-driven widget pages: a composer is React (drag and drop,
+      // children like /profile rather than CR-driven widget pages: a builder is React (drag and drop,
       // a live graph, a multi-file draft with undo), and what IS configuration about it is its Builder
       // CR, not widgetData. Until the read answers, the `*` fallthrough shows a loading state rather
       // than a 404 (WidgetPage); if it fails, the sentence saying why. A Builder never takes a path
       // the shell serves itself, and the navigation's routes replace a builder route at the same path.
       { element: <WidgetPage />, path: '*' },
     ],
-    element: <ShellRoute />,
+    element: <ShellElement />,
     id: SHELL_ROUTE_ID,
   },
 ]
 
+/**
+ * What the router is built from, once (App.tsx): the table above with the shell's children replaced
+ * by ShellRoutes, which serves them, as the context's `routes` holds them at each render.
+ */
+export const ROUTER_ROUTES: RouteObject[] = defaultRoutes.map((route) => (route.id === SHELL_ROUTE_ID
+  ? { ...(route as NonIndexRouteObject), children: [{ element: <ShellRoutes />, path: '*' }] }
+  : route))
+
 export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // use to force re-render the router when a new route is added
-  const [routerVersion, setRouterVersion] = useState(0)
   const [routes, setRoutes] = useState<RouteObject[]>(defaultRoutes)
   const [menuRoutes, setMenuRoutes] = useState<AppRoute[]>([])
   const [isLoading] = useState(false)
@@ -79,9 +110,9 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // The Builders arrive after sign-in, from the cluster. Subscribed to the REGISTRY OBJECT, which
   // changes only when the Builders do — never on a `loading` status. And the routes are replaced only
-  // when the set of (id, path) they mount changes: rebuilding them bumps routerVersion, a full
-  // RouterProvider remount that would drop Agentiko's held draft and its streams. A re-read with the
-  // same Builders reaches each composer through BuilderRouteHost instead.
+  // when the set of (id, path) they mount changes: a replaced route is a new route object, which
+  // remounts the page it serves. A re-read with the same Builders reaches each page through
+  // BuilderRouteHost instead.
   const registry = useSyncExternalStore(subscribeBuilders, currentBuilderRegistry)
   const mountedSignature = useRef('')
   useEffect(() => {
@@ -98,7 +129,6 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (replaced === children) { return prevRoutes }
       const updatedRoutes = [...prevRoutes]
       updatedRoutes[shellIndex] = { ...shell, children: replaced }
-      setRouterVersion((prev) => prev + 1)
       return updatedRoutes
     })
   }, [registry])
@@ -112,7 +142,10 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setMenuRoutes((prev) => {
       const unchanged = prev.length === newRoutes.length
         && prev.every((route, index) =>
-          route.path === newRoutes[index].path && route.resourceRefId === newRoutes[index].resourceRefId)
+          route.path === newRoutes[index].path && route.resourceRefId === newRoutes[index].resourceRefId
+          // The address can change under the same path: a ref snowplow could not check carries none, and
+          // resolves once a retry succeeds (frontend#533).
+          && route.endpoint === newRoutes[index].endpoint && route.resourceRef?.path === newRoutes[index].resourceRef?.path)
       return unchanged ? prev : newRoutes
     })
   }, [])
@@ -142,7 +175,6 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const updatedRoutes = [...prevRoutes]
       updatedRoutes[shellIndex] = { ...shell, children: mergedChildren }
-      setRouterVersion((prev) => prev + 1)
       return updatedRoutes
     })
   }, [])
@@ -154,7 +186,6 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         menuRoutes,
         registerRoutes,
         reloadRoutes,
-        routerVersion,
         routes,
         updateMenuRoutes,
       }}

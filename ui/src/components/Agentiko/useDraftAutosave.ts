@@ -7,7 +7,7 @@
  * last debounce window of edits.
  *
  * THE SEAM. `createBlueprintDraftStore(onChange)` fires after every mutation that changed the held
- * tree, for EVERY draft kind — the one place every write path (a Files-tab edit, a composer batch, Undo,
+ * tree, for EVERY draft kind — the one place every write path (a Files-tab edit, a builder batch, Undo,
  * an agent proposal, a start, a close) already passes through. `onHeldChange` is handed to it by the
  * provider, so no path can change the draft without the autosave hearing about it.
  *
@@ -37,14 +37,15 @@
  * NO SANDBOX, NO AUTOSAVE. Without api.PREVIEW_SANDBOX_NAMESPACE there is no writer and nowhere to
  * store a record: every call is a no-op and the status is `off` — never an error.
  */
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 
 import { builderRegistry } from '../../builders/builderRegistry'
 import { draftKindOf, findDraftKindPlugin, isDraftKind } from '../../builders/draftKinds'
+import type { Config } from '../../context/ConfigContext'
 import { getUserInfo } from '../../utils/getUserInfo'
 
 import { buildSetOpPath } from './applyResourceSet'
-import type { BlueprintDraftHeld, DraftChangeListener, DraftKind } from './blueprintDraftStore'
+import type { BlueprintDraftHeld, BlueprintDraftStore, DraftChangeListener, DraftKind } from './blueprintDraftStore'
 import type { SandboxWriter } from './blueprintRenderSandbox'
 import {
   DRAFT_RECORD_VERSION,
@@ -57,7 +58,9 @@ import {
 } from './draftRecord'
 import { draftSaveStatus } from './draftSaveStatus'
 import { pageDraftFiles, pageDraftWidgets } from './pageDraft'
+import { recordStored } from './previewOwner'
 import { publishedLocks } from './publishedLocks'
+import { usePreviewSweep } from './usePreviewSweep'
 
 /** How long edits settle before the record is written. The plan's "~2 s". */
 export const DRAFT_AUTOSAVE_DEBOUNCE_MS = 2000
@@ -189,7 +192,7 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     }
   }
 
-  const send = async (verb: 'POST' | 'PUT', name: string, namespace: string, payload: Record<string, unknown>, target: SandboxWriter): Promise<{ ok: boolean; status: number; message: string }> => {
+  const send = async (verb: 'POST' | 'PUT', name: string, namespace: string, payload: Record<string, unknown>, target: SandboxWriter): Promise<{ ok: boolean; status: number; message: string; uid?: string }> => {
     try {
       const results = await target.handleActionSet(
         [{ path: buildSetOpPath({ gvr: CONFIGMAPS, name, namespace, verb }), payload, verb }],
@@ -244,6 +247,8 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     if (result.ok) {
       meta.created = true
       meta.saved = fingerprint
+      // The preview objects of this page belong to this record (previewOwner.ts).
+      if (kind === 'page' && result.uid) { recordStored(displayName, { name, uid: result.uid }) }
       report(held, { kind, phase: 'saved', savedAt: body.updatedAt })
       return
     }
@@ -366,6 +371,9 @@ export const createDraftAutosave = (options: DraftAutosaveOptions = {}): DraftAu
     noteAgentChange: () => { agentChanged = true },
     onHeldChange,
     seedFromRecord: (body) => {
+      if (body.kind === 'page' && body.uid) {
+        recordStored(body.name, { name: draftRecordName('page', draftOwner(username()), body.name), uid: body.uid })
+      }
       const meta = metaOf(keyOf(body))
       meta.created = true
       meta.state = body.state
@@ -421,4 +429,20 @@ export const useDraftAutosave = (
   useEffect(() => { autosave.setWriter(sandboxWriter) }, [autosave, sandboxWriter])
   useEffect(() => { autosave.setThreadId(threadId) }, [autosave, threadId])
   useEffect(() => () => autosave.dispose(), [autosave])
+}
+
+/** The held draft's two sandbox habits: its record is saved as it changes, and the author's old previews are cleared. */
+export const useSandboxDrafts = (
+  store: Pick<BlueprintDraftStore, 'get'>,
+  config: Config | undefined,
+  autosave: DraftAutosave,
+  sandboxWriter: SandboxWriter | undefined,
+  threadId?: string | null,
+): void => {
+  useDraftAutosave(autosave, sandboxWriter, threadId)
+  const heldPage = useCallback(() => {
+    const held = store.get()
+    return held?.kind === 'page' ? draftRecordDisplayName(held) : undefined
+  }, [store])
+  usePreviewSweep(heldPage, config, sandboxWriter)
 }

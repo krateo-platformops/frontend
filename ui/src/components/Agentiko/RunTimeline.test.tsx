@@ -514,6 +514,18 @@ describe('the approval, as a step', () => {
     expect([onApprove.mock.calls.length, onDeny.mock.calls.length]).toEqual([1, 2])
   })
 
+  it('a pause opened from an approval link is explicit only: no dismiss, and the note says leaving keeps it paused', () => {
+    const onDeny = vi.fn()
+    render(<RunTimeline approval={{ onApprove: vi.fn(), onDeny, pause: { ...pause, origin: 'link' } }} message={paused()} />)
+    const card = screen.getByTestId('agentiko-approval')
+    expect(screen.queryByRole('button', { name: 'Dismiss (denies)' })).toBeNull()
+    expect(card.textContent).toContain('Only Approve or Deny decide. Closing the rail or leaving the page keeps the task paused.')
+    expect(card.textContent).not.toContain('Deny is the default')
+    // Deny is still a decision, on purpose.
+    fireEvent.click(screen.getByRole('button', { name: 'Deny' }))
+    expect(onDeny).toHaveBeenCalledTimes(1)
+  })
+
   it('once decided, the turn records the decision as a step', () => {
     render(<RunTimeline approvalOutcome='denied k8s_apply_manifest' message={paused()} />)
     expect(screen.queryByTestId('agentiko-approval')).toBeNull()

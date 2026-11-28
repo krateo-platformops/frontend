@@ -29,7 +29,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "the page title (H1). The one required field — a page header without a title is not a page header"
+              "description": "the page title (H1). The one required field \u2014 a page header without a title is not a page header"
             },
             "counter": {
               "type": "integer",
@@ -38,11 +38,11 @@
             },
             "counterLabel": {
               "type": "string",
-              "description": "the noun the counter counts, rendered inside the same brackets (e.g. '23 blueprints'). Use it when WHAT is being counted changes — a bare '(23)' beside a filtered catalog does not say 23 of what"
+              "description": "the noun the counter counts, rendered inside the same brackets (e.g. '23 blueprints'). Use it when WHAT is being counted changes \u2014 a bare '(23)' beside a filtered catalog does not say 23 of what"
             },
             "subtitle": {
               "type": "string",
-              "description": "one line of supporting context below the title. Must NOT restate the title — say it once per page"
+              "description": "one line of supporting context below the title. Must NOT restate the title \u2014 say it once per page. A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:2026-11-04T10:10:27Z}` (\"3 weeks ago\"), `{age:…}` (\"3 weeks\"), `{moment:…}` (\"4 Nov, 11:10\") or `{date:…}` (\"4 Nov\"), e.g. \"Composition \u00b7 ns \u00b7 created {ago:2026-11-04T10:10:27Z}\". Never an age computed in jq: snowplow caches the rendered text with `now` frozen."
             },
             "tags": {
               "type": "array",
@@ -71,6 +71,54 @@
                       "violet"
                     ]
                   }
+                }
+              }
+            },
+            "note": {
+              "type": "object",
+              "description": "a quiet line of muted text after the pills on the title line, e.g. \"about the previous version · updating\": what the pills say is true but about to change. Absent or empty text, nothing is drawn",
+              "additionalProperties": false,
+              "required": [
+                "text"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "description": "the note, in plain words; an empty string draws nothing"
+                },
+                "tooltip": {
+                  "type": "string",
+                  "description": "the longer explanation shown on hover and focus"
+                }
+              }
+            },
+            "progress": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "something on this page is in progress (an analysis, a check): one line under the title saying since when, with the time waited ticking in the browser while `live` is true (\"Re-analysis since 21 Nov, 12:54 \u00b7 12 minutes\"). No ETA. The page itself updates when the state changes; this line only keeps the wait visible. null means no progress line: a RESTAction that has nothing in progress sends null, because a widgetDataTemplate cannot leave the path unset (snowplow writes \"\" for no output) and the CRD must admit what it then writes.",
+              "required": [
+                "label",
+                "since"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "description": "what is happening, as the lead-in to the time, e.g. \"Re-analysis since\" or \"Resolved at\""
+                },
+                "since": {
+                  "type": "string",
+                  "description": "RFC 3339 timestamp it started (or settled); shown as a moment in the viewer's time zone (\"21 Nov, 12:54\"), the full date on hover"
+                },
+                "live": {
+                  "type": "boolean",
+                  "description": "still running: show the time waited (an age, \"12 minutes\"), ticking, and a live mark. False or absent: a settled time only, nothing ticks"
+                },
+                "hint": {
+                  "type": "string",
+                  "description": "one muted line under it while live, e.g. \"Usually 2\u20133 min; longer when the model is rate-limited.\""
                 }
               }
             },
@@ -278,7 +326,7 @@
             },
             "additionalProperties": false
           },
-          "description": "Generates resourcesRefs entries from the apiRef response — one per element the iterator yields — so a widget can reference a list whose length it does not know when authored."
+          "description": "Generates resourcesRefs entries from the apiRef response \u2014 one per element the iterator yields \u2014 so a widget can reference a list whose length it does not know when authored."
         }
       },
       "description": "The widget's contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides."

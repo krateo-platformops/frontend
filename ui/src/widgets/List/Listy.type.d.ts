@@ -144,7 +144,15 @@ export interface Listy {
          */
         iconVariant?: 'avatar' | 'tile' | 'dot'
         /**
-         * row layout: default (antd List.Item.Meta — avatar + stacked title/description) | tree (tight single-line mono Relations row: connector + status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile — icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons — the Marketplace catalog grid) | chip (compact navigable filter pill — primaryText label + optional count, solid/amber when the item's active flag is set — the data-driven Marketplace facet chips; a chip whose data element carries `removable: true` is an applied filter: a trailing remove mark, the accessible name "Remove filter: <primaryText>", and its navigateTo is the URL without that value) | statistic (one tile of a stats strip: an antd Card holding an antd Statistic, primaryText the title, secondaryText the value, subPrimaryText a secondary caption; `color` tints the value and frame ONLY when it resolves, so the healthy majority stays neutral; without `grid` the tiles fill the row and reflow as it narrows)
+         * statistic rowVariant: the tile's antd Card `variant`. outlined (default) frames each tile; borderless draws none, for a strip that already sits in a Card
+         */
+        tileVariant?: 'outlined' | 'borderless'
+        /**
+         * statistic rowVariant: {dot.path} to a boolean the RESTAction computes. true draws the tile's border in its `color` (in the text colour when it has none), anything else leaves the neutral border. The tile never reads its own value to decide. Absent: the border follows `color`. A borderless tile has no border to highlight
+         */
+        highlight?: string
+        /**
+         * row layout: default (antd List.Item.Meta — avatar + stacked title/description) | tree (tight single-line mono Relations row: status dot + primaryText + muted inline subPrimaryText + right-aligned colored secondaryText) | card (full antd Card tile — icon-tile + name + version badge (subPrimaryText) + category tag (secondaryText) + description + a footer of rowActions as visible buttons — the Marketplace catalog grid) | chip (compact navigable filter pill — primaryText label + optional count, solid/amber when the item's active flag is set — the data-driven Marketplace facet chips; a chip whose data element carries `removable: true` is an applied filter: a trailing remove mark, the accessible name "Remove filter: <primaryText>", and its navigateTo is the URL without that value) | statistic (one tile of a stats strip: an antd Card holding an antd Statistic, primaryText the title, secondaryText the value, subPrimaryText a secondary caption; `color` tints the value and frame ONLY when it resolves, so the healthy majority stays neutral; without `grid` the tiles fill the row and reflow as it narrows)
          */
         rowVariant?: 'default' | 'tree' | 'card' | 'chip' | 'statistic'
         /**
@@ -248,21 +256,21 @@ export interface Listy {
          */
         formats?: {
           /**
-           * How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.
+           * How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.
            */
-          primaryText?: 'text' | 'datetime' | 'relative'
+          primaryText?: 'text' | 'age' | 'ago' | 'moment' | 'date' | 'datetime' | 'relative'
           /**
-           * How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.
+           * How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.
            */
-          secondaryText?: 'text' | 'datetime' | 'relative'
+          secondaryText?: 'text' | 'age' | 'ago' | 'moment' | 'date' | 'datetime' | 'relative'
           /**
-           * How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.
+           * How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.
            */
-          subPrimaryText?: 'text' | 'datetime' | 'relative'
+          subPrimaryText?: 'text' | 'age' | 'ago' | 'moment' | 'date' | 'datetime' | 'relative'
           /**
-           * How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago.
+           * How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old ("7 weeks"), `ago` how long ago, in a sentence ("52 minutes ago"), `moment` a point in time ("4 Nov, 11:10"; "10 Sep 2025, 09:30" in another year), `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came.
            */
-          subSecondaryText?: 'text' | 'datetime' | 'relative'
+          subSecondaryText?: 'text' | 'age' | 'ago' | 'moment' | 'date' | 'datetime' | 'relative'
         }
         /**
          * per-row action controls rendered on each row as a kebab (⋯) menu or as buttons (see rowActionsDisplay); each entry references an action id from widgetData.actions and is fired with the row's data as the action payload (customPayload). Distinct from navigateTo (whole-row click).
@@ -284,6 +292,10 @@ export interface Listy {
            * render the menu item in a destructive (red) style
            */
           danger?: boolean
+          /**
+           * the button's emphasis where row actions show as buttons (a List card footer, or rowActionsDisplay: buttons). Unset: the first action is primary and the rest default. Set default on the first to have no primary. Ignored in the kebab menu.
+           */
+          type?: 'primary' | 'default'
         }[]
         /**
          * how the default rowVariant presents rowActions: menu (a kebab (⋯) at the row's end, default) | buttons (antd Buttons at the row's end, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (navigateTo) is unchanged either way. The card rowVariant always renders buttons.
@@ -326,6 +338,53 @@ export interface Listy {
            * whether user confirmation is required before triggering the action
            */
           requireConfirmation?: boolean
+          /**
+           * the words of the confirmation this action opens before it runs, written for the person deciding. It does not add a dialog: it changes the words of the one write confirmation that opens anyway (every POST, PUT, PATCH and DELETE, and a read-only action with requireConfirmation). When set, that dialog shows this title, message, optional alert and OK label, and folds its own technical facts (verb, resource, cluster, namespace and the YAML it will send) under a collapsed "What will be sent" disclosure. Without it, the dialog shows those facts as its body. Like any widgetData field it can be filled from widgetDataTemplate (forPath: actions.rest[0].confirmation).
+           */
+          confirmation?: {
+            /**
+             * the dialog title: a question naming what will happen, e.g. "Uninstall my-blueprint?"
+             */
+            title: string
+            /**
+             * one or two sentences under the title saying what the action does, e.g. "This removes the blueprint my-blueprint from the Platform."
+             */
+            message: string
+            /**
+             * an antd Alert under the message, for what the person should know before confirming (e.g. the compositions created from a blueprint). Leave it out when there is nothing to say.
+             */
+            alert?: {
+              /**
+               * the Alert's type: warning (amber), info or error
+               */
+              type: 'warning' | 'info' | 'error'
+              /**
+               * the Alert's text, e.g. "1 composition was created from it."
+               */
+              message: string
+              /**
+               * the objects the Alert is about, one line each under its text
+               */
+              items?: {
+                /**
+                 * the object's name
+                 */
+                label: string
+                /**
+                 * where the label links to; it opens in a new tab, so the confirmation stays open
+                 */
+                href?: string
+                /**
+                 * a short neutral tag after the label, e.g. the object's own state word (Ready, Paused)
+                 */
+                tag?: string
+              }[]
+            }
+            /**
+             * the OK button's label: the verb the action performs, e.g. "Uninstall". The button is danger-styled when the write deletes, as without a confirmation
+             */
+            okLabel: string
+          }
           /**
            * a message that will be displayed inside a toast in case of error
            */

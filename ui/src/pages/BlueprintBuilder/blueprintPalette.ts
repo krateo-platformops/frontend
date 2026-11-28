@@ -6,7 +6,7 @@
  * reads — the CRDs installed here, the CompositionDefinitions and how many of each are running — are
  * the RESTAction's api steps. Every step carries NO `endpointRef` and NO `userAccessFilter`, so
  * snowplow dispatches each one with the caller's own bearer (`userAccessFilter` would dispatch as
- * snowplow's ServiceAccount — a service identity the composer must never read through). What comes
+ * snowplow's ServiceAccount — a service identity the builder must never read through). What comes
  * back is exactly what THIS user may list; a class they may not list comes back as its error.
  *
  * A PLAIN FETCH, like callBlueprintRenderRA and placeableWidgets: failure is CONTENT, never a throw.

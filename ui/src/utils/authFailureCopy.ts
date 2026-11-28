@@ -26,6 +26,15 @@ export interface AuthFailurePresentation {
 export const authFailurePresentation = (cause: AuthFailureCause): AuthFailurePresentation => {
   switch (cause.action) {
     case 'configuration-fault':
+      // Not step-up: the credential was issued for other services. Names none of them (authn: the
+      // administrator reads them in snowplow's audit record).
+      if (cause.reason === AUTH_FAILURE_REASONS.tokenAudienceMismatch) {
+        return {
+          description: 'This installation sent a credential issued for another service, so the request was refused before anything was read or changed. Signing in again will not help. An administrator must fix the sign-in configuration.',
+          showAuthForm: false,
+          title: 'Sign-in is misconfigured',
+        }
+      }
       return {
         description: 'This resource requires elevated authentication, but it is not set up on this cluster. Signing in again will not help. Ask an administrator to configure step-up authentication.',
         showAuthForm: false,

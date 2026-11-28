@@ -1,28 +1,26 @@
 /**
- * "Saved · HH:MM" — the composer header's word on the held draft's record (useDraftAutosave).
+ * "Saved · HH:MM" — the builder header's word on the held draft's record (useDraftAutosave).
  *
  * THREE STATES AND NOTHING ELSE. Saving while a write is in flight; Saved with the time of the last
  * write that LANDED; Not saved with the apiserver's reason when one did not — never silent, because
  * a person who believes their work is stored closes the tab. Before the first save, and when the
  * install has no sandbox to save into (`off`), it shows nothing: there is no claim to make yet.
  *
- * A composer shows only its OWN kind's status: a page held while the blueprint composer is open is
- * not this composer's draft, and its "Saved" would be read as the chart's.
+ * A builder shows only its OWN kind's status: a page held while the blueprint builder is open is
+ * not this builder's draft, and its "Saved" would be read as the chart's.
  */
 import { CheckOutlined } from '@ant-design/icons'
 
 import { findBuilderOf } from '../../builders/builderRegistry'
 import { findDraftKindPlugin } from '../../builders/draftKinds'
+import { formatClock } from '../../utils/dateFormat'
 
 import type { DraftKind } from './blueprintDraftStore'
 import styles from './DraftSaveIndicator.module.css'
 import { draftKeptOnClose, type DraftSaveStatus, useDraftSaveStatus } from './draftSaveStatus'
 
-/** HH:MM, 24-hour, local time — the mockup's format. */
-export const savedClock = (iso: string): string => {
-  const at = new Date(iso)
-  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`
-}
+/** HH:MM, 24-hour, the viewer's zone — the mockup's format (utils/dateFormat). */
+export const savedClock = (iso: string): string => formatClock(iso)
 
 /** The indicator's text for a status, or null when it shows nothing. Pure, so the states are testable. */
 export const saveIndicatorText = (status: DraftSaveStatus, kind: DraftKind): string | null => {

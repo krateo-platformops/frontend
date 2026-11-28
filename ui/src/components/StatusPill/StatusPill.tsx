@@ -1,7 +1,24 @@
+import { CheckCircleFilled, ClockCircleFilled, CloseCircleFilled, ExclamationCircleFilled, PauseCircleFilled, QuestionCircleFilled } from '@ant-design/icons'
 import { Tag as AntdTag } from 'antd'
 import type { CSSProperties, ReactNode } from 'react'
 
 import { getTagStyle } from '../../theme/palette'
+
+import { stateFamily, type StateFamily } from './stateFamily'
+
+/**
+ * One antd filled glyph per state family (approved mockup, portal UX review): it takes the dot's
+ * place and repeats the state's meaning by shape, so the pill does not rely on colour alone and two
+ * states that share a colour (Paused, ReadyUnknown) no longer look alike.
+ */
+const GLYPH: Record<StateFamily, typeof CheckCircleFilled> = {
+  drift: ExclamationCircleFilled,
+  failed: CloseCircleFilled,
+  healthy: CheckCircleFilled,
+  paused: PauseCircleFilled,
+  transitional: ClockCircleFilled,
+  unknown: QuestionCircleFilled,
+}
 
 /**
  * One status pill, drawn one way.
@@ -38,11 +55,16 @@ const StatusPill = ({ color, label, style, ...rest }: StatusPillProps) => {
   // And only when there is a LABEL. A dot with no word carries its meaning by colour alone —
   // invisible to a screen reader, to a colourblind reader, and gone the moment the page is
   // printed or screenshotted into a ticket. Every state that matters has a word.
-  const showDot = !!palette && !!label && !style?.fontSize
+  const showMark = !!palette && !!label && !style?.fontSize
+  // A Kubernetes state token carries its family's glyph in the dot's place; anything else keeps the
+  // dot (stateFamily.ts says which tokens, and why the rest keep it).
+  const family = showMark ? stateFamily(label) : undefined
+  const Glyph = family ? GLYPH[family] : undefined
 
   return (
     <AntdTag {...rest} style={merged}>
-      {showDot && (
+      {Glyph && <Glyph aria-hidden data-state-family={family} style={{ color: palette?.color, fontSize: 'var(--krateo-text-caption)', marginRight: 'var(--spacing-xsm)', verticalAlign: '-0.125em' }} />}
+      {showMark && !Glyph && (
         <span
           style={{
             background: palette?.color,

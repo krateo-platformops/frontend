@@ -1,8 +1,8 @@
 /**
- * A preview for a page draft the composer never saw proposed.
+ * A preview for a page draft the builder never saw proposed.
  *
- * The composer adopts a page's preview from the preview bus, and only while it is mounted. A draft
- * started or proposed BEFORE it mounted reaches it by replay — files, no payload — and the composer
+ * The builder adopts a page's preview from the preview bus, and only while it is mounted. A draft
+ * started or proposed BEFORE it mounted reaches it by replay — files, no payload — and the builder
  * used to answer that with "No draft open" and a Start button the provider silently refused, because
  * a draft was held. So it said the one thing that was false, and offered the one action that could
  * not work, with no way to discard what was actually there.

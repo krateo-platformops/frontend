@@ -2,10 +2,13 @@ import { Avatar, Grid } from 'antd'
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router'
 
+import { isBuilderPath } from '../../builders/builderRegistry'
+import { noteBuilderVisit } from '../../builders/builderVisit'
 import { ensureBuildersLoaded } from '../../builders/clusterBuilders'
 import { useConfigContext } from '../../context/ConfigContext'
 import { useRoutesContext } from '../../context/RoutesContext'
 import { WidgetScopeProvider } from '../../context/WidgetScopeContext'
+import { documentTitleOf, useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { LiveRefreshFirehose } from '../../hooks/useLiveRefresh'
 import { useDocumentLoadSpan } from '../../otel/useDocumentLoadSpan'
 import { SignedInTransportProvider } from '../../transport/signedInTransport'
@@ -20,6 +23,7 @@ import ThemeToggle from '../ThemeToggle'
 import UserMenu from '../UserMenu'
 import WidgetRenderer from '../WidgetRenderer'
 
+import NavRoutesPrefetch from './NavRoutesPrefetch'
 import styles from './Shell.module.css'
 import { ShellSlotsProvider } from './ShellSlots'
 
@@ -98,8 +102,10 @@ export const SiderFooter = () => {
  */
 export const ShellRoute = () => {
   const { config } = useConfigContext()
-  const { routes } = useRoutesContext()
+  const { menuRoutes, routes } = useRoutesContext()
   const { pathname } = useLocation()
+  // The browser-tab title of every page the shell serves (hooks/useDocumentTitle).
+  useDocumentTitle(documentTitleOf(pathname, menuRoutes))
   const narrow = Grid.useBreakpoint().md === false
   // X5: `krateo.page.load`, once per document, measured from navigation timing and reported as soon
   // as the landing address resolves to a TEMPLATED route (useDocumentLoadSpan).
@@ -110,6 +116,12 @@ export const ShellRoute = () => {
       window.location.replace('/login')
     }
   }, [])
+
+  // Said once, for what runs without a router: the author's abandoned previews are cleared then.
+  const onBuilder = isBuilderPath(pathname)
+  useEffect(() => {
+    if (onBuilder) { noteBuilderVisit() }
+  }, [onBuilder])
 
   // The Builders are read from the cluster AS THE SIGNED-IN PERSON, once per sign-in: the shell mounts
   // after every sign-in, and a remount with the same session is a no-op (clusterBuilders.ts).
@@ -130,7 +142,7 @@ export const ShellRoute = () => {
       <LiveRefreshFirehose />
       <ShellSlotsProvider value={{
         // The routed page owns the route's inputs again (see the 'chrome' scope on the shell below).
-        content: <><div className={styles.contentCrumb}><Breadcrumb /></div><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,
+        content: <><Breadcrumb className={styles.contentCrumb} /><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,
         header: <HeaderChrome />,
         routeKey: pathname,
         siderFooter: <SiderFooter />,
@@ -149,6 +161,8 @@ export const ShellRoute = () => {
                   picker and focus included. Only the routed content (the `content` slot above)
                   is page. */}
               <WidgetScopeProvider scope='chrome'>
+                {/* The route map, read in parallel with INIT rather than after the sider renders. */}
+                <NavRoutesPrefetch />
                 <WidgetRenderer key='shell' widgetEndpoint={config!.api.INIT} />
               </WidgetScopeProvider>
             </AgentikoShell>

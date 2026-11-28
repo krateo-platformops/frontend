@@ -7,28 +7,16 @@ import { ListView } from '../List/ListView'
 
 import styles from './Collapse.module.css'
 import type { Collapse as WidgetType } from './Collapse.type'
+import { openByDefault, panelKey } from './collapsePanels'
 
 // T2 opt-out: antd Collapse already renders in four places (SchemaFields, PalettePanel, KindInspector, the Agentiko preview surface), and a buildComponents entry would restyle all of them; this widget keeps the density they have, and a theme entry is its own change with those four in view.
 
 export type CollapseWidgetData = WidgetType['spec']['widgetData']
 type Panel = CollapseWidgetData['items'][number]
 
-/**
- * A panel's antd key: its own `key`, else its child's `resourceRefId`, else its position. `key` and
- * `label` are optional so the Page Builder, which adds a child to any container as
- * `{ resourceRefId }`, makes a valid panel rather than a CR the apiserver refuses.
- */
-export const panelKey = (panel: Pick<Panel, 'key' | 'resourceRefId'>, index: number): string =>
-  panel.key ?? panel.resourceRefId ?? String(index)
-
-/**
- * The panels open on first render. The CR's `defaultActiveKey` when it gives one; otherwise every
- * panel carrying a `status` — the exception groups (what is broken, what needs a decision) start
- * open and the settled ones (Resolved, Closed, Ready) start folded, so a page opens on what needs
- * the reader and the rest is one click away.
- */
-export const openByDefault = (items: Panel[], defaultActiveKey: string[] | undefined): string[] =>
-  defaultActiveKey ?? items.flatMap((panel, index) => (panel.status ? [panelKey(panel, index)] : []))
+// panelKey and openByDefault live in ./collapsePanels (pure), so the children prefetch can apply the
+// same rule without importing this component (components/RefChild/renderedChildren.ts).
+export { openByDefault, panelKey } from './collapsePanels'
 
 /**
  * The slice of a panel's dataSource it draws, and whether its footer shows. Without `cap`, all of it
@@ -60,12 +48,12 @@ export const cappedBody = (panel: Pick<Panel, 'cap' | 'dataSource' | 'footer'>):
  * renders the header as a button with `aria-expanded`, toggled by Enter, so its accessible name is
  * the title AND the count.
  */
-const Collapse = ({ deniedRefIds, resourcesRefs, uid, widget, widgetData }: WidgetProps<CollapseWidgetData>) => {
+const Collapse = ({ deniedRefIds, failedRefs, resourcesRefs, uid, widget, widgetData }: WidgetProps<CollapseWidgetData>) => {
   const { accordion, actions, bordered, defaultActiveKey, ghost, grid, itemTemplate, items, size } = widgetData
 
   const body = (panel: Panel, key: string) => {
     if (panel.resourceRefId) {
-      return <RefChild deniedRefIds={deniedRefIds} label='panel' resourceRefId={panel.resourceRefId} resourcesRefs={resourcesRefs} />
+      return <RefChild deniedRefIds={deniedRefIds} failedRefs={failedRefs} label='panel' resourceRefId={panel.resourceRefId} resourcesRefs={resourcesRefs} />
     }
     if (!panel.dataSource) { return null }
     const { footer, items: shown } = cappedBody(panel)

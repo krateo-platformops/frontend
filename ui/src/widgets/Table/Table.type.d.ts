@@ -43,6 +43,14 @@ export interface Table {
          * antd Table column minWidth in px. Mirrors antd ColumnType.minWidth. Usually the better lever under fitContent: a fixed width re-creates the overflow it was meant to fix, while a floor keeps a column readable and lets the others flex.
          */
         minWidth?: number
+        /**
+         * optional, for a column of `span` cells (a waterfall): the label at the start of the bars' scale, e.g. "0". With `rulerEnd`, the header shows the two labels at the ends of the bars' track, as written (not upper-cased), instead of the title; the title stays the column's name for assistive tech. A column with a ruler has no sorter.
+         */
+        rulerStart?: string
+        /**
+         * optional, for a column of `span` cells (a waterfall): the label at the end of the bars' scale, the length that 100% stands for, e.g. "5.81 s". See `rulerStart`.
+         */
+        rulerEnd?: string
       }[]
       /**
        * antd Table dataSource — the table rows (renamed from `data`; `data` still accepted for back-compat)
@@ -53,17 +61,17 @@ export interface Table {
          */
         valueKey: string
         /**
-         * type of cell value. `tag` renders the stringValue as a colored antd Tag (use the cell `color`). `bar` renders a reconciliation-rail Progress gauge (stringValue = percent 0-100, `color` = bar/state color, amber target-tick at 100%). `conditions` renders `arrayValue` (an array of {type,status}) as small status pills, each coloured cyan (True) / crimson (False).
+         * type of cell value. `tag` renders the stringValue as a colored antd Tag (use the cell `color`). `bar` renders a reconciliation-rail Progress gauge (stringValue = percent 0-100, `color` = bar/state color, amber target-tick at 100%). `conditions` renders `stringValue` (a JSON array of {type,status,color}) as small pills, one per entry: `type` is the text, `color` is painted as sent (gray when absent) and `status` is never mapped to a colour. Send green (health), red (failure), orange (transitional) or gray (unknown); cyan is for brand and interaction, never a status. `span` renders a waterfall bar, as the trace page draws a trace's spans: it starts `offsetPercent` of the way along the cell and is `widthPercent` long (both 0-100, of the column's whole scale; never thinner than 2px), in the cell `color` (else the column's, else the neutral gray), with `stringValue` (e.g. the duration, "2.10 s") written after it and `tooltip` on hover. It sorts by `offsetPercent`. Put the scale in the column title ("0 … 5.81 s"). Not `bar`, which is a progress gauge from 0 with a target mark at 100%.
          */
-        kind: 'jsonSchemaType' | 'icon' | 'widget' | 'tag' | 'bar' | 'conditions'
+        kind: 'jsonSchemaType' | 'icon' | 'widget' | 'tag' | 'bar' | 'conditions' | 'span'
         /**
          * per-cell color — a KRATEO PALETTE name (gray, red, orange, green, blue, primary…), resolved for the light or dark mode; never a hex, which is one value in both modes. On a jsonSchemaType cell it overrides the column color, and a value that is not a palette name is applied as CSS as written. Lets each row carry its own color (e.g. status).
          */
         color?: string
         /**
-         * optional display format for a string value — `relative` (e.g. "14d ago"), `date`, or `datetime`. The raw value stays in the data; only the rendering changes.
+         * optional time form for a string value that is an ISO (RFC3339) time, written in the viewer's time zone with the full date ("Wed 4 November 2026, 11:10:27 (UTC+1)") on hover and focus: `age` how old, for an age column ("7 weeks"); `ago` how long ago, in a sentence ("52 minutes ago"); `moment` a point in time ("4 Nov, 11:10", with the year when it is another year: "10 Sep 2025, 09:30"); `date` the day alone ("4 Nov"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came. The raw value stays in the data (and sorts as a date); only the rendering changes.
          */
-        format?: 'relative' | 'date' | 'datetime'
+        format?: 'age' | 'ago' | 'moment' | 'relative' | 'date' | 'datetime'
         /**
          * used if kind = widget
          */
@@ -76,6 +84,10 @@ export interface Table {
          * value if type = string
          */
         stringValue?: string
+        /**
+         * optional, on a jsonSchemaType string cell: a second line under the value, muted and small (e.g. the service under a span's name in a trace waterfall). It wraps, or ellipsizes in a truncating table, as the value does. Omitted or empty, the cell renders exactly as without it.
+         */
+        secondaryText?: string
         /**
          * value if type = number or integer
          */
@@ -93,9 +105,21 @@ export interface Table {
          */
         arrayValue?: string[]
         /**
+         * used if kind = span: where the bar starts, as a percentage (0-100) of the cell's width, e.g. (span start - trace start) / trace length * 100. A value outside 0-100 is clamped.
+         */
+        offsetPercent?: number
+        /**
+         * used if kind = span: how long the bar is, as a percentage (0-100) of the cell's width, e.g. span duration / trace length * 100; cut at the cell's end, and never drawn thinner than 2px.
+         */
+        widthPercent?: number
+        /**
          * optional antd Tooltip text for this cell, shown on hover and on keyboard focus, for every cell kind (e.g. a span's OTel StatusMessage on its error tag). When set, it replaces the cell's own full-text-on-hover title, so a cell never shows two tooltips. Omitted or empty, the cell renders exactly as without it.
          */
         tooltip?: string
+        /**
+         * optional, any cell kind: the cell's content starts this many levels in (16px each), e.g. a span's depth under the span that called it in a trace waterfall. Omitted or 0, the cell is laid out exactly as without it.
+         */
+        indent?: number
       }[][]
       /**
        * antd Table pagination config (subproperties mirror antd).
@@ -174,6 +198,10 @@ export interface Table {
          * render the menu item in a destructive (red) style
          */
         danger?: boolean
+        /**
+         * the button's emphasis where row actions show as buttons (a List card footer, or rowActionsDisplay: buttons). Unset: the first action is primary and the rest default. Set default on the first to have no primary. Ignored in the kebab menu.
+         */
+        type?: 'primary' | 'default'
       }[]
       /**
        * how rowActions are presented: menu (a kebab (⋯) in the row's last cell, default) | buttons (antd Buttons in the row's last cell, in declared order: the first primary, the rest default, a danger entry as danger). The whole-row click (rowNavigateTo) is unchanged either way. Same field and values as List's itemTemplate.rowActionsDisplay.
@@ -199,6 +227,53 @@ export interface Table {
            * whether user confirmation is required before triggering the action
            */
           requireConfirmation?: boolean
+          /**
+           * the words of the confirmation this action opens before it runs, written for the person deciding. It does not add a dialog: it changes the words of the one write confirmation that opens anyway (every POST, PUT, PATCH and DELETE, and a read-only action with requireConfirmation). When set, that dialog shows this title, message, optional alert and OK label, and folds its own technical facts (verb, resource, cluster, namespace and the YAML it will send) under a collapsed "What will be sent" disclosure. Without it, the dialog shows those facts as its body. Like any widgetData field it can be filled from widgetDataTemplate (forPath: actions.rest[0].confirmation).
+           */
+          confirmation?: {
+            /**
+             * the dialog title: a question naming what will happen, e.g. "Uninstall my-blueprint?"
+             */
+            title: string
+            /**
+             * one or two sentences under the title saying what the action does, e.g. "This removes the blueprint my-blueprint from the Platform."
+             */
+            message: string
+            /**
+             * an antd Alert under the message, for what the person should know before confirming (e.g. the compositions created from a blueprint). Leave it out when there is nothing to say.
+             */
+            alert?: {
+              /**
+               * the Alert's type: warning (amber), info or error
+               */
+              type: 'warning' | 'info' | 'error'
+              /**
+               * the Alert's text, e.g. "1 composition was created from it."
+               */
+              message: string
+              /**
+               * the objects the Alert is about, one line each under its text
+               */
+              items?: {
+                /**
+                 * the object's name
+                 */
+                label: string
+                /**
+                 * where the label links to; it opens in a new tab, so the confirmation stays open
+                 */
+                href?: string
+                /**
+                 * a short neutral tag after the label, e.g. the object's own state word (Ready, Paused)
+                 */
+                tag?: string
+              }[]
+            }
+            /**
+             * the OK button's label: the verb the action performs, e.g. "Uninstall". The button is danger-styled when the write deletes, as without a confirmation
+             */
+            okLabel: string
+          }
           /**
            * a message that will be displayed inside a toast in case of error
            */

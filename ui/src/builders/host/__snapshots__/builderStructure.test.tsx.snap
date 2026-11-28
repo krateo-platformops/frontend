@@ -10,6 +10,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > empty: not
             "Blueprint builder"
           <p class="_subtitle_ec3666">
             "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -60,7 +128,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
@@ -79,6 +147,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a cha
                 "Chart.yaml: version is not semver"
               <li>
                 "values.schema.json: no root"
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -2570,11 +2706,79 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: a fre
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
         "Preview needed — publishing stays off until Preview has rendered the chart exactly as it is now."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -3491,11 +3695,79 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <span class="_srOnly_61220e" id="id2">
         "Wait for the preview to finish."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -4403,7 +4675,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -4434,6 +4706,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -5345,7 +5685,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   <span>
                     "Publishing…"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -5360,6 +5700,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -6267,7 +6675,7 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-success ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -6282,6 +6690,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > own: previ
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -7171,6 +7647,74 @@ exports[`Blueprint Builder — DOM structure, unchanged by the host > parked: a 
             "Blueprint builder"
           <p class="_subtitle_ec3666">
             "Author a chart and the file that describes it — its resources, what depends on what, and the states it moves through — then publish the whole set as one change request."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -7223,9 +7767,77 @@ exports[`Blueprint Builder — a chart held BEFORE it mounts (review of #427) > 
                   <span>
                     "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a blueprint gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start from a name"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the chart and the kind it registers. The builder scaffolds a Helm chart that registers with Krateo as that kind."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Add resources and what each waits on"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Place each resource the chart creates and what it waits on. architecture.yaml draws the graph, and every file stays editable as a file."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Shape the install form"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Choose the fields people fill to install it. values.schema.json is generated from them, and core-provider builds the form from that schema."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Preview and publish"
+                  <div class="ant-steps-item-content">
+                    "Render the chart for real, then publish it as a change request. Once it is merged, install it from the Blueprint Builder's page and it shows on the Blueprints page."
     <div class="_body_61220e">
       <section aria-label="Add" class="_pane_61220e _palettePane_61220e">
         <div class="_paneHead_61220e">
@@ -8116,6 +8728,74 @@ exports[`Page Builder — DOM structure, unchanged by the host > empty: nothing 
             "Page builder"
           <p class="_subtitle_ec3666">
             "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">
@@ -8161,9 +8841,77 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                 <span>
                   "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_build_03b493">
       <section class="_palette_03b493">
         <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -8180,7 +8928,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "Containers · 12"
+                "Containers · 15"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-ButtonGroup" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="ButtonGroup · buttongroups">
                 <span aria-label="appstore-add" class="anticon anticon-appstore-add" role="img">
@@ -8207,6 +8955,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                     <path d="M880 112H144c-17.7 0-32 14.3-32 32v736c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zm-40 728H184V184h656v656z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Collapse"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Dropdown" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Dropdown · dropdowns">
+                <span aria-label="ellipsis" class="anticon anticon-ellipsis" role="img">
+                  <svg aria-hidden="true" data-icon="ellipsis" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M176 511a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Dropdown"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Filters" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Filters · filters">
                 <span aria-label="filter" class="anticon anticon-filter" role="img">
                   <svg aria-hidden="true" data-icon="filter" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -8244,6 +8998,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                     <path d="M180 176h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zm724 0h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zM785.3 504.3L657.7 403.6a7.23 7.23 0 00-11.7 5.7V476H378v-62.8c0-6-7-9.4-11.7-5.7L238.7 508.3a7.14 7.14 0 000 11.3l127.5 100.8c4.7 3.7 11.7.4 11.7-5.7V548h268v62.8c0 6 7 9.4 11.7 5.7l127.5-100.8c3.8-2.9 3.8-8.5.2-11.4z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Row"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Splitter" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Splitter · splitters">
+                <span aria-label="split-cells" class="anticon anticon-split-cells" role="img">
+                  <svg aria-hidden="true" data-icon="split-cells" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M938.2 508.4L787.3 389c-3-2.4-7.3-.2-7.3 3.6V478H636V184h204v128c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V144c0-15.5-12.5-28-28-28H596c-15.5 0-28 12.5-28 28v736c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v128H636V546h144v85.4c0 3.8 4.4 6 7.3 3.6l150.9-119.4a4.5 4.5 0 000-7.2zM428 116H144c-15.5 0-28 12.5-28 28v168c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V184h204v294H244v-85.4c0-3.8-4.3-6-7.3-3.6l-151 119.4a4.52 4.52 0 000 7.1l151 119.5c2.9 2.3 7.3.2 7.3-3.6V546h144v294H184V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v168c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V144c0-15.5-12.5-28-28-28z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Splitter"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Steps" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Steps · steps">
                 <span aria-label="ordered-list" class="anticon anticon-ordered-list" role="img">
                   <svg aria-hidden="true" data-icon="ordered-list" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -8256,10 +9016,16 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                     <path d="M952 792H72c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h880c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0-632H72c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h880c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM848 660c8.8 0 16-7.2 16-16V380c0-8.8-7.2-16-16-16H176c-8.8 0-16 7.2-16 16v264c0 8.8 7.2 16 16 16h672zM232 436h560v152H232V436z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Tabs"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Timeline" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Timeline · timelines">
+                <span aria-label="history" class="anticon anticon-history" role="img">
+                  <svg aria-hidden="true" data-icon="history" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M536.1 273H488c-4.4 0-8 3.6-8 8v275.3c0 2.6 1.2 5 3.3 6.5l165.3 120.7c3.6 2.6 8.6 1.9 11.2-1.7l28.6-39c2.7-3.7 1.9-8.7-1.7-11.2L544.1 528.5V281c0-4.4-3.6-8-8-8zm219.8 75.2l156.8 38.3c5 1.2 9.9-2.6 9.9-7.7l.8-161.5c0-6.7-7.7-10.5-12.9-6.3L752.9 334.1a8 8 0 003 14.1zm167.7 301.1l-56.7-19.5a8 8 0 00-10.1 4.8c-1.9 5.1-3.9 10.1-6 15.1-17.8 42.1-43.3 80-75.9 112.5a353 353 0 01-112.5 75.9 352.18 352.18 0 01-137.7 27.8c-47.8 0-94.1-9.3-137.7-27.8a353 353 0 01-112.5-75.9c-32.5-32.5-58-70.4-75.9-112.5A353.44 353.44 0 01171 512c0-47.8 9.3-94.2 27.8-137.8 17.8-42.1 43.3-80 75.9-112.5a353 353 0 01112.5-75.9C430.6 167.3 477 158 524.8 158s94.1 9.3 137.7 27.8A353 353 0 01775 261.7c10.2 10.3 19.8 21 28.6 32.3l59.8-46.8C784.7 146.6 662.2 81.9 524.6 82 285 82.1 92.6 276.7 95 516.4 97.4 751.9 288.9 942 524.8 942c185.5 0 343.5-117.6 403.7-282.3 1.5-4.2-.7-8.9-4.9-10.4z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Timeline"
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "New widgets · 33"
+                "New widgets · 35"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Alert" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Alert · alerts">
                 <span aria-label="warning" class="anticon anticon-warning" role="img">
@@ -8408,6 +9174,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                     <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Result"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Segmented" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Segmented · segmenteds">
+                <span aria-label="switcher" class="anticon anticon-switcher" role="img">
+                  <svg aria-hidden="true" data-icon="switcher" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M752 240H144c-17.7 0-32 14.3-32 32v608c0 17.7 14.3 32 32 32h608c17.7 0 32-14.3 32-32V272c0-17.7-14.3-32-32-32zm-40 600H184V312h528v528zm168-728H264c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h576v576c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V144c0-17.7-14.3-32-32-32zM300 550h296v64H300z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Segmented"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Select" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Select · selects">
                 <span aria-label="down" class="anticon anticon-down" role="img">
                   <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -8450,6 +9222,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: a page hel
                     <path d="M766.4 744.3c43.7 0 79.4-36.2 79.4-80.5 0-53.5-79.4-140.8-79.4-140.8S687 610.3 687 663.8c0 44.3 35.7 80.5 79.4 80.5zm-377.1-44.1c7.1 7.1 18.6 7.1 25.6 0l256.1-256c7.1-7.1 7.1-18.6 0-25.6l-256-256c-.6-.6-1.3-1.2-2-1.7l-78.2-78.2a9.11 9.11 0 00-12.8 0l-48 48a9.11 9.11 0 000 12.8l67.2 67.2-207.8 207.9c-7.1 7.1-7.1 18.6 0 25.6l255.9 256zm12.9-448.6l178.9 178.9H223.4l178.8-178.9zM904 816H120c-4.4 0-8 3.6-8 8v80c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-80c0-4.4-3.6-8-8-8z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Theme"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Tree" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Tree · trees">
+                <span aria-label="apartment" class="anticon anticon-apartment" role="img">
+                  <svg aria-hidden="true" data-icon="apartment" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M908 640H804V488c0-4.4-3.6-8-8-8H548v-96h108c8.8 0 16-7.2 16-16V80c0-8.8-7.2-16-16-16H368c-8.8 0-16 7.2-16 16v288c0 8.8 7.2 16 16 16h108v96H228c-4.4 0-8 3.6-8 8v152H116c-8.8 0-16 7.2-16 16v288c0 8.8 7.2 16 16 16h288c8.8 0 16-7.2 16-16V656c0-8.8-7.2-16-16-16H292v-88h440v88H620c-8.8 0-16 7.2-16 16v288c0 8.8 7.2 16 16 16h288c8.8 0 16-7.2 16-16V656c0-8.8-7.2-16-16-16zm-564 76v168H176V716h168zm84-408V140h168v168H428zm420 576H680V716h168v168z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Tree"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Upload" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Upload · uploads">
                 <span aria-label="upload" class="anticon anticon-upload" role="img">
                   <svg aria-hidden="true" data-icon="upload" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -8916,7 +9694,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                 <span>
                   "Publish"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
       <div class="ant-alert ant-alert-warning ant-alert-outlined css-var-id1 css-dev-only-do-not-override-12q6fii" data-show="true" role="alert">
@@ -8931,6 +9709,74 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
           <span aria-label="close" class="anticon anticon-close" role="img">
             <svg aria-hidden="true" data-icon="close" fill="currentColor" fill-rule="evenodd" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
               <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z">
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_build_03b493">
       <section class="_palette_03b493">
         <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -8947,7 +9793,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "Containers · 12"
+                "Containers · 15"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-ButtonGroup" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="ButtonGroup · buttongroups">
                 <span aria-label="appstore-add" class="anticon anticon-appstore-add" role="img">
@@ -8974,6 +9820,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M880 112H144c-17.7 0-32 14.3-32 32v736c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zm-40 728H184V184h656v656z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Collapse"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Dropdown" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Dropdown · dropdowns">
+                <span aria-label="ellipsis" class="anticon anticon-ellipsis" role="img">
+                  <svg aria-hidden="true" data-icon="ellipsis" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M176 511a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Dropdown"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Filters" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Filters · filters">
                 <span aria-label="filter" class="anticon anticon-filter" role="img">
                   <svg aria-hidden="true" data-icon="filter" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9011,6 +9863,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M180 176h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zm724 0h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zM785.3 504.3L657.7 403.6a7.23 7.23 0 00-11.7 5.7V476H378v-62.8c0-6-7-9.4-11.7-5.7L238.7 508.3a7.14 7.14 0 000 11.3l127.5 100.8c4.7 3.7 11.7.4 11.7-5.7V548h268v62.8c0 6 7 9.4 11.7 5.7l127.5-100.8c3.8-2.9 3.8-8.5.2-11.4z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Row"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Splitter" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Splitter · splitters">
+                <span aria-label="split-cells" class="anticon anticon-split-cells" role="img">
+                  <svg aria-hidden="true" data-icon="split-cells" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M938.2 508.4L787.3 389c-3-2.4-7.3-.2-7.3 3.6V478H636V184h204v128c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V144c0-15.5-12.5-28-28-28H596c-15.5 0-28 12.5-28 28v736c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v128H636V546h144v85.4c0 3.8 4.4 6 7.3 3.6l150.9-119.4a4.5 4.5 0 000-7.2zM428 116H144c-15.5 0-28 12.5-28 28v168c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V184h204v294H244v-85.4c0-3.8-4.3-6-7.3-3.6l-151 119.4a4.52 4.52 0 000 7.1l151 119.5c2.9 2.3 7.3.2 7.3-3.6V546h144v294H184V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v168c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V144c0-15.5-12.5-28-28-28z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Splitter"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Steps" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Steps · steps">
                 <span aria-label="ordered-list" class="anticon anticon-ordered-list" role="img">
                   <svg aria-hidden="true" data-icon="ordered-list" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9023,10 +9881,16 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M952 792H72c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h880c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0-632H72c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h880c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM848 660c8.8 0 16-7.2 16-16V380c0-8.8-7.2-16-16-16H176c-8.8 0-16 7.2-16 16v264c0 8.8 7.2 16 16 16h672zM232 436h560v152H232V436z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Tabs"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Timeline" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Timeline · timelines">
+                <span aria-label="history" class="anticon anticon-history" role="img">
+                  <svg aria-hidden="true" data-icon="history" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M536.1 273H488c-4.4 0-8 3.6-8 8v275.3c0 2.6 1.2 5 3.3 6.5l165.3 120.7c3.6 2.6 8.6 1.9 11.2-1.7l28.6-39c2.7-3.7 1.9-8.7-1.7-11.2L544.1 528.5V281c0-4.4-3.6-8-8-8zm219.8 75.2l156.8 38.3c5 1.2 9.9-2.6 9.9-7.7l.8-161.5c0-6.7-7.7-10.5-12.9-6.3L752.9 334.1a8 8 0 003 14.1zm167.7 301.1l-56.7-19.5a8 8 0 00-10.1 4.8c-1.9 5.1-3.9 10.1-6 15.1-17.8 42.1-43.3 80-75.9 112.5a353 353 0 01-112.5 75.9 352.18 352.18 0 01-137.7 27.8c-47.8 0-94.1-9.3-137.7-27.8a353 353 0 01-112.5-75.9c-32.5-32.5-58-70.4-75.9-112.5A353.44 353.44 0 01171 512c0-47.8 9.3-94.2 27.8-137.8 17.8-42.1 43.3-80 75.9-112.5a353 353 0 01112.5-75.9C430.6 167.3 477 158 524.8 158s94.1 9.3 137.7 27.8A353 353 0 01775 261.7c10.2 10.3 19.8 21 28.6 32.3l59.8-46.8C784.7 146.6 662.2 81.9 524.6 82 285 82.1 92.6 276.7 95 516.4 97.4 751.9 288.9 942 524.8 942c185.5 0 343.5-117.6 403.7-282.3 1.5-4.2-.7-8.9-4.9-10.4z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Timeline"
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "New widgets · 33"
+                "New widgets · 35"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Alert" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Alert · alerts">
                 <span aria-label="warning" class="anticon anticon-warning" role="img">
@@ -9175,6 +10039,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Result"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Segmented" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Segmented · segmenteds">
+                <span aria-label="switcher" class="anticon anticon-switcher" role="img">
+                  <svg aria-hidden="true" data-icon="switcher" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M752 240H144c-17.7 0-32 14.3-32 32v608c0 17.7 14.3 32 32 32h608c17.7 0 32-14.3 32-32V272c0-17.7-14.3-32-32-32zm-40 600H184V312h528v528zm168-728H264c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h576v576c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V144c0-17.7-14.3-32-32-32zM300 550h296v64H300z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Segmented"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Select" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Select · selects">
                 <span aria-label="down" class="anticon anticon-down" role="img">
                   <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9217,6 +10087,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M766.4 744.3c43.7 0 79.4-36.2 79.4-80.5 0-53.5-79.4-140.8-79.4-140.8S687 610.3 687 663.8c0 44.3 35.7 80.5 79.4 80.5zm-377.1-44.1c7.1 7.1 18.6 7.1 25.6 0l256.1-256c7.1-7.1 7.1-18.6 0-25.6l-256-256c-.6-.6-1.3-1.2-2-1.7l-78.2-78.2a9.11 9.11 0 00-12.8 0l-48 48a9.11 9.11 0 000 12.8l67.2 67.2-207.8 207.9c-7.1 7.1-7.1 18.6 0 25.6l255.9 256zm12.9-448.6l178.9 178.9H223.4l178.8-178.9zM904 816H120c-4.4 0-8 3.6-8 8v80c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-80c0-4.4-3.6-8-8-8z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Theme"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Tree" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Tree · trees">
+                <span aria-label="apartment" class="anticon anticon-apartment" role="img">
+                  <svg aria-hidden="true" data-icon="apartment" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M908 640H804V488c0-4.4-3.6-8-8-8H548v-96h108c8.8 0 16-7.2 16-16V80c0-8.8-7.2-16-16-16H368c-8.8 0-16 7.2-16 16v288c0 8.8 7.2 16 16 16h108v96H228c-4.4 0-8 3.6-8 8v152H116c-8.8 0-16 7.2-16 16v288c0 8.8 7.2 16 16 16h288c8.8 0 16-7.2 16-16V656c0-8.8-7.2-16-16-16H292v-88h440v88H620c-8.8 0-16 7.2-16 16v288c0 8.8 7.2 16 16 16h288c8.8 0 16-7.2 16-16V656c0-8.8-7.2-16-16-16zm-564 76v168H176V716h168zm84-408V140h168v168H428zm420 576H680V716h168v168z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Tree"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Upload" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Upload · uploads">
                 <span aria-label="upload" class="anticon anticon-upload" role="img">
                   <svg aria-hidden="true" data-icon="upload" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9470,9 +10346,77 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                 <span>
                   "Publishing…"
             <div class="ant-space-item">
-              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined _dismiss_bb0544" type="button">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-default ant-btn-color-default ant-btn-variant-outlined" type="button">
                 <span>
                   "Close draft"
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_build_03b493">
       <section class="_palette_03b493">
         <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1">
@@ -9489,7 +10433,7 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "Containers · 12"
+                "Containers · 15"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-ButtonGroup" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="ButtonGroup · buttongroups">
                 <span aria-label="appstore-add" class="anticon anticon-appstore-add" role="img">
@@ -9516,6 +10460,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M880 112H144c-17.7 0-32 14.3-32 32v736c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zm-40 728H184V184h656v656z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Collapse"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Dropdown" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Dropdown · dropdowns">
+                <span aria-label="ellipsis" class="anticon anticon-ellipsis" role="img">
+                  <svg aria-hidden="true" data-icon="ellipsis" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M176 511a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0zm280 0a56 56 0 10112 0 56 56 0 10-112 0z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Dropdown"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Filters" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Filters · filters">
                 <span aria-label="filter" class="anticon anticon-filter" role="img">
                   <svg aria-hidden="true" data-icon="filter" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9553,6 +10503,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M180 176h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zm724 0h-60c-4.4 0-8 3.6-8 8v656c0 4.4 3.6 8 8 8h60c4.4 0 8-3.6 8-8V184c0-4.4-3.6-8-8-8zM785.3 504.3L657.7 403.6a7.23 7.23 0 00-11.7 5.7V476H378v-62.8c0-6-7-9.4-11.7-5.7L238.7 508.3a7.14 7.14 0 000 11.3l127.5 100.8c4.7 3.7 11.7.4 11.7-5.7V548h268v62.8c0 6 7 9.4 11.7 5.7l127.5-100.8c3.8-2.9 3.8-8.5.2-11.4z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Row"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Splitter" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Splitter · splitters">
+                <span aria-label="split-cells" class="anticon anticon-split-cells" role="img">
+                  <svg aria-hidden="true" data-icon="split-cells" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M938.2 508.4L787.3 389c-3-2.4-7.3-.2-7.3 3.6V478H636V184h204v128c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V144c0-15.5-12.5-28-28-28H596c-15.5 0-28 12.5-28 28v736c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v128H636V546h144v85.4c0 3.8 4.4 6 7.3 3.6l150.9-119.4a4.5 4.5 0 000-7.2zM428 116H144c-15.5 0-28 12.5-28 28v168c0 2.2 1.8 4 4 4h60c2.2 0 4-1.8 4-4V184h204v294H244v-85.4c0-3.8-4.3-6-7.3-3.6l-151 119.4a4.52 4.52 0 000 7.1l151 119.5c2.9 2.3 7.3.2 7.3-3.6V546h144v294H184V712c0-2.2-1.8-4-4-4h-60c-2.2 0-4 1.8-4 4v168c0 15.5 12.5 28 28 28h284c15.5 0 28-12.5 28-28V144c0-15.5-12.5-28-28-28z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Splitter"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Steps" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Steps · steps">
                 <span aria-label="ordered-list" class="anticon anticon-ordered-list" role="img">
                   <svg aria-hidden="true" data-icon="ordered-list" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9565,10 +10521,16 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M952 792H72c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h880c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0-632H72c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h880c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM848 660c8.8 0 16-7.2 16-16V380c0-8.8-7.2-16-16-16H176c-8.8 0-16 7.2-16 16v264c0 8.8 7.2 16 16 16h672zM232 436h560v152H232V436z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Tabs"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Timeline" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Timeline · timelines">
+                <span aria-label="history" class="anticon anticon-history" role="img">
+                  <svg aria-hidden="true" data-icon="history" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M536.1 273H488c-4.4 0-8 3.6-8 8v275.3c0 2.6 1.2 5 3.3 6.5l165.3 120.7c3.6 2.6 8.6 1.9 11.2-1.7l28.6-39c2.7-3.7 1.9-8.7-1.7-11.2L544.1 528.5V281c0-4.4-3.6-8-8-8zm219.8 75.2l156.8 38.3c5 1.2 9.9-2.6 9.9-7.7l.8-161.5c0-6.7-7.7-10.5-12.9-6.3L752.9 334.1a8 8 0 003 14.1zm167.7 301.1l-56.7-19.5a8 8 0 00-10.1 4.8c-1.9 5.1-3.9 10.1-6 15.1-17.8 42.1-43.3 80-75.9 112.5a353 353 0 01-112.5 75.9 352.18 352.18 0 01-137.7 27.8c-47.8 0-94.1-9.3-137.7-27.8a353 353 0 01-112.5-75.9c-32.5-32.5-58-70.4-75.9-112.5A353.44 353.44 0 01171 512c0-47.8 9.3-94.2 27.8-137.8 17.8-42.1 43.3-80 75.9-112.5a353 353 0 01112.5-75.9C430.6 167.3 477 158 524.8 158s94.1 9.3 137.7 27.8A353 353 0 01775 261.7c10.2 10.3 19.8 21 28.6 32.3l59.8-46.8C784.7 146.6 662.2 81.9 524.6 82 285 82.1 92.6 276.7 95 516.4 97.4 751.9 288.9 942 524.8 942c185.5 0 343.5-117.6 403.7-282.3 1.5-4.2-.7-8.9-4.9-10.4z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Timeline"
           <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
             <span class="ant-typography ant-typography-secondary css-dev-only-do-not-override-12q6fii css-var-id1" style="font-size: var(--krateo-text-label-sm); letter-spacing: 0.4px; text-transform: uppercase;">
               <strong>
-                "New widgets · 33"
+                "New widgets · 35"
             <div style="display: flex; flex-direction: column; gap: var(--spacing-xsm);">
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Alert" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Alert · alerts">
                 <span aria-label="warning" class="anticon anticon-warning" role="img">
@@ -9717,6 +10679,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm0 820c-205.4 0-372-166.6-372-372s166.6-372 372-372 372 166.6 372 372-166.6 372-372 372z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Result"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Segmented" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Segmented · segmenteds">
+                <span aria-label="switcher" class="anticon anticon-switcher" role="img">
+                  <svg aria-hidden="true" data-icon="switcher" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M752 240H144c-17.7 0-32 14.3-32 32v608c0 17.7 14.3 32 32 32h608c17.7 0 32-14.3 32-32V272c0-17.7-14.3-32-32-32zm-40 600H184V312h528v528zm168-728H264c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h576v576c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V144c0-17.7-14.3-32-32-32zM300 550h296v64H300z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Segmented"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Select" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Select · selects">
                 <span aria-label="down" class="anticon anticon-down" role="img">
                   <svg aria-hidden="true" data-icon="down" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9759,6 +10727,12 @@ exports[`Page Builder — DOM structure, unchanged by the host > own: publishing
                     <path d="M766.4 744.3c43.7 0 79.4-36.2 79.4-80.5 0-53.5-79.4-140.8-79.4-140.8S687 610.3 687 663.8c0 44.3 35.7 80.5 79.4 80.5zm-377.1-44.1c7.1 7.1 18.6 7.1 25.6 0l256.1-256c7.1-7.1 7.1-18.6 0-25.6l-256-256c-.6-.6-1.3-1.2-2-1.7l-78.2-78.2a9.11 9.11 0 00-12.8 0l-48 48a9.11 9.11 0 000 12.8l67.2 67.2-207.8 207.9c-7.1 7.1-7.1 18.6 0 25.6l255.9 256zm12.9-448.6l178.9 178.9H223.4l178.8-178.9zM904 816H120c-4.4 0-8 3.6-8 8v80c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-80c0-4.4-3.6-8-8-8z">
                 <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   "Theme"
+              <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Tree" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Tree · trees">
+                <span aria-label="apartment" class="anticon anticon-apartment" role="img">
+                  <svg aria-hidden="true" data-icon="apartment" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
+                    <path d="M908 640H804V488c0-4.4-3.6-8-8-8H548v-96h108c8.8 0 16-7.2 16-16V80c0-8.8-7.2-16-16-16H368c-8.8 0-16 7.2-16 16v288c0 8.8 7.2 16 16 16h108v96H228c-4.4 0-8 3.6-8 8v152H116c-8.8 0-16 7.2-16 16v288c0 8.8 7.2 16 16 16h288c8.8 0 16-7.2 16-16V656c0-8.8-7.2-16-16-16H292v-88h440v88H620c-8.8 0-16 7.2-16 16v288c0 8.8 7.2 16 16 16h288c8.8 0 16-7.2 16-16V656c0-8.8-7.2-16-16-16zm-564 76v168H176V716h168zm84-408V140h168v168H428zm420 576H680V716h168v168z">
+                <span class="ant-typography css-dev-only-do-not-override-12q6fii css-var-id1" style="flex-shrink: 1; font-size: var(--krateo-text-caption); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  "Tree"
               <div aria-describedby="id2" aria-disabled="false" aria-roledescription="draggable" data-testid="palette-item-Upload" role="button" style="align-items: center; border: 1px solid var(--krateo-color-border-subtle); border-radius: 6px; cursor: grab; display: flex; gap: var(--spacing-sm); padding: var(--spacing-xsm) var(--spacing-sm);" tabindex="0" title="Upload · uploads">
                 <span aria-label="upload" class="anticon anticon-upload" role="img">
                   <svg aria-hidden="true" data-icon="upload" fill="currentColor" focusable="false" height="1em" viewBox="64 64 896 896" width="1em">
@@ -9993,6 +10967,74 @@ exports[`Page Builder — DOM structure, unchanged by the host > parked: a bluep
             "Page builder"
           <p class="_subtitle_ec3666">
             "Author a page and everything it needs — widgets, layout and the RESTActions behind them — then publish the whole set as one change request."
+    <section aria-label="How it gets built" class="_guide_05590d">
+      <div class="ant-card ant-card-bordered ant-card-small css-dev-only-do-not-override-12q6fii css-var-id1">
+        <div class="ant-card-head">
+          <div class="ant-card-head-wrapper">
+            <div class="ant-card-head-title">
+              <span class="_title_05590d">
+                "How a page gets built"
+            <div class="ant-card-extra">
+              <button class="ant-btn css-dev-only-do-not-override-12q6fii css-var-id1 ant-btn-link ant-btn-color-link ant-btn-variant-link ant-btn-sm" type="button">
+                <span>
+                  "Hide guide"
+        <div class="ant-card-body">
+          <div class="ant-steps ant-steps-horizontal ant-steps-title-horizontal ant-steps-filled _steps_39bb4a css-dev-only-do-not-override-12q6fii css-var-id1" style="--ant-cmp-steps-items-offset: 0;">
+            <div class="ant-steps-item ant-steps-item-process ant-steps-item-custom ant-steps-item-active">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 1"
+                        <span>
+                          "Start a draft"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Name the page and drag widgets onto the canvas — the same kinds this portal is built from, nested in rows, columns, cards and tabs. A drop a parent cannot legally hold is refused, so a draft that assembles is a draft that renders."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 2"
+                        <span>
+                          "Give the widgets their data"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "Point a widget at a RESTAction already on this cluster, or write a new one into the draft — several API steps, chained with dependsOn, and your own jq filter. apiRef, widgetDataTemplate and resourcesRefsTemplate are all yours to edit."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 3"
+                        <span>
+                          "Preview it for real"
+                    <div class="ant-steps-item-rail ant-steps-item-rail-wait">
+                  <div class="ant-steps-item-content">
+                    "The draft is applied to a quarantined sandbox namespace and rendered by the live server under your identity and your permissions. It is not a mockup: the same service that serves this page compiles your draft."
+            <div class="ant-steps-item ant-steps-item-wait ant-steps-item-custom">
+              <div class="ant-steps-item-wrapper">
+                <div class="ant-steps-item-icon ant-wave-target">
+                <div class="ant-steps-item-section">
+                  <div class="ant-steps-item-header">
+                    <div class="ant-steps-item-title">
+                      <span class="_titleStack_39bb4a">
+                        <span class="_eyebrow_39bb4a">
+                          "Step 4"
+                        <span>
+                          "Publish as a change request"
+                  <div class="ant-steps-item-content">
+                    "Publishing commits every file — the page root, each widget, each RESTAction — to the portal's git repo and opens a change request. Review it, merge it, release the chart. Nothing reaches this portal before that."
     <div class="_empty_2dde71">
       <div class="css-dev-only-do-not-override-12q6fii css-var-id1 ant-empty ant-empty-normal">
         <div class="ant-empty-image">

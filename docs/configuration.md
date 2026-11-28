@@ -165,6 +165,18 @@ SSE-friendly settings, passing the caller's `Authorization` header through untou
 (`ui/nginx.conf`). It is used only when `agentgateway.enabled` is off — with the gateway on,
 the browser calls the gateway directly and nginx is not involved.
 
+### Security scanners
+
+The portal is a single-page app: a path nginx does not know answers `200` with the app shell, because
+only the app knows its routes. Hidden files at any depth (`/.env`, `/.git/config`) and Vite dev-server
+paths (`/@fs/…`, `/@vite/…`) can never be a route, so they answer `404`. Others still answer with the
+shell, such as `/secrets.env` or `/proc/self/environ`: a resource name in a route may contain dots, so a
+file extension cannot rule one out.
+
+To tell the shell from a real exposure, compare the response with `/login`: the same size and
+`Content-Type: text/html` is the shell. Most scanners accept `/login` as their soft-404 baseline.
+`ui/scripts/test-nginx.sh` asks a real nginx for each of these answers, in CI.
+
 ## `agentgateway.enabled` — and where the Agentiko JWT gets checked
 
 The SPA sends the logged-in user's portal Bearer on **every** Agentiko A2A request. This
@@ -206,7 +218,7 @@ where previews write their drafts, and the author RBAC for the subjects in `auth
 
 - the **page builder** applies draft widget and RESTAction CRs there, so the deployed
   snowplow compiles them for the in-drawer live preview;
-- the **Blueprint Composer** writes each draft chart there as one ConfigMap and renders it
+- the **Blueprint Builder** writes each draft chart there as one ConfigMap and renders it
   by name (portal `blueprint-render-draft`), because a chart sent in a GET's `?extras`
   passes the gateway's 16 KB HTTP/2 header limit. The ConfigMap is deleted as soon as the
   render answers.

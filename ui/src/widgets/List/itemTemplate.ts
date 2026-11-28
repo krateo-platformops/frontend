@@ -1,5 +1,5 @@
 import type { RowAction } from '../../components/RowActions'
-import { formatISODate, formatRelativeTime } from '../../utils/utils'
+import { formatTime, type TimeForm, timeFormOf, toInstant } from '../../utils/dateFormat'
 
 /**
  * Generic item → row mapping for the List/Feed widget. This is the seam that
@@ -81,9 +81,21 @@ export interface ItemTemplate {
    * - `dot`: small solid status dot with a soft halo, no glyph (event/status feeds).
    */
   iconVariant?: 'avatar' | 'tile' | 'dot'
+  /** statistic rowVariant: the tile's antd Card `variant` (default outlined). */
+  tileVariant?: 'outlined' | 'borderless'
+  /**
+   * statistic rowVariant: `{path}` to a boolean the RESTAction computes. `true` draws the border in the
+   * tile's `color`; anything else is the neutral border. The tile never decides from its own value, so
+   * it knows nothing about what it counts. Absent: the border follows `color`, as before this field.
+   */
+  highlight?: string
   color?: ColorSpec
-  /** Per-slot value formatting; `datetime` → absolute date+time, `relative` → "3h ago". */
-  formats?: Partial<Record<RowSlot, 'text' | 'datetime' | 'relative'>>
+  /**
+   * Per-slot value formatting (utils/dateFormat), for a slot whose value is an ISO time: `age` ("7 weeks"),
+   * `ago` ("52 minutes ago"), `moment` ("4 Nov, 11:10"), `date` ("4 Nov"), in the viewer's zone with the
+   * full date on hover. `relative` is the older name for `age`, `datetime` for `moment`; `text` verbatim.
+   */
+  formats?: Partial<Record<RowSlot, 'text' | 'age' | 'ago' | 'moment' | 'date' | 'datetime' | 'relative'>>
   /** Render `secondaryText` as a soft-tint Tag pill (e.g. a category) rather than plain text. */
   secondaryTextAsTag?: boolean
   /** Render `subPrimaryText` as a small mono bordered pill (e.g. an event's involvedObject `Kind/name` ref). */
@@ -125,7 +137,7 @@ export interface ItemTemplate {
   status?: StatusSpec
   /**
    * Row layout: `default` (antd List.Item.Meta — avatar + stacked title/description),
-   * `tree` (a tight single-line mono row: `└─` connector + status dot + primaryText
+   * `tree` (a tight single-line mono row: status dot + primaryText
    * + muted inline subPrimaryText + right-aligned colored secondaryText — the detail
    * Relations "composed children" tree), or `card` (a full antd Card tile — icon-tile +
    * name + version badge (subPrimaryText) + category tag (secondaryText) + description +
@@ -175,6 +187,11 @@ export interface ResolvedRow {
   bar?: ResolvedBar
   /** Resolved status glyph (absent when the template has no `status`). */
   status?: ResolvedStatus
+  /**
+   * The slots written in a time form, with the ISO value they came from: ListView puts the full date on
+   * their hover and focus (components/TimeText). A slot whose value is not a time is not here.
+   */
+  times: Partial<Record<RowSlot, { form: TimeForm; value: string }>>
 }
 
 export const resolvePath = (item: unknown, path: string): unknown =>
@@ -229,19 +246,39 @@ export const resolveAccent = (spec: ColorSpec | undefined, item: unknown): strin
   return resolved || spec.default || ''
 }
 
+/** Whether a statistic tile's border is drawn: the template's `highlight`, or its colour where there is none. */
+export const resolveHighlight = (template: ItemTemplate, item: unknown): boolean => (
+  template.highlight === undefined
+    ? resolveAccent(template.color, item) !== ''
+    : interpolate(template.highlight, item) === 'true'
+)
+
 export const resolveStatus = (spec: StatusSpec, item: unknown): ResolvedStatus => ({
   color: interpolate(spec.color, item) || 'gray',
   icon: interpolate(spec.icon, item),
   tooltip: interpolate(spec.tooltip, item),
 })
 
-const resolveSlot = (template: ItemTemplate, slot: RowSlot, item: unknown): string => {
-  const text = interpolate(template[slot], item)
-  if (!text) { return text }
-  const format = template.formats?.[slot]
-  if (format === 'datetime') { return formatISODate(text, true) }
-  if (format === 'relative') { return formatRelativeTime(text) }
-  return text
+const ROW_SLOTS: RowSlot[] = ['primaryText', 'secondaryText', 'subPrimaryText', 'subSecondaryText']
+
+/** A slot's resolved value, and the time it names when the template asks for a time form and it is one. */
+const resolveSlotValue = (template: ItemTemplate, slot: RowSlot, item: unknown): { text: string; time?: { form: TimeForm; value: string } } => {
+  const value = interpolate(template[slot], item)
+  const form = timeFormOf(template.formats?.[slot])
+  if (!value || !form || !toInstant(value)) { return { text: value } }
+  return { text: formatTime(value, form), time: { form, value } }
+}
+
+const resolveSlot = (template: ItemTemplate, slot: RowSlot, item: unknown): string => resolveSlotValue(template, slot, item).text
+
+const resolveTimes = (template: ItemTemplate, item: unknown): ResolvedRow['times'] => {
+  const times: ResolvedRow['times'] = {}
+  if (!template.formats) { return times }
+  ROW_SLOTS.forEach((slot) => {
+    const { time } = resolveSlotValue(template, slot, item)
+    if (time) { times[slot] = time }
+  })
+  return times
 }
 
 export const resolveRow = (template: ItemTemplate, item: unknown): ResolvedRow => ({
@@ -265,4 +302,5 @@ export const resolveRow = (template: ItemTemplate, item: unknown): ResolvedRow =
   status: template.status ? resolveStatus(template.status, item) : undefined,
   subPrimaryText: resolveSlot(template, 'subPrimaryText', item),
   subSecondaryText: resolveSlot(template, 'subSecondaryText', item),
+  times: resolveTimes(template, item),
 })

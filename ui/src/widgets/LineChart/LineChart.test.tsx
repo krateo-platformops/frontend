@@ -104,3 +104,39 @@ describe('LineChart widget — axis and legend text legible on the dark theme', 
     expect(axis?.y?.labelFill, 'the axis the CR did not configure must still get theme ink').toBe(axisInk())
   })
 })
+
+describe('LineChart widget — the first-paint draw-in (approved motion set, M4)', () => {
+  const box = (top: number) => vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ bottom: top + 300, height: 300, left: 0, right: 600, toJSON: () => ({}), top, width: 600, x: 0, y: top })
+  const reducedMotion = (reduce: boolean) => { window.matchMedia = ((query: string) => ({ matches: reduce && query.includes('reduce'), media: query })) as unknown as typeof window.matchMedia }
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it('draws the line in when the chart is on screen at its first paint', () => {
+    box(100)
+    reducedMotion(false)
+    const { animate } = renderLine({})
+    expect(animate).toEqual({ enter: { duration: 400, easing: 'ease-out', type: 'pathIn' }, exit: false, update: false })
+  })
+
+  it('a chart below the fold at its first paint appears already drawn', () => {
+    box(window.innerHeight + 50)
+    reducedMotion(false)
+    expect(renderLine({}).animate).toBe(false)
+  })
+
+  it('reduced motion turns it off', () => {
+    box(100)
+    reducedMotion(true)
+    expect(renderLine({}).animate).toBe(false)
+  })
+
+  it('a data refresh never replays it: the decision is made once, and updates do not animate', () => {
+    box(100)
+    reducedMotion(false)
+    const view = render(<LineChart resourcesRefs={{ items: [] }} uid='r' widget={{} as never} widgetData={{ data: [{ x: 'a', y: 1 }], xField: 'x', yField: 'y' }} />)
+    box(window.innerHeight + 50)
+    view.rerender(<LineChart resourcesRefs={{ items: [] }} uid='r' widget={{} as never} widgetData={{ data: [{ x: 'a', y: 2 }], xField: 'x', yField: 'y' }} />)
+    const last = lineProps[lineProps.length - 1]
+    expect((last.animate as { update: boolean }).update).toBe(false)
+    expect((last.animate as { enter: { type: string } }).enter.type).toBe('pathIn')
+  })
+})

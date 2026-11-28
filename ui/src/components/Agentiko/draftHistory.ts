@@ -1,7 +1,7 @@
 /**
- * UNDO for the composer — the whole held draft, one snapshot per accepted edit.
+ * UNDO for the builder — the whole held draft, one snapshot per accepted edit.
  *
- * WHY IT BECAME NECESSARY RATHER THAN NICE. The composer had no undo of any kind, which was merely
+ * WHY IT BECAME NECESSARY RATHER THAN NICE. The builder had no undo of any kind, which was merely
  * expensive while every operation was recoverable by hand. Two of them were not: the first drop
  * into a container permanently narrowed it, and Remove permanently orphaned a file — and NEITHER
  * was announced. An unannounced irreversible operation is strictly worse than an announced one.
@@ -24,7 +24,7 @@
  * far worse kind of data loss than the one this fixes.
  *
  * No React: a module store read through useSyncExternalStore, the same shape conversationStore and
- * composerDraftStore use and for the same reason — the rail and the composer both remount.
+ * composerDraftStore use and for the same reason — the rail and the builder both remount.
  */
 import type { DraftKind } from './blueprintDraftStore'
 

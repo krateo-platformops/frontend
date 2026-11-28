@@ -4,8 +4,9 @@
  * refusal, the first-use notice, and the FR 31 live region's text.
  *
  * WHY MODULE-LEVEL (the same reason conversationStore.ts is). The rail and the provider
- * both hang under `<RouterProvider key={routerVersion}>`; a routes-as-data reload remounts
- * that whole subtree and resets every `useState`. A remount mid-answer must not leave the
+ * are remounted on any remount of the shell, which resets every `useState` (until frontend 1.8.75 that
+ * included every route registration, through `<RouterProvider key={routerVersion}>`; the router
+ * is now built once). A remount mid-answer must not leave the
  * synthesiser talking with no UI able to stop it, and the preference must not blink back
  * to its default. So the state lives outside React and is read through
  * `useSyncExternalStore`.

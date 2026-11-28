@@ -4,10 +4,10 @@
  *
  * WHY THIS EXISTS (the bug it fixes): the transcript used to live in
  * `AgentikoProvider`'s `useState`. The provider is mounted INSIDE the router
- * subtree (`Shell` → `AgentikoProvider`), which hangs under
- * `<RouterProvider key={routerVersion}>` (App.tsx). Any `routerVersion` bump — the
- * routes-as-data dynamic reload — remounts that whole subtree and resets every
- * `useState` to its initial value, silently WIPING the conversation (reopening the
+ * subtree (`Shell` → `AgentikoProvider`), which until frontend 1.8.75 hung under
+ * `<RouterProvider key={routerVersion}>`. Every `routerVersion` bump (each route
+ * registration) remounted that whole subtree and reset every `useState` to its initial
+ * value, silently WIPING the conversation (reopening the
  * rail showed the empty "Ask Agentiko" state). The page-context header survived
  * because it is re-derived from `window.location` on demand, not held in state — so
  * the rail looked "still alive" while the messages were gone.
@@ -16,8 +16,9 @@
  * singleton holds `messages` + the thread identity (`sessionId`, `contextId`); the
  * provider reads it via `useSyncExternalStore` and writes through the setters. On a
  * remount the provider re-subscribes to the SURVIVING store instead of starting from
- * an empty `[]`, so the conversation persists across a routerVersion bump — WITHOUT
- * touching the `key={routerVersion}` reload the routes-as-data flow depends on.
+ * an empty `[]`, so the conversation persists across any remount. (The router is now built
+ * once, descendant routes in RoutesProvider.tsx, so route registration no longer remounts the
+ * provider; the store still covers every remount that remains.)
  *
  * SESSION HISTORY (item P): the singleton survives a REMOUNT but a true page
  * RELOAD wipes module state, and `newThread()` used to DISCARD the current thread. This
@@ -132,8 +133,7 @@ export interface ConversationStore {
    * "Unchanged:" note instead of the full 380–3,900-token envelope).
    *
    * It lives HERE, not in a provider ref, because it must stay consistent with the
-   * `contextId` above: a routerVersion bump remounts AgentikoProvider (see the header
-   * comment), which resets any component ref to undefined while the surviving contextId keeps
+   * `contextId` above: a remount of AgentikoProvider (see the header comment) any component ref to undefined while the surviving contextId keeps
    * the thread open — so a ref would make the next mid-thread turn re-send the FULL envelope as
    * if it were turn 1. Same lifetime as the thread it describes; cleared by reset().
    *

@@ -11,7 +11,7 @@ import type { Tabs as WidgetType } from './Tabs.type'
 
 export type TabsWidgetData = WidgetType['spec']['widgetData']
 
-const Tabs = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<TabsWidgetData>) => {
+const Tabs = ({ deniedRefIds, failedRefs, resourcesRefs, uid, widgetData }: WidgetProps<TabsWidgetData>) => {
   const { centered, items, size, tabPlacement, type } = widgetData
 
   const tabItems = useMemo(() => {
@@ -24,7 +24,7 @@ const Tabs = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<Tabs
                 behaviour became the contract. It now uses the shared component rather than its own
                 copy — `label='tab'` reproduces the previous strings byte-for-byte. */}
             <RefChild
-              deniedRefIds={deniedRefIds}
+              deniedRefIds={deniedRefIds} failedRefs={failedRefs}
               label='tab'
               resourceRefId={resourceRefId}
               resourcesRefs={resourcesRefs}
@@ -37,7 +37,7 @@ const Tabs = ({ deniedRefIds, resourcesRefs, uid, widgetData }: WidgetProps<Tabs
 
       return acc
     }, [])
-  }, [deniedRefIds, items, resourcesRefs, uid])
+  }, [deniedRefIds, failedRefs, items, resourcesRefs, uid])
 
   // Deep-linkable active tab: a `?tab=<label>` query param selects the initial tab (matched by
   // label, case-insensitive). Lets hand-offs open a specific tab — e.g. the Observability page's
