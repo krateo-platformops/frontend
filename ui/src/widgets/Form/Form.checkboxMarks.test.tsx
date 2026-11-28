@@ -242,10 +242,10 @@ describe('requiredMark: optional', () => {
   })
 
   it('shows the key beside a title that says something else, after the mark, hidden from assistive technology', () => {
-    const schema = { properties: { imagePullSecrets: { description: 'Registry credentials.', title: 'Image pull secrets', type: 'string' } }, type: 'object' }
+    const schema = { properties: { imagePullSecrets: { description: 'Registry credentials.', title: 'Pull secrets', type: 'string' } }, type: 'object' }
     const { container } = renderForm(widgetData({ requiredMark: 'optional' }, schema))
     const label = itemOf(container, 'imagePullSecrets').querySelector('label') as HTMLElement
-    expect(label.textContent).toBe('Image pull secrets(optional)imagePullSecretsRegistry credentials.')
+    expect(label.textContent).toBe('Pull secrets(optional)imagePullSecretsRegistry credentials.')
     expect(label.querySelector('[aria-hidden="true"]')?.textContent).toBe('imagePullSecrets')
   })
 
@@ -254,7 +254,7 @@ describe('requiredMark: optional', () => {
       properties: {
         __composition_name__: { title: 'Name', type: 'string' },
         __composition_namespace__: { title: 'Namespace', type: 'string' },
-        imagePullSecrets: { title: 'Image pull secrets', type: 'string' },
+        imagePullSecrets: { title: 'Pull secrets', type: 'string' },
       },
       required: ['__composition_name__', '__composition_namespace__', 'imagePullSecrets'],
       type: 'object',
@@ -280,6 +280,19 @@ describe('requiredMark: optional', () => {
     const schema = { properties: { name: { title: 'Name', type: 'string' } }, type: 'object' }
     const { container } = renderForm(widgetData({}, schema))
     expect(itemOf(container, 'name').querySelector('label [aria-hidden="true"]')).toBeNull()
+  })
+
+  it('hides a key its title only spells out (Instance name over instanceName), and keeps one the title does not', () => {
+    const schema = {
+      properties: {
+        instanceName: { title: 'Instance name', type: 'string' },
+        replicaCount: { title: 'Replicas', type: 'string' },
+      },
+      type: 'object',
+    }
+    const { container } = renderForm(widgetData({}, schema))
+    expect(itemOf(container, 'instanceName').querySelector('label [aria-hidden="true"]')).toBeNull()
+    expect(itemOf(container, 'replicaCount').querySelector('label [aria-hidden="true"]')?.textContent).toBe('replicaCount')
   })
 
   it('renders the optional fields in place, in schema order, with no "Advanced" collapse', () => {
