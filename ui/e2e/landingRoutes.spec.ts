@@ -61,7 +61,8 @@ const land = async (page: Page, nav: string, held: string[]): Promise<Landing> =
   const snowplow = 'http://localhost:4174/sp'
   const events: Event[] = []
   const gates = new Map(held.map((name) => {
-    const { promise: closed, resolve: open } = Promise.withResolvers<void>()
+    let open!: () => void
+    const closed = new Promise<void>((resolve) => { open = resolve })
     return [name, { closed, open }] as const
   }))
   await page.addInitScript((token) => {
