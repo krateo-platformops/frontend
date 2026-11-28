@@ -84,4 +84,12 @@ describe('ListView — antd List pagination pass-through (UX-audit #21)', () => 
     rerender(view(makeItems(12), { pageSize: 10 }))
     expect(rowTexts(container)).toEqual(['item-11', 'item-12'])
   })
+
+  // PAG-1 (UX audit, 2026-11-25): the pager showed page numbers only.
+  it('the pager says which rows these are and how many there are', () => {
+    const { container } = render(view(makeItems(94), { pageSize: 15 }))
+    expect(container.querySelector('.ant-pagination-total-text')?.textContent).toBe('1–15 of 94')
+    fireEvent.click(container.querySelector('.ant-pagination-item-2')!)
+    expect(container.querySelector('.ant-pagination-total-text')?.textContent).toBe('16–30 of 94')
+  })
 })

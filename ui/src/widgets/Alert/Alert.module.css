@@ -1,0 +1,47 @@
+/* The Alert's two optional parts (Alert.tsx): a reason tag beside the title, and the message folded
+   under "Details" in the alert's body. Neither restyles the alert itself. */
+.title {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsm);
+}
+
+/* The tag is mono (the global .ant-tag rule) and takes the alert's own type colour inline; here it
+   only drops antd's trailing margin, which the title's gap replaces. */
+.tag {
+  margin-inline-end: 0;
+}
+
+.details {
+  display: grid;
+  gap: var(--spacing-xsm);
+  justify-items: start;
+}
+
+.details:not(:first-child) {
+  margin-top: var(--spacing-xsm);
+}
+
+.toggle {
+  font-size: inherit;
+  height: auto;
+  padding: 0;
+}
+
+.chevron,
+.chevronOpen {
+  font-size: var(--krateo-text-label-xs);
+  transition: transform 0.2s;
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+/* Plain text as the server wrote it: its line breaks stay, and a long token wraps instead of
+   pushing the alert wider than its slot. */
+.detailsText {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

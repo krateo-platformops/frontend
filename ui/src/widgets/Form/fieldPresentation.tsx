@@ -80,12 +80,27 @@ export const requiredMarkFor = (isRequired: boolean, marks: Marks | undefined): 
 }
 
 /**
+ * A key the portal adds to a form itself, named with double underscores on both sides
+ * (`__composition_name__`, `__composition_namespace__`, `__secret_name__`, `__agent_name__`, ...).
+ * It is not a key a chart author wrote or one `values.yaml` has, so the header shows no key for it.
+ */
+const PORTAL_KEY = /^__.+__$/
+
+/**
+ * Whether a field's header shows its schema key beside the title: when the title says something
+ * else (not for "Name" over `name`, which would only repeat it), and the key is not one the portal
+ * adds itself (`PORTAL_KEY`).
+ */
+const showsKey = (key: string, label: string): boolean => label.toLowerCase() !== key.toLowerCase() && !PORTAL_KEY.test(key)
+
+/**
  * One COHERENT header for every property — the property's human `title` (the label the blueprint
  * author wrote in values.schema.json) falling back to the schema `key`, plus its `description`
  * (muted, if present). Used identically for scalars, toggles, maps and nested-object groups so the
  * whole form reads as one system. Preferring `title` means a novice sees "Availability zones", not
  * the raw key `azs`; the key follows in small mono ("Availability zones azs"), so the name a chart
- * author and values.yaml use stays findable.
+ * author and values.yaml use stays findable. A key the portal adds itself (`__composition_name__`)
+ * is not such a name, and is not shown.
  */
 export const fieldHeader = (key: string, node: JSONSchema4, isRequired: boolean, marks?: Marks): React.ReactNode => {
   const description = typeof node.description === 'string' ? node.description : ''
@@ -95,9 +110,9 @@ export const fieldHeader = (key: string, node: JSONSchema4, isRequired: boolean,
       <span className={styles.fieldName}>
         {label}
         {requiredMarkFor(isRequired, marks)}
-        {/* The key beside a title that says something else (UX review round 3): not for "Name" over `name`,
-            which would only repeat it. aria-hidden, so the accessible name stays the title. */}
-        {label.toLowerCase() !== key.toLowerCase() ? <span aria-hidden='true' className={styles.fieldKey}>{key}</span> : null}
+        {/* The key beside a title that says something else (UX review round 3), see `showsKey`.
+            aria-hidden, so the accessible name stays the title. */}
+        {showsKey(key, label) ? <span aria-hidden='true' className={styles.fieldKey}>{key}</span> : null}
       </span>
       {description ? <span className={styles.fieldDesc}>{description}</span> : null}
     </span>

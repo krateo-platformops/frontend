@@ -36,12 +36,14 @@ const CASES: Record<string, number[]> = {
   QRCode: [0],
   Radio: [0],
   Result: [0, 1],
+  // Every document: the default, icons with a disabled segment, icon-only round, and block width.
+  Segmented: [0, 1, 2, 3],
   Select: [0],
   Slider: [0],
   Statistic: [0],
   Steps: [0, 1],
   Switch: [0],
-  Table: [3],
+  Table: [3, 15],
   Tag: [0, 1],
   // Docs 0 and 1: the plain vertical rail, then colours + icons + a `loading` node. The loading
   // node is safe to pin because the config screenshots with `animations: 'disabled'`, so the
@@ -54,6 +56,9 @@ const CASES: Record<string, number[]> = {
   // referenced markdown widget under its text", and pin a half-rendered example as correct.
   // Screenshot it when this spec can serve a ref, not before.
   Timeline: [0, 1],
+  // All three: nested and fully open; lines, palette icons, a selected node and an inert one; a
+  // fixed height with a folded branch, a disabled root and an orphan drawn at the root.
+  Tree: [0, 1, 2],
   YamlViewer: [3],
 }
 
@@ -70,6 +75,7 @@ const EXCLUDED: Record<string, string> = {
   LineChart: 'chart: animated drawing, covered by its own unit tests',
   PieChart: 'chart: animated drawing, covered by its own unit tests',
   Row: 'container: renders child widgets fetched by reference',
+  Splitter: 'container: each panel renders a child widget fetched by reference',
   Tabs: 'container: each tab renders a child widget fetched by reference',
   Upload: 'its picture variants load images from the network',
 }
