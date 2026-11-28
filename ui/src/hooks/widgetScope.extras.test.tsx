@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 
 import { WidgetScopeProvider, useWidgetScope } from '../context/WidgetScopeContext'
 
+import { stubViewerTimeZone } from './stubViewerTimeZone.testutil'
 import { buildExtrasParam } from './useWidgetQuery'
 
 /** What useWidgetQuery does with the scope, isolated from config/auth/fetch. */
@@ -43,6 +44,9 @@ const at = (url: string, wrap?: (children: ReactNode) => ReactNode) =>
 const CHROME = (children: ReactNode) => <WidgetScopeProvider scope='chrome'>{children}</WidgetScopeProvider>
 
 describe('widget extras scope (snowplow#777)', () => {
+  // Pins the envelope without the ambient viewer time zone, which has its own tests.
+  stubViewerTimeZone(undefined)
+
   it('a PAGE widget is unchanged — the route params and query still reach it', () => {
     const { result } = at('/compositions/krateo-system/publish-spring-boot-app?range=24h')
     const extras = JSON.parse(result.current) as Record<string, string>

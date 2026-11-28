@@ -33,6 +33,7 @@ import { describe, it, expect } from 'vitest'
 
 import { isTimeoutError } from '../components/WidgetStates'
 
+import { stubViewerTimeZone } from './stubViewerTimeZone.testutil'
 import { MAX_WIDGET_FETCH_RETRIES, WidgetFetchError, boundedWindow, buildExtrasParam, shouldRetryWidgetFetch, widgetFetchRetryDelay } from './useWidgetQuery'
 
 /**
@@ -386,6 +387,8 @@ describe('timedOut — useWidgetQuery classifies the query error via the Freshne
 
 describe('buildExtrasParam — request/user values forwarded into the RA jq dict', () => {
   const sp = (query: string) => new URLSearchParams(query)
+  // These pin the envelope without the ambient viewer time zone, which has its own describe below.
+  stubViewerTimeZone(undefined)
 
   it('returns empty string when there is no query, no route params, no identity', () => {
     // Empty → '' (not '{}') so the param and the queryKey stay absent/stable.
@@ -485,6 +488,50 @@ describe('buildExtrasParam — request/user values forwarded into the RA jq dict
     const explicitTrue = buildExtrasParam(sp('q=foo'), { namespace: 'demo' }, 'Diego', 'diego.braga', true)
     expect(legacyDefault).toBe(explicitTrue)
     expect(legacyDefault).toBe('{"q":"foo","namespace":"demo","displayName":"Diego","username":"diego.braga"}')
+  })
+})
+
+describe('buildExtrasParam — the viewer time zone is ambient viewer context, like the identity', () => {
+  const sp = (query: string) => new URLSearchParams(query)
+
+  describe('browser reports Europe/Rome', () => {
+    stubViewerTimeZone('Europe/Rome')
+
+    it('sends tz after the identity values, key order otherwise unchanged', () => {
+      expect(buildExtrasParam(sp('q=foo'), { namespace: 'demo' }, 'Diego', 'diego.braga'))
+        .toBe('{"q":"foo","namespace":"demo","displayName":"Diego","username":"diego.braga","tz":"Europe/Rome"}')
+    })
+
+    it('identity values are unchanged by the presence of tz', () => {
+      const extras = JSON.parse(buildExtrasParam(sp(''), {}, 'Diego', 'diego.braga')) as Record<string, string>
+      expect(extras).toMatchObject({ displayName: 'Diego', username: 'diego.braga' })
+    })
+
+    it('tz beats a spoofed ?tz= query, like the identity does', () => {
+      expect(buildExtrasParam(sp('tz=evil'), {})).toBe('{"tz":"Europe/Rome"}')
+    })
+
+    it('a route param named tz beats the ambient zone', () => {
+      expect(buildExtrasParam(sp(''), { tz: 'Asia/Tokyo' })).toBe('{"tz":"Asia/Tokyo"}')
+    })
+
+    it('a caller extra tz wins', () => {
+      expect(buildExtrasParam(sp(''), {}, 'Diego', 'diego.braga', true, { tz: 'America/New_York' }))
+        .toBe('{"displayName":"Diego","username":"diego.braga","tz":"America/New_York"}')
+    })
+
+    it('is not sent when snowplow injects the viewer context server-side (injectIdentity=false)', () => {
+      expect(buildExtrasParam(sp(''), {}, 'Diego', 'diego.braga', false)).toBe('')
+    })
+  })
+
+  describe('runtime reports no zone', () => {
+    stubViewerTimeZone(undefined)
+
+    it('sends no tz', () => {
+      expect(buildExtrasParam(sp(''), {}, 'Diego', 'diego.braga')).toBe('{"displayName":"Diego","username":"diego.braga"}')
+      expect(buildExtrasParam(sp(''))).toBe('')
+    })
   })
 })
 

@@ -66,6 +66,15 @@ const EMPTY_SEARCH_PARAMS = new URLSearchParams()
 /** The caller extras of a widget that supplies none — frozen, so "nothing" is one object. */
 const EMPTY_CALLER_EXTRAS: Readonly<Record<string, unknown>> = Object.freeze({})
 
+/** The browser's IANA time zone, or undefined when the runtime reports none. */
+const viewerTimeZone = (): string | undefined => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined
+  } catch {
+    return undefined
+  }
+}
+
 export const buildExtrasParam = (
   searchParams: URLSearchParams,
   routeParams: Record<string, string | undefined> = {},
@@ -118,6 +127,15 @@ export const buildExtrasParam = (
   if (injectIdentity) {
     if (displayName && routeParams.displayName === undefined) { extras.displayName = displayName }
     if (username && routeParams.username === undefined) { extras.username = username }
+    // The VIEWER'S time zone (IANA name), the same kind of value: ambient, from the browser, and
+    // beaten by a route param or a caller extra like the identity keys. It lets a widget render a
+    // time as the viewer's wall clock. snowplow's viewer-context set is {username, groups,
+    // displayName, tz}: for a widget that does not declare a key in spec.keyExtras snowplow strips
+    // it before the cache key is made (sanitizeUndeclaredIdentityExtras, identityDimensionKeys), so
+    // sending it on every read costs no cache cell; a widget that declares `tz` gets one cell per
+    // zone. No zone from the runtime means no key.
+    const tz = viewerTimeZone()
+    if (tz && routeParams.tz === undefined) { extras.tz = tz }
   }
   // CALLER EXTRAS LAST, and they win (#493). A widget host that passes a key knows what it needs;
   // the ambient inputs — route, query, identity — are what happened to be in scope. The precedence

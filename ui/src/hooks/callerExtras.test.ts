@@ -4,11 +4,15 @@
  */
 import { describe, expect, it } from 'vitest'
 
+import { stubViewerTimeZone } from './stubViewerTimeZone.testutil'
 import { buildExtrasParam } from './useWidgetQuery'
 
 const query = (qs: string) => new URLSearchParams(qs)
 
 describe('caller-supplied extras (#493)', () => {
+  // These pin the key order of the envelope without the ambient viewer time zone, which has its own tests.
+  stubViewerTimeZone(undefined)
+
   it('a caller that passes nothing produces a BYTE-IDENTICAL string to before', () => {
     const before = buildExtrasParam(query('range=24h'), { name: 'x', namespace: 'ns' }, 'Diego', 'diego', true)
     const withArg = buildExtrasParam(query('range=24h'), { name: 'x', namespace: 'ns' }, 'Diego', 'diego', true, {})
