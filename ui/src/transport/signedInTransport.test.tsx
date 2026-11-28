@@ -111,7 +111,8 @@ describe('a widget read through the transport in context', () => {
   it('inside the signed-in provider: the exact pre-transport request, and a 401 raises the resume', async () => {
     const { result } = renderHook(() => useWidgetQuery(ENDPOINT), { wrapper: harness(true) })
     await waitFor(() => { expect(result.current.queryResult.isSuccess).toBe(true) })
-    expect(fetchMock.mock.calls[0]).toEqual([`http://sp.test${ENDPOINT}`, { headers: { Authorization: 'Bearer SYNTHETIC-TOKEN' } }])
+    // The pre-transport request, plus the abort signal every widget read now carries (the deadline and react-query's cancel).
+    expect(fetchMock.mock.calls[0]).toEqual([`http://sp.test${ENDPOINT}`, { headers: { Authorization: 'Bearer SYNTHETIC-TOKEN' }, signal: expect.any(AbortSignal) as unknown }])
 
     answer = { body: { message: 'expired' }, status: 401 }
     await result.current.queryResult.refetch()
