@@ -6,6 +6,7 @@ import { createContext, useContext, useMemo } from 'react'
 import type { FieldPath } from './fieldDependencies'
 import { HELP_KEY } from './fieldKeys'
 import styles from './Form.module.css'
+import { keyRepeatsTitle } from './keyRepeatsTitle'
 import { fieldLabel, hasValue } from './schemaRules'
 
 /**
@@ -88,10 +89,10 @@ const PORTAL_KEY = /^__.+__$/
 
 /**
  * Whether a field's header shows its schema key beside the title: when the title says something
- * else (not for "Name" over `name`, which would only repeat it), and the key is not one the portal
+ * else (not for "Instance name" over `instanceName`, which would only repeat it, see `keyRepeatsTitle`), and the key is not one the portal
  * adds itself (`PORTAL_KEY`).
  */
-const showsKey = (key: string, label: string): boolean => label.toLowerCase() !== key.toLowerCase() && !PORTAL_KEY.test(key)
+const showsKey = (key: string, label: string): boolean => !keyRepeatsTitle(key, label) && !PORTAL_KEY.test(key)
 
 /**
  * One COHERENT header for every property — the property's human `title` (the label the blueprint
