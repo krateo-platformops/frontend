@@ -281,11 +281,11 @@ export interface Listy {
            */
           actionId: string
           /**
-           * menu item label
+           * menu item label. On a card row (rowVariant: card) it may carry {path} placeholders resolved against the row's data like the itemTemplate's own slots (e.g. '{actionLabel}'), so rows can name different verbs; a card action whose label resolves empty is not rendered on that row. A label without placeholders is shown as written, and so is every label outside the card rowVariant.
            */
           label: string
           /**
-           * optional Font Awesome icon name for the menu item
+           * optional Font Awesome icon name for the menu item; on a card row, {path} placeholders resolve against the row's data like the label's
            */
           icon?: string
           /**

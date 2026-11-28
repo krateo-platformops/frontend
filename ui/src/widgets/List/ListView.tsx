@@ -54,7 +54,7 @@ const rowNavProps = (to: string | undefined, go: (path: string) => void) => {
   }
 }
 
-import { resolveAccent, resolveHighlight, resolveRow, type ItemTemplate, type ResolvedRow, type RowSlot } from './itemTemplate'
+import { interpolate, resolveAccent, resolveHighlight, resolveRow, type ItemTemplate, type ResolvedRow, type RowSlot } from './itemTemplate'
 import styles from './ListView.module.css'
 
 interface ListViewProps {
@@ -432,20 +432,30 @@ export const ListView = ({
         // with a kebab. Whole-card click still navigates when the row carries `navigateTo`.
         if (itemTemplate.rowVariant === 'card') {
           const isSpotlit = Boolean(spotlight) && row.primaryText === spotlight
-          const cardActions = (itemTemplate.rowActions ?? []).map((rowAction, actionIndex) => (
-            <Button
-              danger={rowAction.danger}
-              icon={rowAction.icon ? <FontAwesomeIcon icon={rowAction.icon as IconProp} /> : undefined}
-              key={rowAction.actionId}
-              onClick={(event) => { event.stopPropagation(); void fireRowAction(rowAction.actionId, item) }}
-              // #81 §0.1: card-row action (e.g. the Blueprints grid "Create") was `small` and read
-              // undersized in the card footer; `middle` matches the detail-page action buttons.
-              size='middle'
-              type={rowActionButtonType(rowAction, actionIndex)}
-            >
-              {rowAction.label}
-            </Button>
-          ))
+          // A card action's `label` and `icon` may carry `{path}` placeholders, resolved against the
+          // row like the itemTemplate's own slots, so one template can say "Install" on one card and
+          // "Configure" on another (the Marketplace: an installed chart). A static label has no
+          // placeholder and resolves to itself. A label that resolves EMPTY leaves that row without
+          // the button: an empty <button> has no name to announce and nothing to say.
+          const cardActions = (itemTemplate.rowActions ?? []).flatMap((rowAction, actionIndex) => {
+            const label = interpolate(rowAction.label, item)
+            const icon = interpolate(rowAction.icon, item)
+            if (!label) { return [] }
+            return [(
+              <Button
+                danger={rowAction.danger}
+                icon={icon ? <FontAwesomeIcon icon={icon as IconProp} /> : undefined}
+                key={rowAction.actionId}
+                onClick={(event) => { event.stopPropagation(); void fireRowAction(rowAction.actionId, item) }}
+                // #81 §0.1: card-row action (e.g. the Blueprints grid "Create") was `small` and read
+                // undersized in the card footer; `middle` matches the detail-page action buttons.
+                size='middle'
+                type={rowActionButtonType(rowAction, actionIndex)}
+              >
+                {label}
+              </Button>
+            )]
+          })
           // Footer-left "Configure →" cue for clickable cards (mockup `.configure`); provider/ns moves right.
           const ctaCue = row.cardCta && row.navigateTo
             ? <span className={styles.cardCta}>{row.cardCta}<span className={styles.cardCtaArrow}>→</span></span>
