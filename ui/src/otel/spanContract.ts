@@ -43,6 +43,8 @@ import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_RESPONSE_STATUS_CODE, ATTR_HTTP_ROU
 // kept alive in a literal long after it means nothing.
 import { ATTR_HTTP_URL } from '@opentelemetry/semantic-conventions/incubating'
 
+import { widgetIdentityAttributesOf } from './widgetIdentity'
+
 /** The five SLI span names. With `COUNTED_SPAN_NAMES`, the whole set `ContractSpanProcessor` exports. */
 export const SPAN_NAMES = {
   /** A composition detail opened: navigation intent → every initial widget resolved. */
@@ -607,6 +609,9 @@ export class ContractSpanProcessor implements SpanProcessor {
         }
       } else {
         span.updateName(SPAN_NAMES.widgetFetch)
+        // Which widget (widgetIdentity.ts): set here because the context the caller put it on is
+        // only visible at start. Absent for any other fetch the portal makes under snowplow.
+        span.setAttributes(widgetIdentityAttributesOf(parentContext))
       }
     }
     this.inner.onStart(span, parentContext)
