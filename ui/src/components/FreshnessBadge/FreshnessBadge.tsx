@@ -7,8 +7,8 @@
  * State machine (Petrol status language, see theme/tokens.ts):
  *   liveArmed && !isStale && !isFetching  → 'Live'         (cyan dot, glowing)
  *   isFetching (with prior data)          → 'Refreshing…'  (amber) — old data kept
- *   isStale && !isFetching                → 'Stale · Nm ago' (muted/gray)
- *   else                                  → 'Updated Nm ago' (muted/gray)
+ *   isStale && !isFetching                → 'Stale · N minutes ago' (muted/gray)
+ *   else                                  → 'Updated N minutes ago' (muted/gray)
  *
  * `liveArmed` is true only once the widget's snowplow `/refreshes` subscription has
  * armed (see refreshSse.isWidgetArmed), so the green "Live" dot is honest — it means
@@ -17,6 +17,8 @@
  * A manual refresh affordance (onRefresh) lets the user force a refetch when a
  * widget looks stale, without waiting for the next live signal.
  */
+
+import { formatAgo } from '../../utils/dateFormat'
 
 import styles from './FreshnessBadge.module.css'
 
@@ -48,22 +50,13 @@ export interface FreshnessBadgeProps {
 }
 
 /**
- * Compact, non-ticking relative time ("just now", "5s ago", "2m ago", "3h ago",
- * "4d ago"). Pure so FreshnessBadge stays trivially testable and no global dayjs
- * plugin side-effect is introduced. `updatedAt <= 0` (never fetched) → 'never'.
+ * Non-ticking time-ago, in a sentence ("just now", "2 minutes ago", "3 hours ago": utils/dateFormat, the
+ * approved "Dates and ages" form). Never in the future: a clock a little ahead is "just now". Pure so
+ * FreshnessBadge stays trivially testable. `updatedAt <= 0` (never fetched) → 'never'.
  */
 export const formatRelative = (updatedAt: number, nowMs: number): string => {
   if (!updatedAt || updatedAt <= 0) { return 'never' }
-  const deltaMs = Math.max(0, nowMs - updatedAt)
-  const seconds = Math.floor(deltaMs / 1000)
-  if (seconds < 5) { return 'just now' }
-  if (seconds < 60) { return `${seconds}s ago` }
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) { return `${minutes}m ago` }
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) { return `${hours}h ago` }
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
+  return formatAgo(Math.min(updatedAt, nowMs), { now: nowMs })
 }
 
 /**

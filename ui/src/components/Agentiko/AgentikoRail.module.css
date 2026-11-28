@@ -213,6 +213,7 @@
      title is where the agent says whose it is. One line, no neighbour text to share a baseline with. */
   font-family: var(--krateo-font-display);
   font-size: var(--krateo-text-body);
+  font-variant-numeric: lining-nums;
   font-weight: 700;
   gap: var(--spacing-sm);
 }
@@ -821,6 +822,7 @@
   color: var(--dark-color);
   font-family: var(--krateo-font-display);
   font-size: var(--krateo-text-body-lg);
+  font-variant-numeric: lining-nums;
   font-weight: 700;
   margin-bottom: var(--spacing-smd);
 }
@@ -1144,13 +1146,14 @@
   transition: width 100ms linear;
 }
 
-/* C26: Cancel dismisses — amber, as DismissButton draws it; a native button because the voice row
-   is drawn at the rail's own scale. */
+/* C26: Cancel dismisses — the neutral outline, as DismissButton draws it (antd's default button:
+   border and ink, the primary on hover); a native button because the voice row is drawn at the
+   rail's own scale. */
 .apVoiceCancel {
   background: transparent;
-  border: 1px solid var(--krateo-color-status-warning-text);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  color: var(--krateo-color-status-warning-text);
+  color: var(--text-color);
   cursor: pointer;
   flex: none;
   font-size: var(--krateo-text-label-sm);
@@ -1159,7 +1162,8 @@
 }
 
 .apVoiceCancel:hover {
-  background: var(--krateo-color-status-warning-subtle);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 /* The error line (role=alert) and the neutral info note share a box but not a colour: an
@@ -1256,6 +1260,7 @@
   color: var(--dark-color);
   font-family: var(--krateo-font-display);
   font-size: var(--krateo-text-body-lg);
+  font-variant-numeric: lining-nums;
   font-weight: 700;
 }
 

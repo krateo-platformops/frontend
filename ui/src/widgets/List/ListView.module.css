@@ -498,6 +498,17 @@
   position: relative;
 }
 
+/* The active chip keeps the pill as its fill under the pointer and while pressed. antd's text
+   variant paints its own light primary tint on hover (`colorPrimaryBg`) and press
+   (`colorPrimaryBorder`) OVER the pill, and the on-primary ink stays: white on rgb(249 230 255) in
+   light, about 1.2:1, so the label of the filter just chosen vanished the moment it was clicked (the
+   pointer is still on it). The pill is the fill, so the chip stays see-through in every state. It
+   re-points antd's own variables, set on `.ant-btn.ant-btn-variant-text`, hence the class chain. */
+:global(.ant-btn.ant-btn-color-primary.ant-btn-variant-text).chipOnPill {
+  --ant-btn-bg-color-hover: transparent;
+  --ant-btn-bg-color-active: transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chipPillMoving {
     transition: none;

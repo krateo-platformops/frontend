@@ -321,37 +321,53 @@
                       "type": "string",
                       "enum": [
                         "text",
+                        "age",
+                        "ago",
+                        "moment",
+                        "date",
                         "datetime",
                         "relative"
                       ],
-                      "description": "How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago."
+                      "description": "How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date (\"Wed 4 November 2026, 11:10:27 (UTC+1)\") on hover and focus: `age` how old (\"7 weeks\"), `ago` how long ago, in a sentence (\"52 minutes ago\"), `moment` a point in time (\"4 Nov, 11:10\"; \"10 Sep 2025, 09:30\" in another year), `date` the day alone (\"4 Nov\"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came."
                     },
                     "secondaryText": {
                       "type": "string",
                       "enum": [
                         "text",
+                        "age",
+                        "ago",
+                        "moment",
+                        "date",
                         "datetime",
                         "relative"
                       ],
-                      "description": "How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago."
+                      "description": "How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date (\"Wed 4 November 2026, 11:10:27 (UTC+1)\") on hover and focus: `age` how old (\"7 weeks\"), `ago` how long ago, in a sentence (\"52 minutes ago\"), `moment` a point in time (\"4 Nov, 11:10\"; \"10 Sep 2025, 09:30\" in another year), `date` the day alone (\"4 Nov\"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came."
                     },
                     "subPrimaryText": {
                       "type": "string",
                       "enum": [
                         "text",
+                        "age",
+                        "ago",
+                        "moment",
+                        "date",
                         "datetime",
                         "relative"
                       ],
-                      "description": "How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago."
+                      "description": "How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date (\"Wed 4 November 2026, 11:10:27 (UTC+1)\") on hover and focus: `age` how old (\"7 weeks\"), `ago` how long ago, in a sentence (\"52 minutes ago\"), `moment` a point in time (\"4 Nov, 11:10\"; \"10 Sep 2025, 09:30\" in another year), `date` the day alone (\"4 Nov\"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came."
                     },
                     "subSecondaryText": {
                       "type": "string",
                       "enum": [
                         "text",
+                        "age",
+                        "ago",
+                        "moment",
+                        "date",
                         "datetime",
                         "relative"
                       ],
-                      "description": "How the resolved value is rendered: `text` verbatim, `datetime` as an absolute timestamp, `relative` as a time-ago."
+                      "description": "How the resolved value is rendered: `text` verbatim; or, when it is an ISO (RFC3339) time, in the viewer's time zone with the full date (\"Wed 4 November 2026, 11:10:27 (UTC+1)\") on hover and focus: `age` how old (\"7 weeks\"), `ago` how long ago, in a sentence (\"52 minutes ago\"), `moment` a point in time (\"4 Nov, 11:10\"; \"10 Sep 2025, 09:30\" in another year), `date` the day alone (\"4 Nov\"). `relative` is the older name for `age` and `datetime` for `moment`. Send the ISO time, never a pre-formatted one: a value that is not a time is shown as it came."
                     }
                   },
                   "description": "Per-field rendering applied after each {dot.path} resolves."

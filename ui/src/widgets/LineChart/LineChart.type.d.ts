@@ -80,7 +80,7 @@ export interface LineChart {
         [k: string]: unknown
       }
       /**
-       * When set, `xField` values are UNIX epoch SECONDS and the x axis is TIME: points are placed by their moment, and ticks are labelled in the BROWSER's timezone: 'hour' -> 'HH:MM', with the day ('Nov 24') where it changes; 'day' -> the day. Use this instead of server-side strftime, which is UTC and repeats across days. Annotations sharing `xField` are placed identically, so peak/now marks stay aligned.
+       * When set, `xField` values are UNIX epoch SECONDS and the x axis is TIME: points are placed by their moment, and ticks are labelled in the VIEWER's time zone, as all text is: 'hour' -> 'HH:MM', with the day ('24 Nov'; '31 Dec 2025' in another year) where it changes; 'day' -> the day. The tooltip gives the point's full date with the zone ('Tue 24 November 2026, 08:00:00 (UTC+1)'). Use this instead of server-side strftime, which is UTC and repeats across days. Annotations sharing `xField` are placed identically, so peak/now marks stay aligned.
        */
       xTimeUnit?: 'hour' | 'day'
       /**

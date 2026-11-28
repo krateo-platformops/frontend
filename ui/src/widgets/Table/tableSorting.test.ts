@@ -31,7 +31,7 @@ describe('parseAgeSeconds — kubectl-style ages (the jq `def rel` format)', () 
     expect(parseAgeSeconds('1y')).toBe(31_536_000)
   })
 
-  it('parses "now" (formatRelativeTime emits it below 10s) as 0', () => {
+  it('parses "now" (the jq `def rel` of a RESTAction emits it) as 0', () => {
     expect(parseAgeSeconds('now')).toBe(0)
   })
 
