@@ -9,6 +9,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import Form, { type FormWidgetData } from './Form'
 
+let insideDrawer = false
+const setDrawerData = vi.fn()
 const handleAction = vi.fn((..._args: unknown[]) => Promise.resolve())
 let agentDraft: Record<string, unknown> | null = null
 
@@ -19,7 +21,7 @@ vi.mock('../../components/Agentiko/agentDraft', () => ({
   useAgentDraft: () => ({ draft: agentDraft, nonce: 1 }),
 }))
 vi.mock('../Drawer/DrawerContext', () => ({
-  useDrawerContext: () => ({ insideDrawer: false, setDrawerData: vi.fn() }),
+  useDrawerContext: () => ({ insideDrawer, setDrawerData }),
 }))
 vi.mock('../../components/WidgetRenderer', () => ({ default: () => null }))
 vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }))
@@ -48,6 +50,8 @@ beforeAll(() => {
 })
 beforeEach(() => {
   handleAction.mockClear()
+  setDrawerData.mockClear()
+  insideDrawer = false
   agentDraft = null
   localStorage.clear()
 })
@@ -73,8 +77,8 @@ describe('Form — submitDisabled', () => {
     expect(submitButton().disabled).toBe(true)
     fireEvent.click(submitButton())
     expect(handleAction).not.toHaveBeenCalled()
-    expect((screen.getByLabelText('Name')).disabled).toBe(false)
-    expect((screen.getByRole('button', { name: 'Cancel' })).disabled).toBe(false)
+    expect(screen.getByLabelText<HTMLInputElement>('Name').disabled).toBe(false)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Cancel' }).disabled).toBe(false)
   })
 
   it('absent or false: the submit button is enabled and submits', async () => {
@@ -87,5 +91,43 @@ describe('Form — submitDisabled', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'x' } })
     fireEvent.click(submitButton())
     await waitFor(() => { expect(handleAction).toHaveBeenCalled() })
+  })
+})
+
+// Inside a drawer the buttons render in the drawer header: the `extra` the Form hands the drawer
+// must carry the same gate as the inline bar. Rendering it stands in for the header.
+describe('Form — submitDisabled inside a drawer', () => {
+  const lastExtra = (): React.ReactElement => (setDrawerData.mock.calls.at(-1)?.[0] as { extra: React.ReactElement }).extra
+  // The header stand-in: the drawer renders the `extra` the Form handed it.
+  const headerSubmit = (): HTMLButtonElement | null => {
+    const { container, unmount } = render(<>{lastExtra()}</>)
+    const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')
+    const disabled = button?.disabled
+    unmount()
+    return button && { disabled } as HTMLButtonElement
+  }
+
+  it('submitDisabled: true disables the header submit', () => {
+    insideDrawer = true
+    render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={widgetData({ submitDisabled: true })} />)
+    expect(headerSubmit()?.disabled).toBe(true)
+  })
+
+  it('absent: the header submit is enabled', () => {
+    insideDrawer = true
+    render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={widgetData()} />)
+    expect(headerSubmit()?.disabled).toBe(false)
+  })
+
+  it('submitDisabledWhenPristine: disabled while pristine, enabled once a field changes', async () => {
+    insideDrawer = true
+    render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={widgetData({ initialValues: { name: 'a' }, submitDisabledWhenPristine: true })} />)
+    expect(headerSubmit()?.disabled).toBe(true)
+    cleanup()
+    insideDrawer = true
+    render(<Form resourcesRefs={{ items: [] }} uid='u' widgetData={widgetData({ initialValues: { name: 'a' }, submitDisabledWhenPristine: true })} />)
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'x' } })
+    await waitFor(() => { expect((lastExtra().props as { submitDisabled: boolean }).submitDisabled).toBe(false) })
+    expect(headerSubmit()?.disabled).toBe(false)
   })
 })

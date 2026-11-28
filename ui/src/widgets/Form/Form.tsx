@@ -246,7 +246,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   const { insideDrawer, setDrawerData } = useDrawerContext()
   // Inside a Card's `brand` frame the title is the brand heading, with the installation line under it.
   const inBrandFrame = useContext(BrandFrameContext)
-  const alreadySetDrawerData = useRef(false)
+  const alreadySetDrawerData = useRef<boolean | null>(null)
 
   const { notification } = useApp()
   const { handleAction, isActionLoading } = useHandleAction()
@@ -431,6 +431,8 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
     })
     return !dirty
   }, [submitDisabledWhenPristine, watchedValues, effectiveInitialValues])
+  // The one value both renders read: the inline action bar and the drawer header's.
+  const submitBlocked = submitPristine || submitDisabledByData === true
 
   /* https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/button#form */
   const formId = useId()
@@ -442,11 +444,13 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
   }, [formId, reviewing])
 
   useEffect(() => {
-    if (insideDrawer && !alreadySetDrawerData.current) {
-      setDrawerData({ extra: <FormExtra buttonConfig={buttonConfig} form={formId} loading={isActionLoading} /> })
-      alreadySetDrawerData.current = true
+    // Set once, then again only when the submit gate flips (pristine -> dirty), so the header's
+    // button follows the form as the inline one does.
+    if (insideDrawer && alreadySetDrawerData.current !== submitBlocked) {
+      setDrawerData({ extra: <FormExtra buttonConfig={buttonConfig} form={formId} loading={isActionLoading} submitDisabled={submitBlocked} /> })
+      alreadySetDrawerData.current = submitBlocked
     }
-  }, [buttonConfig, formId, insideDrawer, isActionLoading, setDrawerData])
+  }, [buttonConfig, formId, insideDrawer, isActionLoading, setDrawerData, submitBlocked])
 
   const allActions = Object.values(actions ?? {}).flat()
   const action = allActions.find(({ id }) => id === submitActionId)
@@ -624,7 +628,7 @@ const Form = ({ deniedRefIds, resourcesRefs, widget, widgetData }: WidgetProps<F
       form={formId}
       loading={isActionLoading || posting}
       onDraft={onDraft}
-      submitDisabled={submitPristine || submitDisabledByData === true}
+      submitDisabled={submitBlocked}
       submitLabel={reviewBeforeSubmit ? (buttonConfig?.review?.label || 'Review →') : undefined}
     />
   )
