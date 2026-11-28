@@ -100,6 +100,11 @@ describe('what the builder says', () => {
     expect(savedWhen('garbage', now)).toBe('at an unknown time')
   })
 
+  it('an earlier day is "on 24 Sep", never the browser locale’s "24/09/2026"; another year carries it', () => {
+    expect(savedWhen(new Date(2026, 8, 24, 17, 30).toISOString(), now)).toBe('on 24 Sep at 17:30')
+    expect(savedWhen(new Date(2025, 8, 24, 17, 30).toISOString(), now)).toBe('on 24 Sep 2025 at 17:30')
+  })
+
   it('the restored banner (screen 3): Undo starts here; preview again only on a hash mismatch; the thread only when re-linked', () => {
     const updatedAt = new Date(2026, 8, 29, 12, 4).toISOString()
     const stale = restoredBannerCopy({ everPreviewed: true, kind: 'blueprint', previewed: false, relinked: true, updatedAt }, now)

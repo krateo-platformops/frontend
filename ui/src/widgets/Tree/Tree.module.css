@@ -1,0 +1,22 @@
+/* Tree: antd's Tree, in the data face where the data is. */
+
+/* The title is a name (a resource, a folder): the body face, and it wraps rather than pushing the
+   row past a narrow box. */
+.title {
+  overflow-wrap: anywhere;
+}
+
+/* The description is data (a kind, a version, a count): JetBrains Mono, muted, as Listy's tree row
+   sets its inline note and the Timeline its timestamps. */
+.description {
+  color: var(--gray-color);
+  font-family: var(--font-mono);
+  font-size: var(--krateo-text-label-sm);
+  font-variant-numeric: tabular-nums;
+  margin-inline-start: var(--spacing-xs);
+}
+
+/* A node with nowhere to go reads as text, not as a control: no pointer, no hover fill. */
+.inert {
+  cursor: default;
+}

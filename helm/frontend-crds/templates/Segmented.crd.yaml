@@ -1,0 +1,260 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: segmenteds.widgets.templates.krateo.io
+spec:
+  group: widgets.templates.krateo.io
+  names:
+    categories:
+      - widgets
+      - krateo
+    kind: Segmented
+    listKind: SegmentedList
+    plural: segmenteds
+    singular: segmented
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: AGE
+          type: date
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: 'The widget''s contract: its own data, an optional binding to a RESTAction, the resources it references, and any templated overrides.'
+              properties:
+                apiRef:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                    - name
+                    - namespace
+                  type: object
+                resourcesRefs:
+                  properties:
+                    items:
+                      items:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          slice:
+                            properties:
+                              continue:
+                                type: boolean
+                              offset:
+                                type: integer
+                              page:
+                                type: integer
+                              perPage:
+                                type: integer
+                            required:
+                              - perPage
+                            type: object
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                      type: array
+                    slice:
+                      properties:
+                        continue:
+                          type: boolean
+                        offset:
+                          type: integer
+                        page:
+                          type: integer
+                        perPage:
+                          type: integer
+                      required:
+                        - perPage
+                      type: object
+                  required:
+                    - items
+                  type: object
+                resourcesRefsTemplate:
+                  items:
+                    properties:
+                      iterator:
+                        type: string
+                      template:
+                        properties:
+                          apiVersion:
+                            type: string
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          payload:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          resource:
+                            type: string
+                          verb:
+                            enum:
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - GET
+                            type: string
+                        required:
+                          - id
+                        type: object
+                    type: object
+                  type: array
+                widgetData:
+                  properties:
+                    ariaLabel:
+                      description: 'what the group of choices is, for a screen reader (eg: `Time range`): the segments name the options, not the question'
+                      type: string
+                    block:
+                      description: fill the container's width, the segments sharing it equally (antd Segmented `block`)
+                      type: boolean
+                    defaultValue:
+                      description: the choice shown while the URL has no `?<queryParam>=`. Choosing it removes the param, so the page's plain address stays its default. Unset, the first option
+                      type: string
+                    disabled:
+                      description: disable every segment (antd Segmented `disabled`)
+                      type: boolean
+                    options:
+                      description: the choices, in order (antd Segmented `options`)
+                      items:
+                        properties:
+                          disabled:
+                            description: show the segment but do not let it be chosen (antd option `disabled`)
+                            type: boolean
+                          icon:
+                            description: 'a font awesome icon name drawn before the label (eg: `fa-table`)'
+                            type: string
+                          label:
+                            description: the text drawn in the segment. Unset, the value; set to an empty string with an `icon`, an icon-only segment (then give it a `tooltip`, which is also its accessible name)
+                            type: string
+                          tooltip:
+                            description: a tooltip on the segment (antd option `tooltip`)
+                            type: string
+                          value:
+                            description: what is written to `?<queryParam>=`
+                            type: string
+                        required:
+                          - value
+                        type: object
+                      minItems: 2
+                      type: array
+                    queryParam:
+                      description: 'the URL search param the choice is read from and written to (eg: `range` → `?range=6h`). Other params on the URL are kept'
+                      type: string
+                    shape:
+                      description: 'antd Segmented `shape`: `round` draws pill-shaped segments'
+                      enum:
+                        - default
+                        - round
+                      type: string
+                    size:
+                      description: antd Segmented `size`
+                      enum:
+                        - small
+                        - middle
+                        - large
+                      type: string
+                    vertical:
+                      description: stack the segments vertically (antd Segmented `vertical`)
+                      type: boolean
+                    watch:
+                      description: 'live-refresh watch: involvedObject(s) this widget is tied to (see src/schemas/watch.schema.json). A matching k8s event refetches the widget.'
+                      items:
+                        properties:
+                          apiVersion:
+                            description: group/version, e.g. composition.krateo.io/v1alpha1
+                            type: string
+                          kind:
+                            description: e.g. DemoClaim
+                            type: string
+                          name:
+                            description: a specific object; omit to match any object of this kind ("GVR-level")
+                            type: string
+                          namespace:
+                            description: scope to a namespace; omit to match any
+                            type: string
+                        required:
+                          - apiVersion
+                          - kind
+                        type: object
+                      type: array
+                  required:
+                    - options
+                    - queryParam
+                  type: object
+                widgetDataTemplate:
+                  items:
+                    properties:
+                      expression:
+                        type: string
+                      forPath:
+                        type: string
+                    type: object
+                  type: array
+                identityContext:
+                  items:
+                    enum:
+                      - username
+                      - groups
+                    type: string
+                  type: array
+                keyExtras:
+                  description: 'F6 (snowplow#130): the request-extras keys (route params / URL query folded into ?extras=) whose values this widget''s resolution depends on. Only declared keys partition the widget cache cell. Absent/empty = the widget does not vary by any request extra (chrome/layout default).'
+                  items:
+                    type: string
+                  type: array
+                freshness:
+                  description: 'Opt-in staleness indicator: when true the widget shows the stale/refreshing dot overlay (exception states only). Absent/false = no badge ever (the default; healthy widgets stay unmarked).'
+                  type: boolean
+              required:
+                - widgetData
+              type: object
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ''
+    plural: ''
+  conditions: null
+  storedVersions: null

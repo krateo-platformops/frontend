@@ -141,7 +141,7 @@ they hold **31 of the 109 rules** — 19 composition rules and 8 token rules, pl
   spells a path, or antd's `Breadcrumb` outside its two owners; `ui/visual/layout.spec.ts` measures
   the geometry in a browser at 1440/1024/600px. On the chart side, the composition lint's
   `second-breadcrumb` rule holds P27.
-- **Button roles (C26)** — closing is amber (`components/DismissButton`, `intent: dismiss` on the
+- **Button roles (C26)** — closing is the neutral default outline (`components/DismissButton`, `intent: dismiss` on the
   Button widget), deleting is red (`danger`). `ui/src/test/buttonRoles.test.ts` holds the app's
   buttons and the Cancel inside every `Popconfirm`, `Modal` and confirm dialog; the composition
   lint's `button-role` rule holds the chart's.

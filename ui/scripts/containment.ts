@@ -21,7 +21,7 @@
  */
 
 /** Holds any widget. Real usage says so, and a layout has no business deciding its content. */
-export const GENERAL_LAYOUTS: readonly string[] = ['Card', 'Col', 'Collapse', 'Flex', 'Row', 'Steps', 'Tabs']
+export const GENERAL_LAYOUTS: readonly string[] = ['Card', 'Col', 'Collapse', 'Flex', 'Row', 'Splitter', 'Steps', 'Tabs', 'Timeline']
 
 /** In the vocabulary, but never a child: a `Layout` is a page's shell and a `Theme` renders nothing. */
 export const NOT_A_CHILD: readonly string[] = ['layouts', 'themes']
@@ -48,10 +48,10 @@ export const PURPOSE_BUILT: Readonly<Record<string, readonly string[]>> = {
 }
 
 /**
- * Their `items` are plain data (a crumb's title, a label/value pair), so they resolve no children
+ * Their `items` are plain data (a crumb's title, a label/value pair, a tree node), so they resolve no children
  * and a declaration on them could only mislead. They carry no `allowedResources` at all.
  */
-export const HOLDS_NOTHING: readonly string[] = ['Breadcrumb', 'Descriptions']
+export const HOLDS_NOTHING: readonly string[] = ['Breadcrumb', 'Descriptions', 'Tree']
 
 /**
  * The enum for one container kind. Throws rather than guessing, because a wrong list here is a valid

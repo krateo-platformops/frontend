@@ -2,7 +2,8 @@
  * C26 — BUTTON ROLES, in the app's own code. A button says what it does to the work in front of you:
  *
  *   - DISMISS (closes, backs out, deletes nothing — Cancel, Close, Close draft, Keep editing) is
- *     amber: `DismissButton`, or `dismissButtonProps` where antd builds the button itself;
+ *     the neutral default outline: `DismissButton`, or `dismissButtonProps` where antd builds the
+ *     button itself (amber until 2026-11-25, UX audit COL-2);
  *   - DESTROY (deletes content — Discard, Remove, Delete) is red: antd's `danger`.
  *
  * What it checks, from the TypeScript AST:
@@ -109,7 +110,7 @@ export const scan = (file: string, text: string): string[] => {
 }
 
 describe('button roles (C26)', () => {
-  it('dismiss buttons are amber and destroy buttons are red, everywhere the app draws one', () => {
+  it('dismiss buttons are the dismiss role and destroy buttons are red, everywhere the app draws one', () => {
     const hits = walk(ROOT).flatMap((path) => scan(path.slice(ROOT.length + 1), readFileSync(path, 'utf8')))
     expect(hits).toEqual([])
   })

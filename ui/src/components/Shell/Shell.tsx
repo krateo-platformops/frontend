@@ -8,6 +8,7 @@ import { ensureBuildersLoaded } from '../../builders/clusterBuilders'
 import { useConfigContext } from '../../context/ConfigContext'
 import { useRoutesContext } from '../../context/RoutesContext'
 import { WidgetScopeProvider } from '../../context/WidgetScopeContext'
+import { documentTitleOf, useDocumentTitle } from '../../hooks/useDocumentTitle'
 import { LiveRefreshFirehose } from '../../hooks/useLiveRefresh'
 import { useDocumentLoadSpan } from '../../otel/useDocumentLoadSpan'
 import { SignedInTransportProvider } from '../../transport/signedInTransport'
@@ -101,8 +102,10 @@ export const SiderFooter = () => {
  */
 export const ShellRoute = () => {
   const { config } = useConfigContext()
-  const { routes } = useRoutesContext()
+  const { menuRoutes, routes } = useRoutesContext()
   const { pathname } = useLocation()
+  // The browser-tab title of every page the shell serves (hooks/useDocumentTitle).
+  useDocumentTitle(documentTitleOf(pathname, menuRoutes))
   const narrow = Grid.useBreakpoint().md === false
   // X5: `krateo.page.load`, once per document, measured from navigation timing and reported as soon
   // as the landing address resolves to a TEMPLATED route (useDocumentLoadSpan).
@@ -139,7 +142,7 @@ export const ShellRoute = () => {
       <LiveRefreshFirehose />
       <ShellSlotsProvider value={{
         // The routed page owns the route's inputs again (see the 'chrome' scope on the shell below).
-        content: <><div className={styles.contentCrumb}><Breadcrumb /></div><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,
+        content: <><Breadcrumb className={styles.contentCrumb} /><WidgetScopeProvider scope='page'><Outlet /></WidgetScopeProvider></>,
         header: <HeaderChrome />,
         routeKey: pathname,
         siderFooter: <SiderFooter />,

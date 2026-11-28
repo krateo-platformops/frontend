@@ -49,7 +49,7 @@ export interface Card {
        */
       cover?: string
       /**
-       * antd Card extra — content shown top-right of the card header (renamed from `headerRight`)
+       * antd Card extra — content shown top-right of the card header (renamed from `headerRight`). A time in it is a token the browser writes, in the viewer's time zone with the full date on hover: `{ago:2026-11-04T10:10:27Z}` ("3 weeks ago"), `{age:…}` ("3 weeks"), `{moment:…}` ("4 Nov, 11:10") or `{date:…}` ("4 Nov"). Never a time formatted in jq: it is in UTC, and an age is frozen in snowplow's cache.
        */
       extra?: string
       /**
