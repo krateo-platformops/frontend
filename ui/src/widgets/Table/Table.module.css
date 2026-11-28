@@ -249,7 +249,7 @@
    ellipsizes in a truncating table, as the cell's text does (it inherits the cell's white-space). */
 .twoLines {
   display: grid;
-  gap: 1px;
+  gap: var(--spacing-xxs);
   min-width: 0;
 }
 
