@@ -65,8 +65,8 @@ export const prefetchableChildEndpoints = (widget: Widget, search: URLSearchPara
  * extras) determines the read; the base URL and the transport are the query client's own, as in
  * useWidgetQuery's fetchPage.
  */
-const childPages = (read: WidgetRead, onAnswer: (widget: Widget) => void) => async ({ pageParam }: { pageParam: { page?: number; perPage?: number } }) => {
-  const widget = await fetchWidgetPage(read, pageParam)
+const childPages = (read: WidgetRead, onAnswer: (widget: Widget) => void) => async ({ pageParam, signal }: { pageParam: { page?: number; perPage?: number }; signal: AbortSignal }) => {
+  const widget = await fetchWidgetPage(read, pageParam, signal)
   onAnswer(widget)
   return widget
 }

@@ -299,9 +299,9 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
   // and the transport in context, exactly as the inline fetch it replaces was.
   // On the answer, the reads of the children it draws on first render start at once, under the keys
   // their own queries use, instead of after this widget renders and they mount (./prefetchChildren).
-  async function fetchPage(pageParam: { page?: number; perPage?: number }) {
+  async function fetchPage(pageParam: { page?: number; perPage?: number }, signal: AbortSignal) {
     const read: WidgetRead = { extrasInBody, extrasParam, refreshWidgetId: refreshEnabled ? widgetId : undefined, transport, url: widgetFullUrl }
-    const widget = await fetchWidgetPage(read, pageParam)
+    const widget = await fetchWidgetPage(read, pageParam, signal)
     // What a child rendered by RefChild sends: this widget's envelope without its caller extras (a
     // child carries none), with the fragment extras the child will be handed.
     const childFragment = isPageRoot && pageRoot && typeof widget.status === 'object' ? pickFragment(pageRoot.fragment, fragmentKeysOf(widget)) : fragmentExtras
@@ -326,7 +326,7 @@ export const useWidgetQuery = (widgetEndpoint: string, options: UseWidgetQueryOp
     // query with the new page as its only page). Non-paged widgets keep the
     // stable 3-tuple key so their cache identity is unchanged.
     queryKey: widgetQueryKey(widgetEndpoint, extrasParam, usesClassicPager ? serverPage : undefined),
-    queryFn: ({ pageParam }) => fetchPage(pageParam),
+    queryFn: ({ pageParam, signal }) => fetchPage(pageParam, signal),
     // Override the global `retry: false` for widget data: a backend that is not
     // ready yet should keep showing a loading state and retry, not flash the
     // error "red cross" on first paint. See shouldRetryWidgetFetch.

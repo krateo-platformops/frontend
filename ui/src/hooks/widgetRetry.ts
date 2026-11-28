@@ -1,3 +1,5 @@
+import { WidgetReadTimeoutError } from './widgetRequest'
+
 /**
  * WHICH FAILED WIDGET READS ARE RETRIED, and when: one policy for a widget's own query and for a parent's
  * prefetch of it. They are the same read under the same key, so a widget that mounts while its prefetch is
@@ -33,6 +35,12 @@ export const MAX_WIDGET_FETCH_RETRIES = 3
  * (`wasRefetchEventTriggered`) so this predicate stays pure and knows nothing about the stream.
  */
 export const shouldRetryWidgetFetch = (failureCount: number, error: unknown, eventTriggered = false): boolean => {
+  // The client deadline (WIDGET_READ_DEADLINE_MS, 30 s) is not retried: three more attempts would keep
+  // the skeleton about two minutes. The timeout state's Retry button is the retry. A snowplow 504 is a
+  // different failure (it arrives in seconds) and keeps the policy below.
+  if (error instanceof WidgetReadTimeoutError) {
+    return false
+  }
   const status = (error as { status?: number } | null)?.status
   if (typeof status === 'number' && status >= 400 && status < 500 && status !== 404) {
     return false

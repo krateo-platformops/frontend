@@ -71,7 +71,7 @@ const readErrorBody = async (res: Response): Promise<{ body: unknown; detail: st
  * Refuses an endpoint that is not a `/call` — there is no body-carrying form of anything else, and
  * falling back to the query would put the values in the very URL this exists to keep them out of.
  */
-export const readWithBodyExtras = (read: TransportFetch, requestUrl: URL, extrasParam: string): Promise<Response> => {
+export const readWithBodyExtras = (read: TransportFetch, requestUrl: URL, extrasParam: string, signal?: AbortSignal): Promise<Response> => {
   const url = new URL(requestUrl.toString())
   if (!url.pathname.endsWith('/call')) {
     throw new WidgetFetchError(`A widget with fragment extras must read through /call, not ${url.pathname}`)
@@ -82,6 +82,7 @@ export const readWithBodyExtras = (read: TransportFetch, requestUrl: URL, extras
     body: JSON.stringify({ extras: extrasParam ? JSON.parse(extrasParam) as unknown : {} }),
     headers: { 'Content-Type': 'application/json' },
     method: 'POST',
+    signal,
   })
 }
 
@@ -105,8 +106,76 @@ export interface WidgetRead {
   readonly refreshWidgetId?: string
 }
 
-/** One page of a widget: the fetch every widget query (and every prefetch of one) makes. */
-export const fetchWidgetPage = async (read: WidgetRead, { page, perPage }: { page?: number; perPage?: number }): Promise<Widget> => {
+/**
+ * HOW LONG ONE WIDGET READ MAY TAKE before the client gives up on it: 30 s.
+ *
+ * WHY A DEADLINE. A read that never settles (a connection that stalls, a proxy that holds it open)
+ * left the widget on its loading skeleton for good: the fetch had no deadline, so neither an error
+ * nor the calm timeout state (WidgetStates' WidgetTimeout, with Retry) was ever reached.
+ *
+ * WHY 30 s, AND WHAT IT IS NOT. This is NOT a snowplow bound; it is the point at which a read is
+ * "almost certainly hung". snowplow's 10 s budget bounds only the NETWORK part of a read
+ * (pagebudget.PageMaxGoal, snowplow internal/pagebudget/pagebudget.go:35). In-process work (jq, a
+ * single-flight wait behind another request's fill, a cold informer sync) is not cut by it, and the
+ * only hard server cap is the server WriteTimeout of 300 s. Warm first loads measure p95 0.7 s, max
+ * 3.9 s. So 30 s sits well above the 10 s network budget plus warm work, and no read that is
+ * merely slow lands on it. The 057 gateway route sets no timeout of its own, so nothing upstream
+ * ends a hang sooner. snowplow is adding a server-side deadline; when it lands this client value
+ * stays a backstop above it and must be revisited, never made shorter than it.
+ */
+export const WIDGET_READ_DEADLINE_MS = 30_000
+
+/**
+ * The read did not settle within WIDGET_READ_DEADLINE_MS. Carries NO status: none was received, and
+ * inventing a 504 would claim the server said something it did not. isTimeoutError recognises it by
+ * its message ("timed out"), so WidgetRenderer shows the calm timeout state. It is NOT retried
+ * automatically (shouldRetryWidgetFetch): at 30 s a hung read retried 3 times would hold the
+ * skeleton about two minutes. The state's Retry button is how a person tries again.
+ */
+export class WidgetReadTimeoutError extends WidgetFetchError {
+  constructor(deadlineMs: number) {
+    super(`Widget read timed out after ${deadlineMs / 1000} s`)
+    this.name = 'WidgetReadTimeoutError'
+  }
+}
+
+/**
+ * Run `read` under the deadline and the caller's own signal (react-query's: unmount, refetch).
+ *
+ * One AbortController serves both, wired by hand rather than with AbortSignal.any /
+ * AbortSignal.timeout: those are absent from older browsers, and AbortSignal.timeout uses a timer
+ * that fake timers cannot drive. The deadline firing and the caller aborting stay distinguishable:
+ * the first rejects with WidgetReadTimeoutError, the second with the caller's own abort reason, so a
+ * cancel is never reported as a timeout. The race also settles when the transport ignores the
+ * signal, which is the case that hangs.
+ */
+const withDeadline = <T>(run: (signal: AbortSignal) => Promise<T>, outer: AbortSignal | undefined, deadlineMs: number): Promise<T> => {
+  const controller = new AbortController()
+  let cleanup = () => { /* replaced below */ }
+  const ended = new Promise<never>((_resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new WidgetReadTimeoutError(deadlineMs))
+      controller.abort()
+    }, deadlineMs)
+    const onOuterAbort = () => {
+      const reason: unknown = outer?.reason
+      reject(reason instanceof Error ? reason : new DOMException('The read was cancelled', 'AbortError'))
+      controller.abort(reason)
+    }
+    if (outer?.aborted) {
+      onOuterAbort()
+    } else {
+      outer?.addEventListener('abort', onOuterAbort, { once: true })
+    }
+    cleanup = () => {
+      clearTimeout(timer)
+      outer?.removeEventListener('abort', onOuterAbort)
+    }
+  })
+  return Promise.race([run(controller.signal), ended]).finally(cleanup)
+}
+
+const readWidgetPage = async (read: WidgetRead, { page, perPage }: { page?: number; perPage?: number }, signal: AbortSignal): Promise<Widget> => {
   const requestUrl = new URL(read.url)
   if (typeof page === 'number') {
     requestUrl.searchParams.set('page', page.toString())
@@ -119,8 +188,8 @@ export const fetchWidgetPage = async (read: WidgetRead, { page, perPage }: { pag
   }
 
   const res = read.extrasInBody
-    ? await readWithBodyExtras(read.transport.fetch, requestUrl, read.extrasParam)
-    : await read.transport.fetch(requestUrl.toString())
+    ? await readWithBodyExtras(read.transport.fetch, requestUrl, read.extrasParam, signal)
+    : await read.transport.fetch(requestUrl.toString(), { signal })
 
   if (!res.ok) {
     // ONE read of the body, shared by the 401 classification and the thrown detail.
@@ -147,3 +216,14 @@ export const fetchWidgetPage = async (read: WidgetRead, { page, perPage }: { pag
 
   return (await res.json()) as Widget
 }
+
+/**
+ * One page of a widget: the fetch every widget query (and every prefetch of one) makes. `signal` is
+ * react-query's, so leaving the page still cancels the read; the deadline is added here.
+ */
+export const fetchWidgetPage = (
+  read: WidgetRead,
+  params: { page?: number; perPage?: number },
+  signal?: AbortSignal,
+  deadlineMs: number = WIDGET_READ_DEADLINE_MS,
+): Promise<Widget> => withDeadline((combined) => readWidgetPage(read, params, combined), signal, deadlineMs)
