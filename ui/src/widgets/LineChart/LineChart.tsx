@@ -1,15 +1,18 @@
 import { Line } from '@ant-design/plots'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
+import ChartSlotLegend from '../../components/ChartSlotLegend'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useAutoFitChart } from '../../hooks/useAutoFitChart'
 import { getChartCatPalette } from '../../theme/chart-utils'
 import { getColorCode } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
+import { hasTooltipValue } from '../../utils/chartSlots'
 import { formatClock, formatDate, formatFull, formatFullDay } from '../../utils/dateFormat'
 
 import styles from './LineChart.module.css'
 import type { LineChart as WidgetType } from './LineChart.type'
+import { lineSlotLayers } from './lineSlots'
 
 export type LineChartWidgetData = WidgetType['spec']['widgetData']
 
@@ -164,19 +167,28 @@ const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
   const timeScale = xTimeUnit ? { ...scale, x: { type: 'time', ...(scale as { x?: object }).x } } : scale
   const axis = axisWithInk(widgetData.axis)
   const timeAxis = xTimeUnit ? { ...axis, x: { labelFormatter: (value: unknown) => timeTick(value, xTimeUnit), ...axis.x } } : axis
-  const tooltip = xTimeUnit ? { title: (row: Record<string, unknown>) => timeTitle(row[xField], xTimeUnit) } : undefined
+  const timeTooltip = xTimeUnit ? { title: (row: Record<string, unknown>) => timeTitle(row[xField], xTimeUnit) } : undefined
+  // `slotField`: the slots still filling and the slots with no data, drawn as such (lineSlots). Without it the
+  // chart is handed exactly what it was before.
+  const { slotField } = widgetData
+  const slots = slotField
+    ? lineSlotLayers(timedData, { colorField: widgetData.colorField, slotField, titleOf: (x) => (xTimeUnit ? timeTitle(x, xTimeUnit) : x), xField, xTimeUnit, yField: widgetData.yField })
+    : undefined
+  const tooltip = slots?.tooltip ?? timeTooltip
+  const annotations = slots ? [...(timedAnnotations ?? []), ...slots.marks] : timedAnnotations
 
-  return (
+  const chart = (
     <div className={styles.lineChart} ref={boxRef} style={{ height }}>
       {width > 0 && drawIn !== undefined ? (
         <Line
           animate={drawIn ? DRAW_IN : false}
-          annotations={timedAnnotations}
+          annotations={annotations}
           area={widgetData.area ? brandAreaFill() : undefined}
           autoFit
           axis={timeAxis}
           colorField={widgetData.colorField}
-          data={timedData}
+          data={slots?.data ?? timedData}
+          {...(slots ? { interaction: { tooltip: { filter: hasTooltipValue } } } : {})}
           key={uid}
           legend={widgetData.legend === false ? false : centeredLegend()}
           onReady={onReady}
@@ -190,6 +202,14 @@ const LineChart = ({ uid, widgetData }: WidgetProps<LineChartWidgetData>) => {
           yField={widgetData.yField}
         />
       ) : null}
+    </div>
+  )
+  // The legend for the slot marks, under the chart, only when one is drawn: the chart keeps its height.
+  if (!slots || (!slots.legend.partial && !slots.legend.missing)) { return chart }
+  return (
+    <div className={styles.withSlotLegend}>
+      {chart}
+      <ChartSlotLegend keys={slots.legend} />
     </div>
   )
 }

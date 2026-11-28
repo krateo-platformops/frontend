@@ -1,14 +1,17 @@
 import { Column } from '@ant-design/plots'
 
+import ChartSlotLegend from '../../components/ChartSlotLegend'
 import { WidgetEmpty } from '../../components/WidgetStates'
 import { useAutoFitChart } from '../../hooks/useAutoFitChart'
 import { getChartCatPalette } from '../../theme/chart-utils'
 import { getColorCode } from '../../theme/palette'
 import type { WidgetProps } from '../../types/Widget'
+import { hasTooltipValue } from '../../utils/chartSlots'
 import { formatClock, formatDate, formatFull, formatFullDay, formatMoment } from '../../utils/dateFormat'
 
 import styles from './BarChart.module.css'
 import type { BarChart as WidgetType } from './BarChart.type'
+import { barSlotLayers } from './barSlots'
 
 export type BarChartWidgetData = WidgetType['spec']['widgetData']
 
@@ -86,27 +89,51 @@ const BarChart = ({ uid, widgetData }: WidgetProps<BarChartWidgetData>) => {
   const ink = axisInk()
   const labels = xTimeUnit ? barTimeLabels(widgetData.data.map((row) => (row as Record<string, unknown>)[xField]), xTimeUnit) : undefined
   const axis = labels ? { ...ink, x: { ...ink.x, labelFormatter: (value: unknown) => labels.get(Number(value)) ?? value } } : ink
-  const tooltip = xTimeUnit ? { title: (row: Record<string, unknown>) => barTimeTitle(row[xField], xTimeUnit) } : undefined
+  const timeTooltip = xTimeUnit ? { title: (row: Record<string, unknown>) => barTimeTitle(row[xField], xTimeUnit) } : undefined
+  // A measured 0 is a grey hairline, and with `slotField` the bar still filling and the slots with no data are
+  // drawn as such (barSlots).
+  const { slotField } = widgetData
+  const slots = barSlotLayers(widgetData.data, {
+    colorField: widgetData.colorField,
+    slotField,
+    stack: widgetData.stack,
+    titleOf: (x) => (xTimeUnit ? barTimeTitle(x, xTimeUnit) : x),
+    xField,
+    xTimeUnit,
+    yField: widgetData.yField,
+  })
+  const tooltip = slots.tooltip ?? timeTooltip
 
-  return (
+  const chart = (
     <div className={styles.chart} ref={ref}>
       <Column
+        {...(slots.marks.length ? { annotations: slots.marks } : {})}
         autoFit
         axis={axis}
         colorField={widgetData.colorField}
-        data={widgetData.data}
+        data={slots.data}
         group={widgetData.group}
         height={widgetData.height}
+        {...(slotField ? { interaction: { tooltip: { filter: hasTooltipValue } } } : {})}
         key={uid}
         legend={widgetData.legend === false ? false : inkLegend()}
         onReady={onReady}
         scale={{ color: { range: getChartCatPalette() } }}
         stack={widgetData.stack}
+        style={slots.style}
         title={widgetData.title}
         {...(tooltip ? { tooltip } : {})}
         xField={widgetData.xField}
         yField={widgetData.yField}
       />
+    </div>
+  )
+  // The legend for the slot marks, under the chart, only when one is drawn.
+  if (!slots.legend.partial && !slots.legend.missing) { return chart }
+  return (
+    <div className={styles.withSlotLegend}>
+      {chart}
+      <ChartSlotLegend keys={slots.legend} />
     </div>
   )
 }
