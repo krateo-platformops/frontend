@@ -99,7 +99,7 @@ export const runRestOps = async (
   }
 
   // runRestSet owns the gate, dispatch, set toast, provenance and cache re-invalidation.
-  const results = await runRestSet(writeOps, ctx, runtime.origin)
+  const results = await runRestSet(writeOps, ctx, runtime.origin, { confirmation: action.confirmation })
   if (!results || !results.every((result) => result.ok)) {
     return
   }

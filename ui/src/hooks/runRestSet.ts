@@ -21,6 +21,7 @@
  */
 
 import { buildBlastRadiusSet, parseTargetFromPath, type WriteOp } from '../components/BlastRadius/buildBlastRadius'
+import type { RestActionConfirmation } from '../types/Widget'
 import { redactSecretValues } from '../utils/secretFields'
 import { countNoun } from '../utils/utils'
 
@@ -38,6 +39,12 @@ export type { WriteOp }
  * it only tells the caller WHEN the gate was passed.
  */
 export interface SetDispatchOptions {
+  /**
+   * The rest action's own words for the set's ONE confirm (actions.schema.json `confirmation`):
+   * title, message, Alert and OK label, with the ordered op list folded under "What will be sent".
+   * It relaxes nothing; absent, the confirm reads as it always has.
+   */
+  confirmation?: RestActionConfirmation
   /**
    * Called ONCE, the moment the set is past the gate — the person confirmed the blast radius (or
    * the set is sandbox-confined and no confirm interposes) — and BEFORE the first op is sent. Never
@@ -152,7 +159,7 @@ export const runRestSet = async (ops: readonly WriteOp[], ctx: RunRestSetContext
   const radius = buildBlastRadiusSet(ops)
   const sandboxConfined = options?.skipConfirmForSandbox !== undefined
     && isSetConfinedToNamespace(ops, options.skipConfirmForSandbox)
-  if (!sandboxConfined && !(await ctx.confirm(radius))) {
+  if (!sandboxConfined && !(await ctx.confirm(radius, options?.confirmation))) {
     ctx.setLoading(false)
 
     return null

@@ -83,6 +83,9 @@ type OpenModalAction = NonNullable<WidgetActions['openModal']>[number]
 
 export type WidgetAction = RestAction | NavigateAction | OpenDrawerAction | OpenModalAction
 
+/** A rest action's own words for the write confirmation (actions.schema.json `confirmation`). */
+export type RestActionConfirmation = NonNullable<RestAction['confirmation']>
+
 /**
  * Classic server-side pager controls, produced by `useWidgetQuery` for widgets
  * for which a bounded window is in play — declared by the chart as
