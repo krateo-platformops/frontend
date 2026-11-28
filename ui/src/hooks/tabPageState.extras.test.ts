@@ -6,11 +6,15 @@
  */
 import { describe, expect, it } from 'vitest'
 
+import { stubViewerTimeZone } from './stubViewerTimeZone.testutil'
 import { buildExtrasParam } from './useWidgetQuery'
 
 const query = (qs: string) => new URLSearchParams(qs)
 
 describe('tab is page state, left out of widget extras', () => {
+  // Pins the envelope without the ambient viewer time zone, which has its own tests.
+  stubViewerTimeZone(undefined)
+
   it('drops ?tab and keeps every other query key, in order', () => {
     expect(buildExtrasParam(query('range=24h&tab=Telemetry&latencyBy=controller'), {}, undefined, undefined, false))
       .toBe('{"range":"24h","latencyBy":"controller"}')

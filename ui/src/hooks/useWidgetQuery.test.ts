@@ -520,8 +520,8 @@ describe('buildExtrasParam — the viewer time zone is ambient viewer context, l
         .toBe('{"displayName":"Diego","username":"diego.braga","tz":"America/New_York"}')
     })
 
-    it('is not sent when snowplow injects the viewer context server-side (injectIdentity=false)', () => {
-      expect(buildExtrasParam(sp(''), {}, 'Diego', 'diego.braga', false)).toBe('')
+    it('is sent when snowplow injects the identity server-side (injectIdentity=false): it cannot know the browser zone', () => {
+      expect(buildExtrasParam(sp('q=foo'), {}, 'Diego', 'diego.braga', false)).toBe('{"q":"foo","tz":"Europe/Rome"}')
     })
   })
 

@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildExportRequest } from '../widgets/Table/tableExport'
 import { runExport } from '../widgets/Table/tableExportRun'
 
+import { stubViewerTimeZone } from './stubViewerTimeZone.testutil'
 import { useWidgetQuery } from './useWidgetQuery'
 
 // A base URL WITH a path: the export route sits under the snowplow base, as `/call` does.
@@ -61,6 +62,9 @@ const captureExport = () => {
 }
 
 describe('a Table export goes to snowplow POST /export', () => {
+  // Pins the exported extras without the ambient viewer time zone, which has its own tests.
+  stubViewerTimeZone(undefined)
+
   it('posts to /export under the snowplow base, with the widget\'s params and the export query, extras in the body', async () => {
     // `?q=nginx` on the page is what a search box leaves; it reaches the widget's extras.
     const { result } = renderHook(() => useWidgetQuery(TABLE_ENDPOINT), { wrapper: harness('/pods?q=nginx') })
