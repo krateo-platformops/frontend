@@ -174,6 +174,12 @@ carry W3C `traceparent` to snowplow — which emits its own Server span. So one 
 interaction → fetch → server, and an interaction that took 2.4s can be attributed rather than
 merely observed.
 
+A `krateo.widget.fetch` span for a widget read also names the widget: `krateo.widget.resource` (the
+plural, e.g. `tables`), `krateo.widget.namespace`, `krateo.widget.name` — the widget CR's own
+coordinates, from its `/call` endpoint (`ui/src/otel/widgetIdentity.ts`). No caller identity, extras or
+token. The widget's `spec.apiRef` is not known when the request is made, so it is not an attribute;
+snowplow resolves it from the widget namespace/name. snowplow's ingest must allowlist these keys.
+
 ## The counted span: `krateo.agentiko.claim.unbacked`
 
 Outside the SLI. One span per reply in which Agentiko claims an action its turn did not back,

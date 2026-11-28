@@ -11,6 +11,7 @@
  * It imports nothing that can reach the token: the transport in hand carries the credential, if any
  * (transport/widgetTransport.ts, tokenReach.test.ts).
  */
+import { widgetIdentityOfUrl, withWidgetIdentity } from '../otel/widgetIdentity'
 import type { TransportFetch, WidgetTransport } from '../transport/widgetTransport'
 import type { Widget } from '../types/Widget'
 
@@ -118,9 +119,11 @@ export const fetchWidgetPage = async (read: WidgetRead, { page, perPage }: { pag
     requestUrl.searchParams.set('extras', read.extrasParam)
   }
 
-  const res = read.extrasInBody
-    ? await readWithBodyExtras(read.transport.fetch, requestUrl, read.extrasParam)
-    : await read.transport.fetch(requestUrl.toString())
+  // The span this request becomes (`krateo.widget.fetch`) names the widget it reads — its resource,
+  // namespace and name, never the caller (otel/widgetIdentity.ts). A no-op when telemetry is off.
+  const res = await withWidgetIdentity(widgetIdentityOfUrl(requestUrl), () => (read.extrasInBody
+    ? readWithBodyExtras(read.transport.fetch, requestUrl, read.extrasParam)
+    : read.transport.fetch(requestUrl.toString())))
 
   if (!res.ok) {
     // ONE read of the body, shared by the 401 classification and the thrown detail.

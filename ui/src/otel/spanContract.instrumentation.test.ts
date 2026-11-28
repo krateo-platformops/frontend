@@ -17,6 +17,7 @@
  * the only version of this test that could have caught it. If a future bump renames spans again,
  * this fails.
  */
+import { ROOT_CONTEXT } from '@opentelemetry/api'
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch'
 import { ATTR_HTTP_REQUEST_METHOD, ATTR_HTTP_RESPONSE_STATUS_CODE, ATTR_URL_FULL } from '@opentelemetry/semantic-conventions'
 import { describe, expect, it, vi } from 'vitest'
@@ -65,6 +66,7 @@ const startableFrom = ({ attributes, name }: Captured) => {
   return {
     attributes,
     get name() { return current },
+    setAttributes(extra: Record<string, unknown>) { Object.assign(attributes, extra); return this },
     updateName(next: string) { current = next; return this },
   }
 }
@@ -132,7 +134,7 @@ describe('ContractSpanProcessor renames a REAL instrumentation span', () => {
     const { onEnd, processor } = harness()
     const span = startableFrom(captured)
 
-    processor.onStart(span as never, {} as never)
+    processor.onStart(span as never, ROOT_CONTEXT)
     expect(span.name).toBe(SPAN_NAMES.widgetFetch)
 
     // Ended as a request that got its answer: the status code and the (empty) events and status every

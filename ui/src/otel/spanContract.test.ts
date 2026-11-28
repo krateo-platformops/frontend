@@ -11,6 +11,7 @@
  * allowlist, and a span that should have been dropped costs ingestion budget a real one needed.
  * Either way the browser sees a 2xx and nothing arrives.
  */
+import { ROOT_CONTEXT } from '@opentelemetry/api'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ATTR_ABANDONED, ATTR_ROUTE, ContractSpanProcessor, COUNTED_SPAN_NAMES, redactUrlAttributes, SPAN_NAMES } from './spanContract'
@@ -33,6 +34,7 @@ const startable = (name: string, attributes: Record<string, unknown> = {}) => {
   return {
     attributes,
     get name() { return current },
+    setAttributes(extra: Record<string, unknown>) { Object.assign(attributes, extra); return this },
     updateName(next: string) { current = next; return this },
   }
 }
@@ -82,7 +84,7 @@ describe('auto-instrumented fetch spans are RENAMED, and renamed at START', () =
   it('renames a fetch span to krateo.widget.fetch', () => {
     const { processor } = harness()
     const span = autoFetchSpan('GET')
-    processor.onStart(span as never, {} as never)
+    processor.onStart(span as never, ROOT_CONTEXT)
     expect(span.name).toBe(SPAN_NAMES.widgetFetch)
   })
 
@@ -90,7 +92,7 @@ describe('auto-instrumented fetch spans are RENAMED, and renamed at START', () =
     const { processor } = harness()
     for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']) {
       const span = autoFetchSpan(method)
-      processor.onStart(span as never, {} as never)
+      processor.onStart(span as never, ROOT_CONTEXT)
       expect(span.name).toBe(SPAN_NAMES.widgetFetch)
     }
   })
@@ -100,14 +102,14 @@ describe('auto-instrumented fetch spans are RENAMED, and renamed at START', () =
     // what broke on the 0.223 bump — so it must not be rehabilitated by accident.
     const { processor } = harness()
     const span = startable('HTTP GET')
-    processor.onStart(span as never, {} as never)
+    processor.onStart(span as never, ROOT_CONTEXT)
     expect(span.name).toBe('HTTP GET')
   })
 
   it('leaves a contract span alone', () => {
     const { processor } = harness()
     const span = startable(SPAN_NAMES.formSubmit)
-    processor.onStart(span as never, {} as never)
+    processor.onStart(span as never, ROOT_CONTEXT)
     expect(span.name).toBe(SPAN_NAMES.formSubmit)
   })
 
@@ -115,15 +117,15 @@ describe('auto-instrumented fetch spans are RENAMED, and renamed at START', () =
     const { processor } = harness()
     for (const name of ['HTTP', 'HTTP get', 'http GET', 'HTTP GET /pods']) {
       const span = startable(name)
-      processor.onStart(span as never, {} as never)
+      processor.onStart(span as never, ROOT_CONTEXT)
       expect(span.name).toBe(name)
     }
   })
 
   it('always forwards onStart, renamed or not — the inner processor must still see every span', () => {
     const { inner, processor } = harness()
-    processor.onStart(startable('HTTP GET') as never, {} as never)
-    processor.onStart(startable('something.else') as never, {} as never)
+    processor.onStart(startable('HTTP GET') as never, ROOT_CONTEXT)
+    processor.onStart(startable('something.else') as never, ROOT_CONTEXT)
     expect(inner.onStart).toHaveBeenCalledTimes(2)
   })
 })
