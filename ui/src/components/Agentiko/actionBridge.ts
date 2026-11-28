@@ -10,9 +10,10 @@
  * control's own confirm).
  *
  * Proposals reach the bridge two ways, both produced by the orchestrator:
- *   - a `propose_portal_action` tool_call frame (the transport surfaces it), or
+ *   - a portal tool call: a tool named for the verb, acknowledged by the agentiko-portal
+ *     MCP server (portalTools.ts), or
  *   - a fenced ```portal-action {json}``` block in the assistant text (parsed +
- *     stripped here). The fenced channel needs only a system-prompt addition.
+ *     stripped here), the fallback for a prompt without the portal tools.
  */
 
 import { useQueryClient } from '@tanstack/react-query'
@@ -412,7 +413,7 @@ export const sanitizeChatText = (text: string): string => {
 /**
  * WHICH of a reply's proposals actually run.
  *
- * At most ONE action per reply is enforced here rather than merely requested in the prompt: a model
+ * At most ONE action per reply (plus one form fill after it) is enforced here rather than merely requested in the prompt: a model
  * that emits two navigates — or a duplicated tool_call alongside a fenced block — would otherwise
  * run them in sequence, flashing the page A then B while only the last chip's label matches what
  * the reader ends up looking at.
@@ -460,7 +461,14 @@ export const selectProposalsToRun = (
   const ordered = [...toolProposals, ...textProposals]
   const composeRun = ordered.filter((candidate) => isComposeVerb(candidate.verb))
   if (!composeRun.length) {
-    return ordered.slice(0, 1)
+    const [first, ...rest] = ordered
+    if (!first) {
+      return []
+    }
+    // A form fill moves no page, so one may follow the reply's action: "open the alert form and fill it"
+    // is one reply. The Form applies a draft set before it mounts when it mounts.
+    const fill = first.verb === 'prefillForm' ? undefined : rest.find((candidate) => candidate.verb === 'prefillForm')
+    return fill ? [first, fill] : [first]
   }
   let lastControllerEdit = -1
   ordered.forEach((candidate, index) => {

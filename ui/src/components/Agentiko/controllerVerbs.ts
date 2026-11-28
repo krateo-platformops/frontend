@@ -462,14 +462,16 @@ const setExcludedVerb = (proposal: PortalActionProposal): AgentikoActionChip => 
   return writePlan(verb, tried, plan, `${kind.kind} spec leaves out: ${listed(wanted)}`)
 }
 
-/** controllerSetItemsPath {kind, itemsPath | null} — name the findby envelope's collection (`.data`), or clear it. */
+/** controllerSetItemsPath {kind, itemsPath} — name the findby envelope's collection (`.data`), or clear it
+ *  with `""` (the portal tool's form, whose schema has no null) or null. */
 const setItemsPathVerb = (proposal: PortalActionProposal): AgentikoActionChip => {
   const verb = 'controllerSetItemsPath'
-  const itemsPath = proposal.itemsPath === null ? null : str(proposal.itemsPath)
-  const tried = `set ${String(proposal.kind)} findby itemsPath to ${itemsPath ?? 'nothing'}`
-  if (itemsPath === '') {
-    return refuse(verb, tried, 'name the envelope property holding the collection (itemsPath: ".data"), or itemsPath: null to clear it')
+  const raw = proposal.itemsPath
+  if (raw !== null && typeof raw !== 'string') {
+    return refuse(verb, `set ${String(proposal.kind)} findby itemsPath`, 'name the envelope property holding the collection (itemsPath: ".data"), or itemsPath: "" to clear it')
   }
+  const itemsPath = raw === null || raw.trim() === '' ? null : raw.trim()
+  const tried = `set ${String(proposal.kind)} findby itemsPath to ${itemsPath ?? 'nothing'}`
   const held = heldController(verb)
   if (typeof held === 'string') { return refuse(verb, tried, held) }
   const kind = kindNamed(held.model, proposal.kind)

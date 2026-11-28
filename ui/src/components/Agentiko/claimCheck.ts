@@ -483,10 +483,10 @@ const VERB_HINT: Record<ClaimFamily, string> = {
  * disagree, and asked either to emit the action or to say plainly it was not done.
  */
 export const claimRetryNudge = (claims: readonly UnbackedClaim[]): string => {
-  const lines = claims.map((claim) => `- you wrote "${claim.phrase}", but no ${VERB_HINT[claim.family]} portal-action directive arrived, so nothing happened in the portal`)
+  const lines = claims.map((claim) => `- you wrote "${claim.phrase}", but no ${VERB_HINT[claim.family]} call reached the portal, so nothing happened there`)
   return [
-    'Your previous reply described an action as DONE, but the portal received no directive for it:',
+    'Your previous reply described an action as DONE, but the portal received no call for it:',
     ...lines,
-    'Emit the fenced portal-action block for that step NOW, in this reply. If you cannot, say plainly that it was NOT done — do not describe it as done again.',
+    'Make that portal call NOW, in this turn (a portal tool call; without portal tools, a fenced portal-action block). If you cannot, say plainly that it was NOT done — do not describe it as done again.',
   ].join('\n')
 }
