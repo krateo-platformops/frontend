@@ -97,7 +97,8 @@ const Alert = ({ uid, widgetData }: WidgetProps<AlertWidgetData>) => {
   const body = hasRows || details
     ? (
       <>
-        {description}
+        {/* An element, so the CSS `:not(:first-child)` gap below it sees the description (a bare text node is not a child). */}
+        {description && <div>{description}</div>}
         {hasRows && <Rows fold={rowsFold} mono={rowsMonospace} rows={rows} />}
         {details && <Details text={details} />}
       </>

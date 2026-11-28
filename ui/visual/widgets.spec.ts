@@ -17,7 +17,7 @@ import { expect, test } from '@playwright/test'
  * pick the representative ones. Edge cases are what the unit tests are for.
  */
 const CASES: Record<string, number[]> = {
-  Alert: [0, 1],
+  Alert: [0, 1, 2, 3, 4],
   Badge: [0, 1],
   Breadcrumb: [0],
   Button: [1, 2, 3, 34],
