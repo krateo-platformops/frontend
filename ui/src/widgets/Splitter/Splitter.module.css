@@ -1,0 +1,37 @@
+.splitter {
+  min-height: 0;
+}
+
+/* antd draws only a 20px grip on the bar, so two panels read as one area with a seam you have to
+   find. The bar takes a hairline in the border tone along its length, the divider every other
+   container uses; antd's hover and drag tints still paint over it. */
+.dragger {
+  background: linear-gradient(var(--border-color), var(--border-color)) center / 1px 100% no-repeat;
+}
+
+.vertical .dragger {
+  background-size: 100% 1px;
+}
+
+/* Content stops short of the bar on the side it shares with one, never on the splitter's outer
+   edge, so a panel's content lines up with the page beside it. The inset is on the body, not the
+   panel: a folded panel is 0 wide, and padding on it would leave a strip. */
+.panel:not(:first-child) > .body {
+  padding-inline-start: var(--spacing-smd);
+}
+
+.panel:not(:last-child) > .body {
+  padding-inline-end: var(--spacing-smd);
+}
+
+.vertical .panel > .body {
+  padding-inline: 0;
+}
+
+.vertical .panel:not(:first-child) > .body {
+  padding-block-start: var(--spacing-smd);
+}
+
+.vertical .panel:not(:last-child) > .body {
+  padding-block-end: var(--spacing-smd);
+}

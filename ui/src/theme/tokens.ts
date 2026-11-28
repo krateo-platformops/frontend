@@ -545,11 +545,7 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // ink 5.26:1, so dark flips to the ink. The hover and pressed fills are set on the theme tokens
   // below; tokens.contrast.test.ts pins every state.
   Button: { borderRadius: radius.md, controlHeight: 32, fontWeight: typography.weight.bold, primaryShadow: 'none', ...(mode === 'dark' ? { colorTextLightSolid: palette.panelbg } : {}) },
-  Card: {
-    borderRadiusLG: radius.lg,
-    boxShadowTertiary: mode === 'dark' ? elevationDark.sm : elevation.sm,
-    paddingLG: 14,
-  },
+  Card: { borderRadiusLG: radius.lg, boxShadowTertiary: mode === 'dark' ? elevationDark.sm : elevation.sm, paddingLG: 14 },
   // T2 form controls. The compactAlgorithm derives controlHeight 28, controlHeightLG 35 and
   // controlHeightSM 21 from our 32; Input/Select/DatePicker/Button restore 32 explicitly, and the
   // controls below did not, so they sat 4px short of their neighbours or landed on fractional px.
@@ -604,9 +600,20 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // Result's title was 20px, a size the one type scale does not have (T3). Nearest role: h3 (22).
   // Reaches every Result: Page404, Auth, the widget error states, empty builders.
   Result: { extraMargin: `${spacing.md}px 0 0 0`, subtitleFontSize: textPx('caption'), titleFontSize: textPx('h3') },
+  // T2: the form-control rule. compactAlgorithm makes controlHeight 28, so a Segmented beside a
+  // Select or a Button in a toolbar sat 4px short; restored to 32 as they are. The track's inset
+  // restates antd's own 2 (lineWidthBold) on the scale, so it is ours to move. antd paints the track
+  // `colorBgLayout`, the page's own background, so on a page the segments read as loose text; the
+  // track takes the table header's tint, which stands off both the page and a card, in both modes.
+  // In dark antd's selected segment is colorBgElevated, the same violet-black as that track, so the
+  // choice vanished; it takes the border tone, one step up, as the Table's rules do.
+  Segmented: { controlHeight: 32, trackBg: palette.lightgray, trackPadding: spacing.xxs, ...(mode === 'dark' ? { itemSelectedBg: palette.border } : {}) },
   Select: { borderRadius: radius.md, controlHeight: 32 },
   // Was 8.75 / 10.5 (controlHeightLG / 4, controlHeightSM / 2). Whole pixels, antd's own pair.
   Slider: { controlSize: 10, handleSize: 10, handleSizeHover: 12 },
+  // T2: the bar's grip and hit area on the scale, a little larger than antd's (24 on 8, was 20 on 6),
+  // and in the border tone: antd's translucent colorFill grip vanished on a card in both modes.
+  Splitter: { colorFill: palette.border, splitBarDraggableSize: spacing.lg, splitTriggerSize: spacing.sm },
   Statistic: { contentFontSize: 31, titleFontSize: 13 },
   // WCAG AA, the Button's rule: the current step's number is `colorTextLightSolid` on the painted
   // primary. In dark antd paints the primary #A86BDC (its dark algorithm moves the #C27AFF seed),
@@ -631,6 +638,11 @@ const buildComponents = (palette: Record<keyof typeof color, string>, mode: Them
   // taking the same border token Table's `borderColor` already takes means the rail reads as the
   // same divider as every other one, in both modes, instead of a second kind of hairline.
   Timeline: { itemPaddingBottom: spacing.md, tailColor: palette.border },
+  // T2: Tree row height. antd derives `titleHeight` from controlHeightSM, which compactAlgorithm
+  // turns into 21 — off the spacing scale, and the node's icon and switcher are sized from it too.
+  // Pinned to lg (24, antd's own uncompacted value). Reaches every antd Tree: the Tree widget and
+  // the Page Builder's object tree, whose rows were the same 21.
+  Tree: { titleHeight: spacing.lg },
   // T3: antd's headings were all off the one type scale (compacted: 32/26/20/16/14). A page title
   // rendered at 32px from PageHeader or `level: 1`, and at 26px from a strong Paragraph — one role,
   // two sizes, neither on the scale. One role, one size: a page title is h2 (30), and the lower

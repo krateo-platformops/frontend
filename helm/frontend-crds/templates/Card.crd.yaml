@@ -197,8 +197,10 @@ spec:
                           - routes
                           - routesloaders
                           - rows
+                          - segmenteds
                           - selects
                           - sliders
+                          - splitters
                           - statistics
                           - steps
                           - switches
@@ -207,6 +209,7 @@ spec:
                           - tabs
                           - tags
                           - timelines
+                          - trees
                           - uploads
                           - yamlviewers
                       type: array
