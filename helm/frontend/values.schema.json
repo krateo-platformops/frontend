@@ -55,7 +55,7 @@
     "nameOverride": {
       "type": "string",
       "title": "Name override",
-      "default": ""
+      "default": "frontend"
     },
     "fullnameOverride": {
       "type": "string",
@@ -231,7 +231,15 @@
     "resources": {
       "type": "object",
       "title": "Resources",
-      "default": {}
+      "default": {
+        "requests": {
+          "cpu": "50m",
+          "memory": "64Mi"
+        },
+        "limits": {
+          "memory": "256Mi"
+        }
+      }
     },
     "livenessProbe": {
       "type": "object",
@@ -311,7 +319,10 @@
         "httpGet": {
           "path": "/",
           "port": "http"
-        }
+        },
+        "timeoutSeconds": 5,
+        "periodSeconds": 10,
+        "failureThreshold": 6
       }
     },
     "readinessProbe": {
@@ -392,7 +403,10 @@
         "httpGet": {
           "path": "/",
           "port": "http"
-        }
+        },
+        "timeoutSeconds": 5,
+        "periodSeconds": 10,
+        "failureThreshold": 3
       }
     },
     "autoscaling": {
@@ -744,31 +758,6 @@
           "title": "Agentiko Rail Badge",
           "description": "Optional label shown as a tag in the Agentiko rail header (e.g. Staging, Preview). While it is set, the header's live/streaming pill is hidden. Unset, empty or blank: no label, and the rail is unchanged."
         }
-      },
-      "default": {
-        "SNOWPLOW_API_BASE_URL": "http://localhost:8081",
-        "AUTHN_API_BASE_URL": "http://localhost:8082",
-        "EVENTS_PUSH_API_BASE_URL": "http://localhost:8083",
-        "EVENTS_API_BASE_URL": "http://localhost:8083",
-        "AUTOPILOT_AVAILABLE": "",
-        "INIT": "/call?resource=layouts&apiVersion=widgets.templates.krateo.io/v1beta1&name=app-shell&namespace=krateo-system",
-        "NAV": "/call?resource=menus&apiVersion=widgets.templates.krateo.io/v1beta1&name=sidebar-nav&namespace=krateo-system",
-        "OTEL_COLLECTOR_URL": "",
-        "SNOWPLOW_IDENTITY_INJECTION": "",
-        "PROVENANCE_ENABLED": "true",
-        "PREVIEW_SANDBOX_NAMESPACE": "",
-        "AUTOPILOT_PAGE_BUILDER_REPO": "krateo-platformops/portal",
-        "AUTOPILOT_PAGE_BUILDER_TEMPLATE": "krateo-blueprints/builder-scaffold",
-        "AUTOPILOT_BLUEPRINT_BUILDER_TEMPLATE": "krateo-blueprints/builder-scaffold",
-        "AUTOPILOT_BLUEPRINT_BUILDER_REPO": "krateo-blueprints/<chart>",
-        "AUTOPILOT_KOG_BUILDER_REPO": "krateo-platformops/krateo-oas",
-        "AUTOPILOT_GIT_SCM": "github",
-        "AUTOPILOT_GIT_HOST": "github.com",
-        "AUTOPILOT_VOICE_SPEAK_BACK": "on",
-        "AUTOPILOT_VOICE_TRANSCRIBE_URL": "",
-        "AUTOPILOT_VOICE_MODEL": "gemini-3.8-flash",
-        "AUTOPILOT_VOICE_TTS_URL": "",
-        "AUTOPILOT_VOICE_NAME": "en-US-Chirp3-HD-Achernar"
       }
     },
     "env": {
@@ -777,8 +766,7 @@
       "description": "Free-form extra environment variables for the frontend container.",
       "additionalProperties": {
         "type": "string"
-      },
-      "default": {}
+      }
     },
     "global": {
       "type": "object",

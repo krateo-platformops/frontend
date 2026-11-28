@@ -137,7 +137,10 @@ for key, description in OPTIONAL.items():
     properties[key] = {"type": "string", "title": title_for(key), "description": description}
 
 schema["properties"]["config"]["properties"] = properties
-schema["properties"]["config"]["default"] = {key: value for key, value in config.items() if key not in NO_DEFAULT}
+# No default on the `config` object itself: it would have to omit the NO_DEFAULT keys while values.yaml
+# sets them, so schema and values.yaml would disagree (core-provider flags that, SchemaDefaultsMatchValues).
+# Each key carries its own default above; an absent `config` falls through to values.yaml at render.
+schema["properties"]["config"].pop("default", None)
 
 # The login-screen branding block: top-level `login`, rendered by templates/configmap.yaml as the
 # "login" object of config.json (beside "api" and "params"), which the SPA reads as `config.login`

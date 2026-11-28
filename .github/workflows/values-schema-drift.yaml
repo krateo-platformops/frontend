@@ -25,3 +25,10 @@ jobs:
           python3 scripts/gen-config-schema.py
           git diff --exit-code helm/frontend/values.schema.json \
             || { echo "::error::helm/frontend/values.schema.json config drifted from helm/frontend/values.yaml — run 'python3 scripts/gen-config-schema.py' and commit"; exit 1; }
+      # core-provider rewrites an installed blueprint's CRD defaults from values.yaml wherever a schema
+      # default disagrees (condition SchemaDefaultsMatchValues=False), so every schema default in every
+      # helm/*/ chart must equal its values.yaml value. A key with no default is always fine.
+      - name: Assert every schema default equals its values.yaml value
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 scripts/lint-schema-defaults.py
